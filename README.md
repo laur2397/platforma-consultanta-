@@ -30,7 +30,7 @@ După activarea GitHub Pages (vezi mai jos), site-ul e disponibil la:
 ├── icons/                      # Iconițe PWA + favicon
 ├── manifest.webmanifest        # Manifest PWA (instalare pe dispozitiv)
 ├── sw.js                       # Service worker (funcționare offline)
-└── .github/workflows/deploy.yml # Deploy automat pe GitHub Pages
+└── .nojekyll                   # Servește fișierele ca atare (fără procesare Jekyll)
 ```
 
 Codul a fost separat pe responsabilități pornind de la fișierul monolitic original:
@@ -49,13 +49,15 @@ Poți oricând **exporta** stratul curent din **Administrare → Export date (JS
 
 ---
 
-## 🚀 Activarea GitHub Pages (o singură dată)
+## 🚀 Activarea GitHub Pages (o singură dată, ~30 secunde)
 
-1. Fă merge la acest branch în `main` (prin Pull Request).
-2. În repo: **Settings → Pages → Build and deployment → Source: „GitHub Actions”.**
-3. Gata. La fiecare push pe `main`, workflow-ul `Deploy site pe GitHub Pages` publică automat site-ul. Îl poți rula și manual din tab-ul **Actions**.
+1. Deschide **Settings → Pages** în repo.
+2. La **Build and deployment → Source**, alege **„Deploy from a branch”**.
+3. La **Branch**, alege **`main`** și folderul **`/ (root)`**, apoi **Save**.
+4. Așteaptă ~1 minut. Site-ul devine live la:
+   **https://laur2397.github.io/platforma-consultanta-/**
 
-> Workflow-ul încearcă să activeze Pages automat la prima rulare. Dacă apare o eroare de permisiuni, setează manual sursa pe „GitHub Actions” ca la pasul 2.
+După activare, **orice push pe `main` republică automat** site-ul — nu mai ai nimic de făcut.
 
 ---
 
