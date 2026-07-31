@@ -1,0 +1,15 @@
+# Sistem / editor
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+
+# Dependențe / build (dacă vor apărea în viitor)
+node_modules/
+dist/
+.cache/
+
+# Fișiere temporare
+*.tmp
+*~
