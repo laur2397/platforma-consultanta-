@@ -1651,7 +1651,7 @@ window.__reboot=function(){ MATCH=null; IX=null; render(); };
    salvează în cod / pe GitHub. La închiderea tabului dispar.
    ============================================================ */
 window.ONRC = window.ONRC || { c:{} };
-const ONRC_FIELDS={den:0,cui:1,cod:2,data:3,forma:4,loc:5,adr:6,stare:7,web:8,caen:9,rep:10,coduri:11,euid:12,postal:13};
+const ONRC_FIELDS={den:0,cui:1,cod:2,data:3,forma:4,loc:5,adr:6,stare:7,web:8,caen:9,rep:10,coduri:11,euid:12,postal:13,tel:18,fax:19,caenAnaf:21,fiscal:22};
 const ONRC_STLBL={0:["onrc-0","necunoscut"],1:["onrc-1","ACTIV"],2:["onrc-2","RISC"],3:["onrc-3","INACTIV"]};
 const ONRC_CAENVER={"0":"rev1","1":"rev1.1","2":"rev2","3":"rev3"};
 const ONRC_REG={"cluj":"Nord-Vest","iasi":"Nord-Est","iaşi":"Nord-Est","ilfov":"București-Ilfov"};
@@ -1709,6 +1709,7 @@ function onrcSearch(flt){ const CAP=300; const rows=[]; let total=0;
       if(flt.stare==="inactiv" && st!==3) continue;
       if(flt.stare==="activrisc" && !(st===1||st===2)) continue;
       if(forma && F[ONRC_FIELDS.forma]!==forma) continue;
+      if(flt.telOnly && !F[ONRC_FIELDS.tel]) continue;
       if(q){ const hay=onrcNorm(F[ONRC_FIELDS.den])+" "+String(F[ONRC_FIELDS.cui]||""); if(!hay.includes(q)) continue; }
       if(caen){ if(!onrcCaenList(F).some(c=>c.indexOf(caen)===0)) continue; }
       if(locq){ const ln=onrcNorm(loc[F[ONRC_FIELDS.loc]]||""); if(!ln.includes(locq)) continue; }
@@ -1746,6 +1747,7 @@ function vProspect(){
     +'<input type="text" id="onrcCaen" placeholder="CAEN (ex. 6201)" style="max-width:130px">'
     +'<input type="text" id="onrcLoc" placeholder="Localitate…" style="max-width:150px">'
     +'<select id="onrcForma"><option value="">Orice formă</option>'+["SRL","PFA","PF","II","SA","IF","SNC","SCS"].map(f=>'<option value="'+f+'">'+f+'</option>').join("")+'</select>'
+    +'<label style="font-size:12.5px;color:var(--ink2);display:inline-flex;align-items:center;gap:5px"><input type="checkbox" id="onrcTel"> doar cu telefon</label>'
     +'<button class="btn small primary" id="onrcGo">Caută</button>'
     +'</div>';
   h+='<div id="onrcResults"></div>';
@@ -1755,23 +1757,25 @@ window.after_prospect=function(){
   const fi=document.getElementById("onrcFiles"); if(fi) fi.onchange=e=>onrcLoadFiles(e.target.files);
   const go=document.getElementById("onrcGo"); if(go) go.onclick=onrcRenderResults;
   ["onrcQ","onrcCaen","onrcLoc"].forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener("keydown",e=>{ if(e.key==="Enter") onrcRenderResults(); }); });
-  ["onrcCounty","onrcStare","onrcForma"].forEach(id=>{ const el=document.getElementById(id); if(el) el.onchange=onrcRenderResults; });
+  ["onrcCounty","onrcStare","onrcForma","onrcTel"].forEach(id=>{ const el=document.getElementById(id); if(el) el.onchange=onrcRenderResults; });
   if(Object.keys(ONRC.c).length) onrcRenderResults();
 };
 function onrcRenderResults(){
   const box=document.getElementById("onrcResults"); if(!box) return;
   const val=id=>{ const el=document.getElementById(id); return el?el.value:""; };
-  const flt={ q:val("onrcQ"), county:val("onrcCounty"), stare:val("onrcStare")||"activ", caen:val("onrcCaen"), loc:val("onrcLoc"), forma:val("onrcForma") };
+  const telEl=document.getElementById("onrcTel");
+  const flt={ q:val("onrcQ"), county:val("onrcCounty"), stare:val("onrcStare")||"activ", caen:val("onrcCaen"), loc:val("onrcLoc"), forma:val("onrcForma"), telOnly:telEl?telEl.checked:false };
   const res=onrcSearch(flt);
   if(!res.total){ box.innerHTML='<div class="empty">Niciun rezultat pentru filtrele curente.</div>'; return; }
   let h='<div class="onrcmeta">'+res.total.toLocaleString("ro-RO")+' firme găsite'+(res.capped?' — afișez primele '+res.cap:'')+'. Click pe un rând pentru fișă completă.</div>';
-  h+='<div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr><th>Denumire</th><th>CUI</th><th>Formă</th><th>Localitate</th><th>Stare</th><th>CAEN principal</th><th>Administrator</th></tr></thead><tbody>';
+  h+='<div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr><th>Denumire</th><th>CUI</th><th>Formă</th><th>Localitate</th><th>Stare</th><th>CAEN principal</th><th>Administrator</th><th>Telefon</th></tr></thead><tbody>';
   h+=res.rows.map(r=>{ const d=ONRC.c[r.cty]; const F=d.f[r.i]; const st=ONRC_STLBL[F[ONRC_FIELDS.stare]||0];
     const cp=(F[ONRC_FIELDS.caen]||[])[0]; const cpc=cp?String(cp[0]):""; const cpd=cpc?(d.caen_den&&d.caen_den[cpc]||""):"";
     const adm=(F[ONRC_FIELDS.rep]||[])[0]; const admn=adm?(esc(adm[0])+(adm[1]?' <small style="color:var(--muted)">'+esc(adm[1])+'</small>':"")):"—";
     const web=F[ONRC_FIELDS.web]; const weburl=web?(/^https?:/.test(web)?web:"http://"+web):"";
     const weblink=web?' <a href="'+esc(weburl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="'+esc(web)+'">🌐</a>':"";
-    return '<tr onclick="openFirm(\''+esc(r.cty)+'\','+r.i+')"><td><b>'+esc(F[ONRC_FIELDS.den])+'</b>'+weblink+'</td><td class="num">'+esc(F[ONRC_FIELDS.cui])+'</td><td>'+esc(F[ONRC_FIELDS.forma]||"—")+'</td><td>'+esc((d.loc||[])[F[ONRC_FIELDS.loc]]||"—")+'</td><td><span class="onrcbadge '+st[0]+'">'+st[1]+'</span></td><td style="font-size:12px">'+esc(cpc)+' '+esc(cpd.slice(0,34))+'</td><td style="font-size:12px">'+admn+'</td></tr>';
+    const tel=F[ONRC_FIELDS.tel]; const telcell=tel?'<a href="tel:'+esc(tel)+'" onclick="event.stopPropagation()">'+esc(tel)+'</a>':'<span style="color:var(--muted)">—</span>';
+    return '<tr onclick="openFirm(\''+esc(r.cty)+'\','+r.i+')"><td><b>'+esc(F[ONRC_FIELDS.den])+'</b>'+weblink+'</td><td class="num">'+esc(F[ONRC_FIELDS.cui])+'</td><td>'+esc(F[ONRC_FIELDS.forma]||"—")+'</td><td>'+esc((d.loc||[])[F[ONRC_FIELDS.loc]]||"—")+'</td><td><span class="onrcbadge '+st[0]+'">'+st[1]+'</span></td><td style="font-size:12px">'+esc(cpc)+' '+esc(cpd.slice(0,34))+'</td><td style="font-size:12px">'+admn+'</td><td style="font-size:12px">'+telcell+'</td></tr>';
   }).join("");
   h+='</tbody></table></div>';
   box.innerHTML=h;
@@ -1791,13 +1795,19 @@ function openFirm(cty,i){ const d=ONRC.c[cty]; if(!d) return; const F=d.f[i]; if
   h+=row("Cod poștal",esc(F[ONRC_FIELDS.postal]));
   h+=row("Țară",esc(F[14]||""));
   h+='<dt>Website</dt><dd>'+(F[ONRC_FIELDS.web]?'<a href="'+esc(webUrl)+'" target="_blank" rel="noopener">'+esc(F[ONRC_FIELDS.web])+'</a>':'<span style="color:var(--muted)">—</span>')+'</dd>';
-  h+='<dt>Telefon / e‑mail</dt><dd><span style="color:var(--muted)">nu sunt incluse în ONRC</span></dd>';
+  const tel=F[ONRC_FIELDS.tel], fax=F[ONRC_FIELDS.fax];
+  h+='<dt>Telefon</dt><dd>'+(tel?'<a href="tel:'+esc(tel)+'">'+esc(tel)+'</a> <small style="color:var(--muted)">(ANAF)</small>':'<span style="color:var(--muted)">— (necunoscut la ANAF)</span>')+'</dd>';
+  if(fax) h+='<dt>Fax</dt><dd>'+esc(fax)+'</dd>';
+  h+='<dt>E‑mail</dt><dd><span style="color:var(--muted)">nu e publicat de ONRC/ANAF</span></dd>';
   h+='</dl></div>';
   h+='<div class="section"><h2>Identificare</h2><dl class="kv">';
   h+=row("Cod înmatriculare",esc(F[ONRC_FIELDS.cod]));
   h+=row("Data înmatriculării",esc(F[ONRC_FIELDS.data]));
   h+=row("EUID",esc(F[ONRC_FIELDS.euid]));
   h+=row("Țara firmei-mamă",esc(F[15]||""));
+  const caenA=F[ONRC_FIELDS.caenAnaf];
+  h+=row("CAEN principal (ANAF)",caenA?esc(String(caenA))+' '+esc((d.caen_den&&d.caen_den[String(caenA)])||""):"");
+  h+=row("Stare fiscală (ANAF)",esc(F[ONRC_FIELDS.fiscal]||""));
   h+='</dl></div>';
   const caens=(F[ONRC_FIELDS.caen]||[]);
   if(caens.length){ h+='<div class="section"><h2>CAEN autorizate ('+caens.length+')</h2><ul class="list">'
