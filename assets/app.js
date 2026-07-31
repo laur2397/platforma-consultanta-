@@ -1659,6 +1659,21 @@ function onrcNorm(s){ return String(s||"").toLowerCase().replace(/ș|ş/g,"s").r
 function onrcRegOf(j){ return ONRC_REG[onrcNorm(j)]||""; }
 function onrcTotal(){ const O=window.ONRC; return (O&&O.c)?Object.values(O.c).reduce((s,d)=>s+((d.f&&d.f.length)||0),0):0; }
 
+/* Persistență locală (IndexedDB) — datele rămân pe DISPOZITIVUL utilizatorului,
+   nu pleacă nicăieri. Se pot șterge oricând din interfață. */
+const ONRC_IDB_NAME="eufcc_onrc", ONRC_IDB_STORE="counties";
+function onrcIDB(){ return new Promise((res,rej)=>{ try{ const r=indexedDB.open(ONRC_IDB_NAME,1);
+  r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains(ONRC_IDB_STORE)) r.result.createObjectStore(ONRC_IDB_STORE); };
+  r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error||new Error("IndexedDB indisponibil")); }catch(e){ rej(e); } }); }
+async function onrcPersist(county,data){ try{ const db=await onrcIDB(); await new Promise((res)=>{ const tx=db.transaction(ONRC_IDB_STORE,"readwrite"); tx.objectStore(ONRC_IDB_STORE).put(data,county); tx.oncomplete=()=>res(true); tx.onerror=()=>res(false); tx.onabort=()=>res(false); }); }catch(e){} }
+async function onrcRestore(){ try{ const db=await onrcIDB();
+  const keys=await new Promise((res)=>{ const tx=db.transaction(ONRC_IDB_STORE,"readonly"); const rq=tx.objectStore(ONRC_IDB_STORE).getAllKeys(); rq.onsuccess=()=>res(rq.result||[]); rq.onerror=()=>res([]); });
+  for(const k of keys){ const v=await new Promise((res)=>{ const tx=db.transaction(ONRC_IDB_STORE,"readonly"); const rq=tx.objectStore(ONRC_IDB_STORE).get(k); rq.onsuccess=()=>res(rq.result); rq.onerror=()=>res(null); }); if(v&&v.f) window.ONRC.c[k]=v; }
+  return keys.length; }catch(e){ return 0; } }
+async function onrcClearLocal(){ if(!confirm("Ștergi datele ONRC salvate local pe acest dispozitiv?")) return;
+  try{ const db=await onrcIDB(); await new Promise((res)=>{ const tx=db.transaction(ONRC_IDB_STORE,"readwrite"); tx.objectStore(ONRC_IDB_STORE).clear(); tx.oncomplete=()=>res(); tx.onerror=()=>res(); }); }catch(e){}
+  window.ONRC.c={}; toast("Date locale șterse"); render(); }
+
 async function onrcGunzip(buf){
   if(typeof DecompressionStream==="undefined") throw new Error("Browserul nu suportă decompresie gzip. Folosește Chrome, Edge sau Firefox recent.");
   for(let i=0;i<4;i++){ const u8=new Uint8Array(buf,0,2);
@@ -1678,6 +1693,7 @@ async function onrcLoadFiles(fileList){
       if(!d||!d.f||!d.j){ if(status) status.innerHTML='⚠️ '+esc(f.name)+': structură necunoscută (aștept {j, f, ...}).'; continue; }
       ONRC.c[d.j]=d;
       if(status) status.innerHTML='✅ <b>'+esc(d.j)+'</b>: '+d.f.length.toLocaleString("ro-RO")+' firme încărcate.';
+      onrcPersist(d.j,d).then(()=>{ if(status) status.innerHTML='✅ <b>'+esc(d.j)+'</b>: '+d.f.length.toLocaleString("ro-RO")+' firme (salvate local pe dispozitiv).'; });
     }catch(e){ if(status) status.innerHTML='❌ '+esc(f.name)+': '+esc(e.message); }
   }
   render();
@@ -1709,7 +1725,7 @@ function onrcStats(){ const per={}; let g={n:0,a:0,r:0,in:0};
 function vProspect(){
   const loaded=Object.keys(ONRC.c);
   let h='<div class="viewtitle"><h1>🏢 Prospect ONRC</h1><span class="sub">bază locală de firme · Registrul Comerțului</span></div>';
-  h+='<div class="callout warn">🔒 <b>Datele rămân la tine.</b> Fișierele ONRC (inclusiv datele personale ale reprezentanților) se încarcă și se prelucrează <b>doar în acest browser</b> — nu se trimit spre niciun server, nu ajung în cod sau pe GitHub. La închiderea tabului dispar din memorie.</div>';
+  h+='<div class="callout warn">🔒 <b>Datele rămân la tine.</b> Fișierele ONRC (inclusiv datele personale ale reprezentanților) se încarcă și se prelucrează <b>doar în acest browser</b> — nu se trimit spre niciun server, nu ajung în cod sau pe GitHub. Se salvează local pe acest dispozitiv (le poți șterge oricând cu butonul de mai jos).</div>';
   h+='<div class="card section"><h2 style="font-size:14px;margin-bottom:8px">1) Încarcă fișierele județene (.json.gz)</h2>'
     +'<p style="font-size:12.5px;color:var(--ink2);margin-bottom:8px">Alege unul sau mai multe fișiere (CLUJ / IASI / ILFOV). Recomandat pe desktop — fișierele au zeci de MB; pe telefon încarcă un singur județ pe rând.</p>'
     +'<input type="file" id="onrcFiles" multiple>'
@@ -1722,6 +1738,7 @@ function vProspect(){
     +tile(stx.g.r.toLocaleString("ro-RO"),"Risc","întrerupere/suspendare/sediu","warnv","prospect",null)
     +tile(stx.g.in.toLocaleString("ro-RO"),"Inactive","radiate → în dificultate","crit","prospect",null)
     +'</div>';
+  h+='<div class="onrcmeta">Județe salvate local: <b>'+esc(loaded.join(", "))+'</b> · <a href="javascript:void(0)" onclick="onrcClearLocal()" style="color:var(--critical)">🗑 șterge datele locale</a></div>';
   h+='<div class="onrcbar">'
     +'<input type="text" id="onrcQ" placeholder="Denumire sau CUI…">'
     +'<select id="onrcCounty"><option value="">Toate județele</option>'+loaded.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join("")+'</select>'
@@ -1820,3 +1837,15 @@ function onrcAddProspect(cty,i){ const d=ONRC.c[cty]; const F=d.f[i]; const id="
     caen_principal:cp?String(cp[0]):"", interese:[], date_financiare:{}, sursa:"ONRC", nota:"Prospect importat din ONRC — de completat dimensiune și date financiare." });
   MATCH=null; toast("Adăugat ca prospect: "+F[ONRC_FIELDS.den]);
 }
+
+/* La pornire: restaurează datele ONRC salvate local pe dispozitiv (dacă există). */
+(async function onrcBoot(){
+  try{
+    if(!window.ONRC) window.ONRC={c:{}};
+    const n=await onrcRestore();
+    if(n && onrcTotal()>0){
+      if(typeof renderNav==="function") renderNav();
+      if(typeof S==="object" && S.view==="prospect" && typeof render==="function") render();
+    }
+  }catch(e){}
+})();
