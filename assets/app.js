@@ -1653,7 +1653,7 @@ window.__reboot=function(){ MATCH=null; IX=null; render(); };
 window.ONRC = window.ONRC || { c:{} };
 const ONRC_FIELDS={den:0,cui:1,cod:2,data:3,forma:4,loc:5,adr:6,stare:7,web:8,caen:9,rep:10,coduri:11,euid:12,postal:13};
 const ONRC_STLBL={0:["onrc-0","necunoscut"],1:["onrc-1","ACTIV"],2:["onrc-2","RISC"],3:["onrc-3","INACTIV"]};
-const ONRC_CAENVER={"0":"1998","1":"2003","2":"2008","3":"2025"};
+const ONRC_CAENVER={"0":"rev1","1":"rev1.1","2":"rev2","3":"rev3"};
 const ONRC_REG={"cluj":"Nord-Vest","iasi":"Nord-Est","iaşi":"Nord-Est","ilfov":"București-Ilfov"};
 function onrcNorm(s){ return String(s||"").toLowerCase().replace(/ș|ş/g,"s").replace(/ț|ţ/g,"t").replace(/ă|â/g,"a").replace(/î/g,"i"); }
 function onrcRegOf(j){ return ONRC_REG[onrcNorm(j)]||""; }
