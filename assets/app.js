@@ -1350,12 +1350,23 @@ function vIntel(){ let h='<div class="viewtitle"><h1>🔎 Market intelligence</h
   return h; }
 
 /* ---------- Administrare ---------- */
-function vAdmin(){ const stMap={ok:["cd-good","OK"],partial:["cd-warn","PARȚIAL"],problema:["cd-crit","PROBLEMĂ"],blocat_ip:["cd-crit","BLOCAT IP"],indisponibil_metoda:["cd-warn","POST-only"],nu_se_acceseaza:["cd-off","NU SE ACCESEAZĂ"],neverificat_azi:["cd-off","NEVERIFICAT"]};
+function vAdmin(){ const stMap={ok:["cd-good","OK"],acoperit:["cd-good","ACOPERIT ↔"],partial:["cd-warn","PARȚIAL"],problema:["cd-crit","PROBLEMĂ"],blocat_ip:["cd-crit","BLOCAT IP"],indisponibil_metoda:["cd-warn","POST-only"],nu_se_acceseaza:["cd-off","NU SE ACCESEAZĂ"],neverificat_azi:["cd-off","NEVERIFICAT"]};
   let h='<div class="viewtitle"><h1>⚙️ Administrare</h1><span class="sub">surse · date · actualizare</span></div>';
   h+='<div class="callout good"><b>Cum se actualizează dashboard-ul:</b> cere în conversația Claude «<b>scanare radar</b>» (sau așteaptă scanarea zilnică programată) → datele noi se injectează și artefactul se republică. Poți importa/exporta manual stratul de date mai jos.</div>';
   if((DB.surse||{}).nota) h+='<div class="callout warn">'+esc(DB.surse.nota)+'</div>';
+  /* acoperire efectivă: OK direct + acoperite prin oglindă care funcționează */
+  const cov=SURSE.reduce((a,s)=>{ if(s.stare==="ok")a.ok++; else if(s.stare==="acoperit")a.cov++; else if(s.stare==="partial")a.part++; else a.gap++; return a; },{ok:0,cov:0,part:0,gap:0});
+  const efectiv=cov.ok+cov.cov; const pct=Math.round(efectiv/SURSE.length*100);
+  h+='<div class="tiles">'
+    +tile(cov.ok,"OK direct","surse accesibile în sesiune","acc","admin",null)
+    +tile(cov.cov,"Acoperite ↔","primar blocat, date via oglindă OK","acc","admin",null)
+    +tile(efectiv+"/"+SURSE.length,"Acoperire efectivă",pct+"% din surse","",  "admin",null)
+    +tile(cov.part,"Parțiale","semnal limitat — de verificat","warnv","admin",null)
+    +tile(cov.gap,"Blocate / goluri","doar via browser propriu / VPS RO",cov.gap?"crit":"","admin",null)
+    +'</div>';
   h+='<div class="section"><h2>Registrul surselor monitorizate ('+SURSE.length+')</h2><div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr><th>Sursă</th><th>Mecanism</th><th>Stare</th><th>Observații</th></tr></thead><tbody>'+SURSE.map(s=>{const m=stMap[s.stare]||["cd-off",s.stare];
-   return '<tr><td><b>'+esc(s.nume)+'</b><br><a href="'+esc(s.url)+'" target="_blank" style="font-size:11px">'+esc(s.url.slice(0,58))+'…</a></td><td style="font-size:12px">'+esc(s.mecanism)+'</td><td><span class="cd '+m[0]+'">'+m[1]+'</span></td><td style="font-size:12px;color:var(--ink2)">'+esc(s.observatii||"")+'</td></tr>';}).join("")+'</tbody></table></div></div>';
+   const ap=s.acoperit_prin?'<br><span style="color:var(--good-text)">↳ acoperit prin: '+esc(s.acoperit_prin)+'</span>':"";
+   return '<tr><td><b>'+esc(s.nume)+'</b><br><a href="'+esc(s.url)+'" target="_blank" style="font-size:11px">'+esc(s.url.slice(0,58))+'…</a></td><td style="font-size:12px">'+esc(s.mecanism)+'</td><td><span class="cd '+m[0]+'">'+m[1]+'</span></td><td style="font-size:12px;color:var(--ink2)">'+esc(s.observatii||"")+ap+'</td></tr>';}).join("")+'</tbody></table></div></div>';
   h+='<div class="grid2 section"><div class="card"><h2 style="font-size:14px;margin-bottom:8px">Export date (JSON)</h2><p style="font-size:12.5px;color:var(--ink2);margin-bottom:8px">Descarcă stratul de date complet (apeluri, clienți, proiecte, surse) — backup sau editare externă.</p><button class="btn primary" onclick="dl(\'command-center-data.json\',JSON.stringify(DB,null,2),\'application/json\');toast(\'Export generat\')">⬇ Exportă datele</button></div>';
   h+='<div class="card"><h2 style="font-size:14px;margin-bottom:8px">Import date (JSON)</h2><p style="font-size:12.5px;color:var(--ink2);margin-bottom:8px">Lipește un JSON cu aceeași structură (sau doar {"apeluri":{...}}) și aplică — interfața se reconstruiește pe noile date (în memorie; pentru persistență, cere republicarea artefactului în Claude).</p><textarea class="jsonio" id="ioTxt" placeholder=\'{"apeluri":{"apeluri":[...]}}\'></textarea><div style="margin-top:8px"><button class="btn primary" onclick="ioImport()">⬆ Aplică importul</button></div></div></div>';
   h+='<div class="section card"><h2 style="font-size:14px;margin-bottom:8px">Jurnal & praguri</h2><dl class="kv"><dt>Versiune dashboard</dt><dd>'+esc(META.versiune||"1.0")+'</dd><dt>Generat la</dt><dd>'+esc(META.generat_la||"")+'</dd><dt>Radar extras la</dt><dd>'+esc((DB.apeluri||{}).extras_la||"")+'</dd><dt>Praguri countdown</dt><dd>&gt;30 zile verde · 8-30 portocaliu · ≤7 roșu</dd><dt>Alerte T</dt><dd>T-30 / T-14 / T-7 / T-2 / T-0</dd><dt>Prag intern depunere</dt><dd>'+esc((META.praguri_alerte||{}).prag_depunere_intern||"")+'</dd><dt>Segmente configurate</dt><dd>'+((META.firma||{}).segmente||[]).map(s=>'<span class="chip hl">'+esc(s)+'</span>').join("")+' · '+esc((META.firma||{}).acoperire||"")+'</dd></dl></div>';
