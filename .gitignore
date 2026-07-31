@@ -13,3 +13,10 @@ dist/
 # Fișiere temporare
 *.tmp
 *~
+
+# Date ONRC / cu caracter personal — NU se comit NICIODATĂ.
+# Se încarcă local, în browserul utilizatorului (vezi „Prospect ONRC").
+*.json.gz
+CLUJ*.json* IASI*.json* ILFOV*.json*
+onrc_data/
+onrc_test/

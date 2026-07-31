@@ -129,13 +129,13 @@ function calItems(hor){ hor=hor||120; const out=[];
   out.sort((a,b)=> (a.data<b.data?-1:1)); return out; }
 
 /* ---------- navigation ---------- */
-const NAV=[["buletin","🏠","Buletin"],["radar","📡","Radar apeluri"],["matching","🎯","Matching"],["pipeline","📋","Pipeline"],["calendar","📅","Calendar"],["clienti","👥","Clienți"],["biblioteca","📚","Bibliotecă"],["rapoarte","📊","Rapoarte"],["conformitate","🛡️","Conformitate"],["intel","🔎","Market Intel"],["financiar","🧮","Financiar"],["baze","🗄️","Baze de date"],["admin","⚙️","Administrare"]];
-function navCounts(id){ if(id==="radar") return A.filter(a=>a.stare==="activ").length; if(id==="pipeline") return PR.length; if(id==="clienti") return CL.length; if(id==="calendar") return calItems(30).length; if(id==="baze") return (DB.primarii&&DB.primarii.uat?DB.primarii.uat.length:null); return null; }
+const NAV=[["buletin","🏠","Buletin"],["radar","📡","Radar apeluri"],["matching","🎯","Matching"],["pipeline","📋","Pipeline"],["calendar","📅","Calendar"],["clienti","👥","Clienți"],["prospect","🏢","Prospect ONRC"],["biblioteca","📚","Bibliotecă"],["rapoarte","📊","Rapoarte"],["conformitate","🛡️","Conformitate"],["intel","🔎","Market Intel"],["financiar","🧮","Financiar"],["baze","🗄️","Baze de date"],["admin","⚙️","Administrare"]];
+function navCounts(id){ if(id==="radar") return A.filter(a=>a.stare==="activ").length; if(id==="pipeline") return PR.length; if(id==="clienti") return CL.length; if(id==="calendar") return calItems(30).length; if(id==="baze") return (DB.primarii&&DB.primarii.uat?DB.primarii.uat.length:null); if(id==="prospect"){ const n=onrcTotal(); return n||null; } return null; }
 function renderNav(){ $("#nav").innerHTML = NAV.map(([id,ic,l])=>{ const c=navCounts(id);
   return '<li><button class="'+(S.view===id?"on":"")+'" data-v="'+id+'"><span class="ic">'+ic+'</span>'+l+(c!=null?'<span class="ct">'+c+'</span>':"")+'</button></li>'; }).join("");
   document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{ S.view=b.dataset.v; render(); }); }
 function render(){ renderNav(); const v=S.view; const M=$("#main"); M.scrollTop=0;
-  const f={buletin:vBuletin,radar:vRadar,matching:vMatching,pipeline:vPipeline,calendar:vCalendar,clienti:vClienti,biblioteca:vBiblioteca,rapoarte:vRapoarte,conformitate:vConformitate,intel:vIntel,financiar:vFinanciar,baze:vBaze,admin:vAdmin}[v];
+  const f={buletin:vBuletin,radar:vRadar,matching:vMatching,pipeline:vPipeline,calendar:vCalendar,clienti:vClienti,prospect:vProspect,biblioteca:vBiblioteca,rapoarte:vRapoarte,conformitate:vConformitate,intel:vIntel,financiar:vFinanciar,baze:vBaze,admin:vAdmin}[v];
   M.innerHTML = f? f() : "<div class='empty'>…</div>"; if(window["after_"+v]) window["after_"+v](); }
 
 /* ---------- drawer ---------- */
@@ -1643,3 +1643,156 @@ window.__reboot=function(){ MATCH=null; IX=null; render(); };
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",initDOM);
   else initDOM();
 })();
+
+/* ============================================================
+   Prospect ONRC — bază de firme locală (Registrul Comerțului).
+   IMPORTANT: datele (inclusiv date personale) se încarcă și rămân
+   DOAR în browserul utilizatorului. Nu se trimit nicăieri, nu se
+   salvează în cod / pe GitHub. La închiderea tabului dispar.
+   ============================================================ */
+window.ONRC = window.ONRC || { c:{} };
+const ONRC_FIELDS={den:0,cui:1,cod:2,data:3,forma:4,loc:5,adr:6,stare:7,web:8,caen:9,rep:10,coduri:11,euid:12,postal:13};
+const ONRC_STLBL={0:["onrc-0","necunoscut"],1:["onrc-1","ACTIV"],2:["onrc-2","RISC"],3:["onrc-3","INACTIV"]};
+const ONRC_CAENVER={"0":"1998","1":"2003","2":"2008","3":"2025"};
+const ONRC_REG={"cluj":"Nord-Vest","iasi":"Nord-Est","iaşi":"Nord-Est","ilfov":"București-Ilfov"};
+function onrcNorm(s){ return String(s||"").toLowerCase().replace(/ș|ş/g,"s").replace(/ț|ţ/g,"t").replace(/ă|â/g,"a").replace(/î/g,"i"); }
+function onrcRegOf(j){ return ONRC_REG[onrcNorm(j)]||""; }
+function onrcTotal(){ const O=window.ONRC; return (O&&O.c)?Object.values(O.c).reduce((s,d)=>s+((d.f&&d.f.length)||0),0):0; }
+
+async function onrcGunzip(buf){
+  if(typeof DecompressionStream==="undefined") throw new Error("Browserul nu suportă decompresie gzip. Folosește Chrome, Edge sau Firefox recent.");
+  for(let i=0;i<4;i++){ const u8=new Uint8Array(buf,0,2);
+    if(u8[0]===0x1f && u8[1]===0x8b){ const st=new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip")); buf=await new Response(st).arrayBuffer(); }
+    else break; }
+  return new TextDecoder("utf-8").decode(buf);
+}
+async function onrcLoadFiles(fileList){
+  const status=document.getElementById("onrcLoadStatus"); const files=Array.from(fileList||[]);
+  if(!files.length) return;
+  for(const f of files){
+    if(status) status.innerHTML='⏳ Procesez <b>'+esc(f.name)+'</b> ('+(f.size/1e6).toFixed(1)+' MB)…';
+    try{
+      const ab=await f.arrayBuffer();
+      const txt=await onrcGunzip(ab);
+      const d=JSON.parse(txt);
+      if(!d||!d.f||!d.j){ if(status) status.innerHTML='⚠️ '+esc(f.name)+': structură necunoscută (aștept {j, f, ...}).'; continue; }
+      ONRC.c[d.j]=d;
+      if(status) status.innerHTML='✅ <b>'+esc(d.j)+'</b>: '+d.f.length.toLocaleString("ro-RO")+' firme încărcate.';
+    }catch(e){ if(status) status.innerHTML='❌ '+esc(f.name)+': '+esc(e.message); }
+  }
+  render();
+}
+function onrcCaenList(F){ const out=[]; (F[ONRC_FIELDS.caen]||[]).forEach(p=>{ if(Array.isArray(p)) out.push(String(p[0])); }); return out; }
+function onrcSearch(flt){ const CAP=300; const rows=[]; let total=0;
+  const counties=flt.county?[flt.county]:Object.keys(ONRC.c);
+  const q=onrcNorm(flt.q), caen=(flt.caen||"").trim(), locq=onrcNorm(flt.loc), forma=flt.forma||"";
+  for(const cty of counties){ const d=ONRC.c[cty]; if(!d) continue; const loc=d.loc||[];
+    for(let i=0;i<d.f.length;i++){ const F=d.f[i]; const st=F[ONRC_FIELDS.stare]||0;
+      if(flt.stare==="activ" && st!==1) continue;
+      if(flt.stare==="risc" && st!==2) continue;
+      if(flt.stare==="inactiv" && st!==3) continue;
+      if(flt.stare==="activrisc" && !(st===1||st===2)) continue;
+      if(forma && F[ONRC_FIELDS.forma]!==forma) continue;
+      if(q){ const hay=onrcNorm(F[ONRC_FIELDS.den])+" "+String(F[ONRC_FIELDS.cui]||""); if(!hay.includes(q)) continue; }
+      if(caen){ if(!onrcCaenList(F).some(c=>c.indexOf(caen)===0)) continue; }
+      if(locq){ const ln=onrcNorm(loc[F[ONRC_FIELDS.loc]]||""); if(!ln.includes(locq)) continue; }
+      total++; if(rows.length<CAP) rows.push({cty,i}); }
+  }
+  return {rows,total,capped:total>CAP,cap:CAP};
+}
+function onrcStats(){ const per={}; let g={n:0,a:0,r:0,in:0};
+  for(const [cty,d] of Object.entries(ONRC.c)){ const s={n:d.f.length,a:0,r:0,in:0};
+    for(const F of d.f){ const st=F[ONRC_FIELDS.stare]||0; if(st===1)s.a++; else if(st===2)s.r++; else if(st===3)s.in++; }
+    per[cty]=s; g.n+=s.n; g.a+=s.a; g.r+=s.r; g.in+=s.in; }
+  return {per,g};
+}
+function vProspect(){
+  const loaded=Object.keys(ONRC.c);
+  let h='<div class="viewtitle"><h1>🏢 Prospect ONRC</h1><span class="sub">bază locală de firme · Registrul Comerțului</span></div>';
+  h+='<div class="callout warn">🔒 <b>Datele rămân la tine.</b> Fișierele ONRC (inclusiv datele personale ale reprezentanților) se încarcă și se prelucrează <b>doar în acest browser</b> — nu se trimit spre niciun server, nu ajung în cod sau pe GitHub. La închiderea tabului dispar din memorie.</div>';
+  h+='<div class="card section"><h2 style="font-size:14px;margin-bottom:8px">1) Încarcă fișierele județene (.json.gz)</h2>'
+    +'<p style="font-size:12.5px;color:var(--ink2);margin-bottom:8px">Alege unul sau mai multe fișiere (CLUJ / IASI / ILFOV). Recomandat pe desktop — fișierele au zeci de MB.</p>'
+    +'<input type="file" id="onrcFiles" multiple accept=".gz,.json">'
+    +'<div id="onrcLoadStatus" class="onrcmeta"></div></div>';
+  if(!loaded.length){ h+='<div class="empty">Niciun județ încărcat încă.</div>'; return h; }
+  const stx=onrcStats();
+  h+='<div class="tiles">'
+    +tile(stx.g.n.toLocaleString("ro-RO"),"Firme încărcate",loaded.join(" · "),"","prospect",null)
+    +tile(stx.g.a.toLocaleString("ro-RO"),"Active","universul de prospectare","acc","prospect",null)
+    +tile(stx.g.r.toLocaleString("ro-RO"),"Risc","întrerupere/suspendare/sediu","warnv","prospect",null)
+    +tile(stx.g.in.toLocaleString("ro-RO"),"Inactive","radiate → în dificultate","crit","prospect",null)
+    +'</div>';
+  h+='<div class="onrcbar">'
+    +'<input type="text" id="onrcQ" placeholder="Denumire sau CUI…">'
+    +'<select id="onrcCounty"><option value="">Toate județele</option>'+loaded.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join("")+'</select>'
+    +'<select id="onrcStare"><option value="activ">Doar active</option><option value="activrisc">Active + risc</option><option value="risc">Doar risc</option><option value="inactiv">Doar inactive</option><option value="toate">Toate stările</option></select>'
+    +'<input type="text" id="onrcCaen" placeholder="CAEN (ex. 6201)" style="max-width:130px">'
+    +'<input type="text" id="onrcLoc" placeholder="Localitate…" style="max-width:150px">'
+    +'<select id="onrcForma"><option value="">Orice formă</option>'+["SRL","PFA","PF","II","SA","IF","SNC","SCS"].map(f=>'<option value="'+f+'">'+f+'</option>').join("")+'</select>'
+    +'<button class="btn small primary" id="onrcGo">Caută</button>'
+    +'</div>';
+  h+='<div id="onrcResults"></div>';
+  return h;
+}
+window.after_prospect=function(){
+  const fi=document.getElementById("onrcFiles"); if(fi) fi.onchange=e=>onrcLoadFiles(e.target.files);
+  const go=document.getElementById("onrcGo"); if(go) go.onclick=onrcRenderResults;
+  ["onrcQ","onrcCaen","onrcLoc"].forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener("keydown",e=>{ if(e.key==="Enter") onrcRenderResults(); }); });
+  ["onrcCounty","onrcStare","onrcForma"].forEach(id=>{ const el=document.getElementById(id); if(el) el.onchange=onrcRenderResults; });
+  if(Object.keys(ONRC.c).length) onrcRenderResults();
+};
+function onrcRenderResults(){
+  const box=document.getElementById("onrcResults"); if(!box) return;
+  const val=id=>{ const el=document.getElementById(id); return el?el.value:""; };
+  const flt={ q:val("onrcQ"), county:val("onrcCounty"), stare:val("onrcStare")||"activ", caen:val("onrcCaen"), loc:val("onrcLoc"), forma:val("onrcForma") };
+  const res=onrcSearch(flt);
+  if(!res.total){ box.innerHTML='<div class="empty">Niciun rezultat pentru filtrele curente.</div>'; return; }
+  let h='<div class="onrcmeta">'+res.total.toLocaleString("ro-RO")+' firme găsite'+(res.capped?' — afișez primele '+res.cap:'')+'. Click pe un rând pentru fișă completă.</div>';
+  h+='<div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr><th>Denumire</th><th>CUI</th><th>Formă</th><th>Localitate</th><th>Stare</th><th>CAEN principal</th></tr></thead><tbody>';
+  h+=res.rows.map(r=>{ const d=ONRC.c[r.cty]; const F=d.f[r.i]; const st=ONRC_STLBL[F[ONRC_FIELDS.stare]||0];
+    const cp=(F[ONRC_FIELDS.caen]||[])[0]; const cpc=cp?String(cp[0]):""; const cpd=cpc?(d.caen_den&&d.caen_den[cpc]||""):"";
+    return '<tr onclick="openFirm(\''+esc(r.cty)+'\','+r.i+')"><td><b>'+esc(F[ONRC_FIELDS.den])+'</b></td><td class="num">'+esc(F[ONRC_FIELDS.cui])+'</td><td>'+esc(F[ONRC_FIELDS.forma]||"—")+'</td><td>'+esc((d.loc||[])[F[ONRC_FIELDS.loc]]||"—")+'</td><td><span class="onrcbadge '+st[0]+'">'+st[1]+'</span></td><td style="font-size:12px">'+esc(cpc)+' '+esc(cpd.slice(0,34))+'</td></tr>';
+  }).join("");
+  h+='</tbody></table></div>';
+  box.innerHTML=h;
+}
+function openFirm(cty,i){ const d=ONRC.c[cty]; if(!d) return; const F=d.f[i]; if(!F) return;
+  const st=F[ONRC_FIELDS.stare]||0; const stl=ONRC_STLBL[st];
+  let h=drawerHead(esc(F[ONRC_FIELDS.den]), esc((F[ONRC_FIELDS.forma]||"")+" · CUI "+F[ONRC_FIELDS.cui]+" · "+cty))+'<div class="db">';
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px"><span class="onrcbadge '+stl[0]+'">'+stl[1]+'</span>'
+    +(F[ONRC_FIELDS.web]?'<a href="'+esc(/^https?:/.test(F[ONRC_FIELDS.web])?F[ONRC_FIELDS.web]:"http://"+F[ONRC_FIELDS.web])+'" target="_blank" rel="noopener">🌐 site</a>':"")+'</div>';
+  if(st===3) h+='<div class="callout crit"><b>Firmă inactivă/radiată</b> — probabil «întreprindere în dificultate» (art. 2 pct. 18, Reg. 651/2014): <b>neeligibilă</b> la finanțare. Verifică starea reală înainte de orice abordare.</div>';
+  else if(st===2) h+='<div class="callout warn">Stare de <b>risc</b> (întrerupere temporară / suspendare / sediu expirat) — de clarificat înainte de depunere.</div>';
+  h+='<dl class="kv">';
+  const row=(k,v)=>v?'<dt>'+k+'</dt><dd>'+v+'</dd>':"";
+  h+=row("Cod înmatriculare",esc(F[ONRC_FIELDS.cod]));
+  h+=row("Data înmatriculării",esc(F[ONRC_FIELDS.data]));
+  h+=row("Localitate",esc((d.loc||[])[F[ONRC_FIELDS.loc]]||""));
+  h+=row("Adresă",esc(F[ONRC_FIELDS.adr]));
+  h+=row("Cod poștal",esc(F[ONRC_FIELDS.postal]));
+  h+=row("EUID",esc(F[ONRC_FIELDS.euid]));
+  h+='</dl>';
+  const caens=(F[ONRC_FIELDS.caen]||[]);
+  if(caens.length){ h+='<div class="section"><h2>CAEN autorizate ('+caens.length+')</h2><ul class="list">'
+    +caens.slice(0,40).map(p=>{ const c=String(p[0]); const den=d.caen_den&&d.caen_den[c]||""; const ver=ONRC_CAENVER[String(p[1])]||p[1];
+      return '<li><b>'+esc(c)+'</b> '+esc(den)+' <span class="chip">CAEN '+esc(ver)+'</span></li>'; }).join("")+'</ul></div>'; }
+  const reps=(F[ONRC_FIELDS.rep]||[]);
+  if(reps.length){ h+='<div class="section"><h2>Reprezentanți legali ('+reps.length+')</h2><div class="callout">Date personale ONRC — utile pentru testul de «întreprindere unică» la minimis (firme legate prin control comun). A se folosi doar intern.</div><ul class="list">'
+    +reps.slice(0,30).map(r=>'<li><b>'+esc(r[0])+'</b> — '+esc(r[1]||"")+(r[2]?' <small style="color:var(--muted)">n. '+esc(r[2])+(r[3]?", "+esc(r[3]):"")+'</small>':"")+'</li>').join("")+'</ul></div>'; }
+  const reg=onrcRegOf(cty);
+  h+='<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">';
+  if(reg) h+='<button class="btn" onclick="onrcToRadar(\''+esc(reg)+'\')">📡 Apeluri active în '+esc(reg)+'</button>';
+  if(st!==3) h+='<button class="btn primary" onclick="onrcAddProspect(\''+esc(cty)+'\','+i+')">➕ Adaugă ca prospect (CRM)</button>';
+  h+='</div>';
+  h+='<div class="callout" style="margin-top:12px">Datele ONRC sunt un instantaneu (08.07.2026). Eligibilitatea reală depinde de dimensiune (cifră afaceri/angajați — neincluse aici), situația financiară și ghidul apelului. AI pregătește; omul decide.</div></div>';
+  openDrawer(h);
+}
+function onrcToRadar(reg){ closeDrawer(); S.radar.regiune=reg; S.radar.stari=new Set(["activ"]); S.view="radar"; render(); }
+function onrcAddProspect(cty,i){ const d=ONRC.c[cty]; const F=d.f[i]; const id="onrc_"+F[ONRC_FIELDS.cui];
+  if(CL.some(c=>c.id===id)){ toast("Deja în CRM"); return; }
+  const cp=(F[ONRC_FIELDS.caen]||[])[0];
+  CL.push({ id, denumire:F[ONRC_FIELDS.den], tip:"privat", dimensiune:"", forma_juridica:F[ONRC_FIELDS.forma]||"",
+    judet:cty, regiune:onrcRegOf(cty), localitate:(d.loc||[])[F[ONRC_FIELDS.loc]]||"", cui:String(F[ONRC_FIELDS.cui]||""),
+    caen_principal:cp?String(cp[0]):"", interese:[], date_financiare:{}, sursa:"ONRC", nota:"Prospect importat din ONRC — de completat dimensiune și date financiare." });
+  MATCH=null; toast("Adăugat ca prospect: "+F[ONRC_FIELDS.den]);
+}

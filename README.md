@@ -86,6 +86,16 @@ Funcționează pe modelul **BYOK (cheia ta)** cu **Google Gemini**:
 
 > De ce BYOK: site-ul e static și public, deci nu poate păstra o cheie secretă. Cu BYOK, cheia rămâne la tine. Întrebările + datele platformei se trimit către Google (Gemini) pentru a genera răspunsul. Răspunsurile sunt orientative — validare umană la orice GO/NO-GO sau depunere.
 
+## 🏢 Prospect ONRC (bază de firme locală)
+
+Secțiunea **Prospect ONRC** permite prospectarea peste registrul complet al firmelor (Registrul Comerțului), pe județe (ex. Cluj / Iași / Ilfov):
+- Încarci fișierele `.json.gz` din interfață (buton de fișier). Se acceptă atât gzip simplu, cât și dublu.
+- Cauți/filtrezi după **denumire/CUI, județ, stare (activ/risc/inactiv), CAEN, localitate, formă juridică**.
+- Fișa firmei arată CAEN-urile autorizate (cu versiunea taxonomiei), reprezentanții legali și un semnal de **eligibilitate** (firmele inactive/radiate = «întreprindere în dificultate», neeligibile).
+- Poți sări la apelurile active din regiunea firmei sau o adaugi ca **prospect în CRM**.
+
+> ⚠️ **Datele ONRC nu se comit niciodată în acest repo.** Conțin date cu caracter personal (nume, dată/loc de naștere ai reprezentanților). Repo-ul e public, deci fișierele se încarcă și rămân **exclusiv în browserul tău** (în memorie, cât ține tabul) — nu se trimit spre niciun server și sunt excluse prin `.gitignore`. Codul de prospectare e public; datele rămân private, la tine.
+
 ## 🔒 Confidențialitate
 
 Aplicația rulează integral în browser. Nu trimite date către niciun server — tot ce vezi vine din `assets/data.js`. Verdictele de eligibilitate sunt orientative și trebuie validate uman înainte de orice comunicare oficială.
