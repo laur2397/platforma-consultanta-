@@ -1711,8 +1711,8 @@ function vProspect(){
   let h='<div class="viewtitle"><h1>🏢 Prospect ONRC</h1><span class="sub">bază locală de firme · Registrul Comerțului</span></div>';
   h+='<div class="callout warn">🔒 <b>Datele rămân la tine.</b> Fișierele ONRC (inclusiv datele personale ale reprezentanților) se încarcă și se prelucrează <b>doar în acest browser</b> — nu se trimit spre niciun server, nu ajung în cod sau pe GitHub. La închiderea tabului dispar din memorie.</div>';
   h+='<div class="card section"><h2 style="font-size:14px;margin-bottom:8px">1) Încarcă fișierele județene (.json.gz)</h2>'
-    +'<p style="font-size:12.5px;color:var(--ink2);margin-bottom:8px">Alege unul sau mai multe fișiere (CLUJ / IASI / ILFOV). Recomandat pe desktop — fișierele au zeci de MB.</p>'
-    +'<input type="file" id="onrcFiles" multiple accept=".gz,.json">'
+    +'<p style="font-size:12.5px;color:var(--ink2);margin-bottom:8px">Alege unul sau mai multe fișiere (CLUJ / IASI / ILFOV). Recomandat pe desktop — fișierele au zeci de MB; pe telefon încarcă un singur județ pe rând.</p>'
+    +'<input type="file" id="onrcFiles" multiple>'
     +'<div id="onrcLoadStatus" class="onrcmeta"></div></div>';
   if(!loaded.length){ h+='<div class="empty">Niciun județ încărcat încă.</div>'; return h; }
   const stx=onrcStats();
@@ -1748,10 +1748,11 @@ function onrcRenderResults(){
   const res=onrcSearch(flt);
   if(!res.total){ box.innerHTML='<div class="empty">Niciun rezultat pentru filtrele curente.</div>'; return; }
   let h='<div class="onrcmeta">'+res.total.toLocaleString("ro-RO")+' firme găsite'+(res.capped?' — afișez primele '+res.cap:'')+'. Click pe un rând pentru fișă completă.</div>';
-  h+='<div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr><th>Denumire</th><th>CUI</th><th>Formă</th><th>Localitate</th><th>Stare</th><th>CAEN principal</th></tr></thead><tbody>';
+  h+='<div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr><th>Denumire</th><th>CUI</th><th>Formă</th><th>Localitate</th><th>Stare</th><th>CAEN principal</th><th>Administrator</th></tr></thead><tbody>';
   h+=res.rows.map(r=>{ const d=ONRC.c[r.cty]; const F=d.f[r.i]; const st=ONRC_STLBL[F[ONRC_FIELDS.stare]||0];
     const cp=(F[ONRC_FIELDS.caen]||[])[0]; const cpc=cp?String(cp[0]):""; const cpd=cpc?(d.caen_den&&d.caen_den[cpc]||""):"";
-    return '<tr onclick="openFirm(\''+esc(r.cty)+'\','+r.i+')"><td><b>'+esc(F[ONRC_FIELDS.den])+'</b></td><td class="num">'+esc(F[ONRC_FIELDS.cui])+'</td><td>'+esc(F[ONRC_FIELDS.forma]||"—")+'</td><td>'+esc((d.loc||[])[F[ONRC_FIELDS.loc]]||"—")+'</td><td><span class="onrcbadge '+st[0]+'">'+st[1]+'</span></td><td style="font-size:12px">'+esc(cpc)+' '+esc(cpd.slice(0,34))+'</td></tr>';
+    const adm=(F[ONRC_FIELDS.rep]||[])[0]; const admn=adm?(esc(adm[0])+(adm[1]?' <small style="color:var(--muted)">'+esc(adm[1])+'</small>':"")):"—";
+    return '<tr onclick="openFirm(\''+esc(r.cty)+'\','+r.i+')"><td><b>'+esc(F[ONRC_FIELDS.den])+'</b></td><td class="num">'+esc(F[ONRC_FIELDS.cui])+'</td><td>'+esc(F[ONRC_FIELDS.forma]||"—")+'</td><td>'+esc((d.loc||[])[F[ONRC_FIELDS.loc]]||"—")+'</td><td><span class="onrcbadge '+st[0]+'">'+st[1]+'</span></td><td style="font-size:12px">'+esc(cpc)+' '+esc(cpd.slice(0,34))+'</td><td style="font-size:12px">'+admn+'</td></tr>';
   }).join("");
   h+='</tbody></table></div>';
   box.innerHTML=h;
@@ -1771,14 +1772,30 @@ function openFirm(cty,i){ const d=ONRC.c[cty]; if(!d) return; const F=d.f[i]; if
   h+=row("Adresă",esc(F[ONRC_FIELDS.adr]));
   h+=row("Cod poștal",esc(F[ONRC_FIELDS.postal]));
   h+=row("EUID",esc(F[ONRC_FIELDS.euid]));
+  h+=row("Țară",esc(F[14]||""));
+  h+=row("Țara firmei-mamă",esc(F[15]||""));
   h+='</dl>';
   const caens=(F[ONRC_FIELDS.caen]||[]);
   if(caens.length){ h+='<div class="section"><h2>CAEN autorizate ('+caens.length+')</h2><ul class="list">'
     +caens.slice(0,40).map(p=>{ const c=String(p[0]); const den=d.caen_den&&d.caen_den[c]||""; const ver=ONRC_CAENVER[String(p[1])]||p[1];
       return '<li><b>'+esc(c)+'</b> '+esc(den)+' <span class="chip">CAEN '+esc(ver)+'</span></li>'; }).join("")+'</ul></div>'; }
+  const repFmt=r=>{ const nm=esc(r[0]||""); const cal=r[1]?' — '+esc(r[1]):"";
+    const bd=r[2]?esc(String(r[2]).split(" ")[0]):""; const bloc=[r[3],r[4],r[5]].filter(Boolean).join(", ");
+    const dom=[r[6],r[7],r[8]].filter(Boolean).join(", ");
+    const sub=[]; if(bd||bloc) sub.push("n. "+bd+(bloc?" · "+esc(bloc):"")); if(dom) sub.push("domiciliu: "+esc(dom));
+    return '<li><b>'+nm+'</b>'+cal+(sub.length?'<br><small style="color:var(--muted)">'+sub.join(" · ")+'</small>':"")+'</li>'; };
   const reps=(F[ONRC_FIELDS.rep]||[]);
-  if(reps.length){ h+='<div class="section"><h2>Reprezentanți legali ('+reps.length+')</h2><div class="callout">Date personale ONRC — utile pentru testul de «întreprindere unică» la minimis (firme legate prin control comun). A se folosi doar intern.</div><ul class="list">'
-    +reps.slice(0,30).map(r=>'<li><b>'+esc(r[0])+'</b> — '+esc(r[1]||"")+(r[2]?' <small style="color:var(--muted)">n. '+esc(r[2])+(r[3]?", "+esc(r[3]):"")+'</small>':"")+'</li>').join("")+'</ul></div>'; }
+  if(reps.length){ h+='<div class="section"><h2>Administratori / reprezentanți legali ('+reps.length+')</h2><div class="callout">Date personale ONRC — utile pentru testul de «întreprindere unică» la minimis (firme legate prin control comun). A se folosi doar intern.</div><ul class="list">'
+    +reps.map(repFmt).join("")+'</ul></div>'; }
+  const ifr=(F[16]||[]);
+  if(ifr.length){ h+='<div class="section"><h2>Reprezentanți întreprindere familială ('+ifr.length+')</h2><ul class="list">'
+    +ifr.map(r=>{ const bd=r[1]?esc(String(r[1]).split(" ")[0]):""; const bloc=[r[2],r[3],r[4]].filter(Boolean).join(", ");
+      return '<li><b>'+esc(r[0]||"")+'</b>'+(r[5]?' — '+esc(r[5]):"")+((bd||bloc)?'<br><small style="color:var(--muted)">n. '+bd+(bloc?" · "+esc(bloc):"")+'</small>':"")+'</li>'; }).join("")+'</ul></div>'; }
+  const suc=(F[17]||[]);
+  if(suc.length){ h+='<div class="section"><h2>Sucursale în alte state UE ('+suc.length+')</h2><ul class="list">'
+    +suc.map(s=>'<li>'+esc([s[1],s[0],s[4],s[3]].filter(Boolean).join(" · "))+'</li>').join("")+'</ul></div>'; }
+  const raw=(F[11]||[]); const stnames=raw.map(c=>(d.stari&&d.stari[String(c)])||String(c)).filter(Boolean);
+  if(stnames.length){ h+='<div class="section"><h2>Stări ONRC (coduri brute)</h2><div>'+stnames.map(s=>'<span class="chip">'+esc(s)+'</span>').join("")+'</div></div>'; }
   const reg=onrcRegOf(cty);
   h+='<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">';
   if(reg) h+='<button class="btn" onclick="onrcToRadar(\''+esc(reg)+'\')">📡 Apeluri active în '+esc(reg)+'</button>';
