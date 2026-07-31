@@ -75,6 +75,17 @@ python3 -m http.server 8000
 
 ---
 
+## 🤖 Asistent AI (chat, opțional)
+
+În colțul dreapta-jos e un buton 💬 care deschide un asistent care răspunde la întrebări folosind **toate datele platformei** (apeluri, clienți, proiecte, termene, surse, buletin — recalculate la zi).
+
+Funcționează pe modelul **BYOK (cheia ta)** cu **Google Gemini**:
+1. Apasă 💬 → ⚙ și lipește o cheie API Gemini (gratuită din [Google AI Studio](https://aistudio.google.com/apikey)).
+2. Cheia se salvează **doar în browserul tău** (`localStorage`) — niciodată în cod, pe GitHub sau pe vreun server.
+3. Gata: întreabă „ce se închide azi?", „ce apeluri se potrivesc pentru micro în Nord-Vest?", „termenele mele de proiect săptămâna asta" etc.
+
+> De ce BYOK: site-ul e static și public, deci nu poate păstra o cheie secretă. Cu BYOK, cheia rămâne la tine. Întrebările + datele platformei se trimit către Google (Gemini) pentru a genera răspunsul. Răspunsurile sunt orientative — validare umană la orice GO/NO-GO sau depunere.
+
 ## 🔒 Confidențialitate
 
 Aplicația rulează integral în browser. Nu trimite date către niciun server — tot ce vezi vine din `assets/data.js`. Verdictele de eligibilitate sunt orientative și trebuie validate uman înainte de orice comunicare oficială.
