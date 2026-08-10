@@ -1987,8 +1987,8 @@ window.evUI = window.evUI || { curId:null, dosar:{ solicitant:{}, financiar:{ ch
 function evGetRb(){ return window.EVAL.rb[window.evUI.curId]||null; }
 function evSet(path,val){ const p=path.split("."); let o=window.evUI; for(let i=0;i<p.length-1;i++){ if(o[p[i]]==null) o[p[i]]={}; o=o[p[i]]; } o[p[p.length-1]]=val; }
 function evSetRb(path,val){ const rb=evGetRb(); if(!rb) return; const p=path.split("."); let o=rb; for(let i=0;i<p.length-1;i++){ if(o[p[i]]==null) o[p[i]]={}; o=o[p[i]]; } const last=p[p.length-1]; o[last]=(val===""?null:(isNaN(val)||typeof val!=="string"?val:(/^-?\d+(\.\d+)?$/.test(val)?parseFloat(val):val))); evSave(); }
-function evNewFromApel(){ const sel=document.getElementById("evApelSel"); if(!sel||!sel.value) return; const rb=evSeedFromApel(sel.value); window.EVAL.rb[rb.id]=rb; window.evUI.curId=rb.id; evSave(); toast("Schiță de rulebook creată — validează parametrii"); render(); }
-function evPick(id){ window.evUI.curId=id; render(); }
+function evNewFromApel(){ const sel=document.getElementById("evApelSel"); if(!sel||!sel.value) return; const rb=evSeedFromApel(sel.value); window.EVAL.rb[rb.id]=rb; window.evUI.curId=rb.id; window.evUI.step=1; evSave(); toast("Schiță de rulebook creată — validează parametrii"); render(); }
+function evPick(id){ window.evUI.curId=id; window.evUI.step=1; render(); }
 function evDelRb(){ const rb=evGetRb(); if(!rb) return; if(!confirm("Ștergi rulebook-ul «"+rb.titlu+"»?")) return; delete window.EVAL.rb[window.evUI.curId]; window.evUI.curId=null; evSave(); render(); }
 function evActivate(){ const rb=evGetRb(); if(!rb) return; rb.activ=true; evSave(); toast("Rulebook activat"); render(); }
 function evAddElig(){ const rb=evGetRb(); rb.eligibilitate=rb.eligibilitate||[]; rb.eligibilitate.push({camp:"dimensiune",op:"in",val:"",sursa:"",confirmat:false}); evSave(); render(); }
@@ -2005,19 +2005,16 @@ function evDelChelt(i){ window.evUI.dosar.financiar.cheltuieli.splice(i,1); rend
 function evAddInd(){ window.evUI.dosar.concordanta.indicatori.push({nume:"",cerere:"",buget:""}); render(); }
 function evDelInd(i){ window.evUI.dosar.concordanta.indicatori.splice(i,1); render(); }
 
-function vVerif(){
-  evLoad();
-  const rbs=evList();
-  let h='<div class="viewtitle"><h1>🧪 Verificare proiect</h1><span class="sub">evaluator universal · rulebook per apel</span></div>';
-  h+='<div class="callout">Motor determinist, rulat <b>în browserul tău</b> — documentele nu pleacă nicăieri. Ghidul e sursa de adevăr: sistemul verifică doar regulile pe care le înveți în rulebook. Fiecare regulă are 3 rezultate — <b>CONFORM · NECONFORM · NU SE POATE VERIFICA</b> — și sursă. <b>AI pregătește; omul decide.</b></div>';
-  h+='<div class="onrcbar"><select id="evApelSel"><option value="">— alege un apel din radar —</option>'+A.filter(a=>a.stare==="activ"||a.stare==="planificat").map(a=>'<option value="'+esc(a.id_apel)+'">'+esc(a.titlu.slice(0,60))+' ['+esc(a.program)+']</option>').join("")+'</select>'
-    +'<button class="btn small primary" onclick="evNewFromApel()">+ Rulebook (schiță din apel)</button></div>';
-  if(rbs.length){ h+='<div class="evsub">'+rbs.map(r=>'<button class="fchip'+(r.id===window.evUI.curId?" on":"")+'" onclick="evPick(\''+r.id+'\')">'+(r.activ?"✅ ":"📝 ")+esc((r.titlu||"apel").slice(0,32))+'</button>').join("")+'</div>'; }
-  const rb=evGetRb();
-  if(!rb){ h+='<div class="empty">Alege un apel și creează un rulebook, apoi validează-l și verifică un dosar.</div>'; return h; }
-
-  h+='<div class="evgrid">';
-  /* ---------- Editor rulebook ---------- */
+function evStep(n){ window.evUI.step=Math.max(0,Math.min(3,n|0)); render(); const m=document.getElementById("main"); if(m) m.scrollTop=0; }
+function evNoRb(){ return '<div class="empty">Încă nu ai un rulebook. Mergi la pasul «Alege apelul» și alege un apel din radar sau apasă «Continuă» ca să creezi unul gol.</div>'; }
+function evStepBar(step){ const steps=["Alege apelul","Rulebook","Dosar","Raport"]; return '<div class="evsub" style="margin:4px 0 14px">'+steps.map((s,i)=>'<button class="fchip'+(i===step?" on":"")+'" onclick="evStep('+i+')">'+(i+1)+'. '+s+'</button>').join("")+'</div>'; }
+function evNavBtns(step){ let h='<div style="display:flex;gap:8px;margin-top:16px;align-items:center;flex-wrap:wrap">'; if(step>0) h+='<button class="btn" onclick="evStep('+(step-1)+')">← Înapoi</button>'; if(step<3) h+='<button class="btn primary" onclick="evNext('+step+')">Continuă →</button>'; else h+='<button class="btn primary" onclick="evRun()">↻ Reevaluează</button>'; h+='<span class="evsrc">poți trece mai departe și fără să completezi tot</span></div>'; return h; }
+function evNext(step){
+  if(step===0 && !evGetRb()){ const sel=document.getElementById("evApelSel"); if(sel&&sel.value){ const rb=evSeedFromApel(sel.value); window.EVAL.rb[rb.id]=rb; window.evUI.curId=rb.id; evSave(); } else { const rb=evSeedFromApel(""); rb.titlu="Rulebook nou (manual)"; window.EVAL.rb[rb.id]=rb; window.evUI.curId=rb.id; evSave(); } }
+  window.evUI.step=Math.min(3,(step|0)+1); render();
+  if(window.evUI.step===3) setTimeout(evRun,60);
+}
+function evEditorCard(rb){ var h="";
   h+='<div class="card"><h2 style="font-size:14px;margin-bottom:4px">📘 Rulebook — '+esc(rb.titlu)+' '+(rb.activ?'<span class="evst ok">ACTIV</span>':'<span class="evbadge-un">DE VALIDAT</span>')+'</h2>';
   h+='<div class="evsrc" style="margin-bottom:8px">Editează regulile din ghid. Bifează «confirmat» pentru fiecare regulă validată la sursă.</div>';
   h+='<div class="evform">';
@@ -2049,8 +2046,8 @@ function vVerif(){
   h+='</div></div>';
   h+='<button class="btn primary" onclick="evActivate()" style="margin-top:6px">✅ Activează rulebook-ul</button>';
   h+='</div></div>';
-
-  /* ---------- Dosar ---------- */
+ return h; }
+function evDosarCard(rb){ var h="";
   const D=window.evUI.dosar; const s=D.solicitant, fn=D.financiar;
   h+='<div class="card"><h2 style="font-size:14px;margin-bottom:8px">📂 Dosarul proiectului</h2><div class="evform">';
   h+='<div class="evmini"><b style="font-size:12.5px">Solicitant</b>'
@@ -2077,11 +2074,28 @@ function vVerif(){
     +'<div style="margin-top:5px"><b style="font-size:12px">Indicatori (concordanță)</b> <span class="chip" style="cursor:pointer" onclick="evAddInd()">+</span>';
   (cc.indicatori||[]).forEach((ind,i)=>{ h+='<div class="r2" style="grid-template-columns:1fr 90px 90px auto;margin-top:4px"><input type="text" placeholder="indicator" value="'+esc(ind.nume||"")+'" onchange="window.evUI.dosar.concordanta.indicatori['+i+'].nume=this.value"><input type="text" placeholder="cerere" value="'+esc(ind.cerere||"")+'" onchange="window.evUI.dosar.concordanta.indicatori['+i+'].cerere=this.value"><input type="text" placeholder="buget" value="'+esc(ind.buget||"")+'" onchange="window.evUI.dosar.concordanta.indicatori['+i+'].buget=this.value"><span class="evchipdel" onclick="evDelInd('+i+')">✕</span></div>'; });
   h+='</div></div>';
-  h+='<button class="btn primary" onclick="evRun()">▶ Evaluează dosarul</button>';
+  h+='<button class="btn primary" onclick="evNext(2)">▶ Evaluează dosarul</button>';
   if(!rb.activ) h+=' <span class="evsrc">rulebook neactivat — regulile neconfirmate vor da «nu se poate verifica»</span>';
   h+='</div></div>';
-
-  h+='<div id="evReport" style="margin-top:14px"></div>';
+ return h; }
+function vVerif(){
+  evLoad();
+  const step=window.evUI.step||0;
+  const rb=evGetRb();
+  let h='<div class="viewtitle"><h1>🧪 Verificare proiect</h1><span class="sub">evaluator ghidat · pas cu pas</span></div>';
+  h+=evStepBar(step);
+  if(step===0){
+    h+='<div class="callout">Motor determinist, rulat <b>în browserul tău</b> — documentele nu pleacă nicăieri. Ghidul e sursa de adevăr. Fiecare regulă are 3 rezultate: <b>CONFORM · NECONFORM · NU SE POATE VERIFICA</b>, cu sursă. <b>AI pregătește; omul decide.</b></div>';
+    h+='<div class="card"><h2 style="font-size:14px;margin-bottom:8px">Pentru ce apel verifici? <span class="evsrc">(opțional — poți continua și fără)</span></h2>';
+    h+='<div class="onrcbar"><select id="evApelSel"><option value="">— alege un apel din radar —</option>'+A.filter(a=>a.stare==="activ"||a.stare==="planificat").map(a=>'<option value="'+esc(a.id_apel)+'"'+(rb&&rb.apel_id===a.id_apel?" selected":"")+'>'+esc(a.titlu.slice(0,60))+' ['+esc(a.program)+']</option>').join("")+'</select><button class="btn small primary" onclick="evNewFromApel()">+ Creează rulebook din apel</button></div>';
+    const rbs=evList();
+    if(rbs.length){ h+='<div style="margin-top:12px"><b style="font-size:12.5px">Rulebook-uri salvate:</b><div class="evsub" style="margin-top:6px">'+rbs.map(r=>'<button class="fchip'+(r.id===window.evUI.curId?" on":"")+'" onclick="evPick(\''+r.id+'\')">'+(r.activ?"✅ ":"📝 ")+esc((r.titlu||"apel").slice(0,32))+'</button>').join("")+'</div>'+(rb?'<div style="margin-top:6px"><button class="btn small ghost" onclick="evDelRb()">🗑 șterge rulebook-ul selectat</button></div>':"")+'</div>'; }
+    else h+='<div class="evsrc" style="margin-top:10px">Niciun rulebook încă — alege un apel sau apasă «Continuă» ca să creezi unul gol.</div>';
+    h+='</div>';
+  } else if(step===1){ h+= rb? evEditorCard(rb) : evNoRb(); }
+  else if(step===2){ h+= rb? evDosarCard(rb) : evNoRb(); }
+  else { h+= rb? '<div id="evReport"></div>' : evNoRb(); }
+  h+=evNavBtns(step);
   return h;
 }
 function evRun(){ const rb=evGetRb(); if(!rb) return; const rep=evEvaluate(rb, window.evUI.dosar); const box=document.getElementById("evReport"); if(box) box.innerHTML=evReportHtml(rep); box&&box.scrollIntoView({behavior:"smooth",block:"start"}); }
