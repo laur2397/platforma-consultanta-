@@ -253,3 +253,30 @@ html[data-theme=dark] .onrc-2{color:var(--warn)}
 .onrc-3{background:rgba(208,59,59,.14);color:var(--critical)}
 .onrc-0{background:var(--surface2);color:var(--muted)}
 .onrcmeta{font-size:11.5px;color:var(--muted);margin:6px 2px}
+/* ===== Verificare proiect (evaluator) ===== */
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:1000px){.evgrid{grid-template-columns:1fr}}
+.evsub{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 12px}
+.evrow{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start;padding:8px 0;border-bottom:1px solid var(--grid);font-size:13px}
+.evrow:last-child{border-bottom:0}
+.evst{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;white-space:nowrap}
+.evst.ok{background:rgba(12,163,12,.14);color:var(--good-text)}
+.evst.no{background:rgba(208,59,59,.14);color:var(--critical)}
+.evst.nv{background:var(--surface2);color:var(--muted)}
+.evsrc{font-size:11px;color:var(--muted);margin-top:2px}
+.evfix{font-size:12px;color:var(--accent-deep);margin-top:3px}
+html[data-theme=dark] .evfix{color:#cde2fb}
+.evverdict{font-size:15px;font-weight:700;padding:12px 15px;border-radius:var(--r);margin-bottom:12px}
+.evverdict.go{background:rgba(12,163,12,.12);color:var(--good-text);border:1px solid var(--good)}
+.evverdict.warn{background:rgba(250,178,25,.14);color:#8a6200;border:1px solid var(--warn)}
+html[data-theme=dark] .evverdict.warn{color:var(--warn)}
+.evverdict.no{background:rgba(208,59,59,.12);color:var(--critical);border:1px solid var(--critical)}
+.evform label{display:block;font-size:12px;color:var(--ink2);margin:8px 0 3px}
+.evform input,.evform select,.evform textarea{width:100%;padding:7px 9px;border:1px solid var(--grid);border-radius:7px;background:var(--page);color:var(--ink);font-size:13px}
+.evform .r2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.evchipdel{cursor:pointer;color:var(--critical);font-weight:700;margin-left:6px}
+.evmini{border:1px solid var(--grid);border-radius:8px;padding:9px;margin-bottom:8px;background:var(--page)}
+.evbadge-un{font-size:10px;font-weight:700;background:rgba(236,131,90,.15);color:#a34d24;border:1px dashed var(--serious);border-radius:4px;padding:0 5px;margin-left:6px}
+html[data-theme=dark] .evbadge-un{color:var(--serious)}
+.evmeter{height:10px;border-radius:5px;background:var(--surface2);overflow:hidden;position:relative;margin:6px 0}
+.evmeter span{position:absolute;top:0;bottom:0;left:0;border-radius:5px}

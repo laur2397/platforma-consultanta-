@@ -129,13 +129,13 @@ function calItems(hor){ hor=hor||120; const out=[];
   out.sort((a,b)=> (a.data<b.data?-1:1)); return out; }
 
 /* ---------- navigation ---------- */
-const NAV=[["buletin","🏠","Buletin"],["radar","📡","Radar apeluri"],["matching","🎯","Matching"],["pipeline","📋","Pipeline"],["calendar","📅","Calendar"],["clienti","👥","Clienți"],["prospect","🏢","Prospect ONRC"],["biblioteca","📚","Bibliotecă"],["rapoarte","📊","Rapoarte"],["conformitate","🛡️","Conformitate"],["intel","🔎","Market Intel"],["financiar","🧮","Financiar"],["baze","🗄️","Baze de date"],["admin","⚙️","Administrare"]];
+const NAV=[["buletin","🏠","Buletin"],["radar","📡","Radar apeluri"],["matching","🎯","Matching"],["pipeline","📋","Pipeline"],["calendar","📅","Calendar"],["clienti","👥","Clienți"],["prospect","🏢","Prospect ONRC"],["biblioteca","📚","Bibliotecă"],["rapoarte","📊","Rapoarte"],["conformitate","🛡️","Conformitate"],["verif","🧪","Verificare proiect"],["intel","🔎","Market Intel"],["financiar","🧮","Financiar"],["baze","🗄️","Baze de date"],["admin","⚙️","Administrare"]];
 function navCounts(id){ if(id==="radar") return A.filter(a=>a.stare==="activ").length; if(id==="pipeline") return PR.length; if(id==="clienti") return CL.length; if(id==="calendar") return calItems(30).length; if(id==="baze") return (DB.primarii&&DB.primarii.uat?DB.primarii.uat.length:null); if(id==="prospect"){ const n=onrcTotal(); return n||null; } return null; }
 function renderNav(){ $("#nav").innerHTML = NAV.map(([id,ic,l])=>{ const c=navCounts(id);
   return '<li><button class="'+(S.view===id?"on":"")+'" data-v="'+id+'"><span class="ic">'+ic+'</span>'+l+(c!=null?'<span class="ct">'+c+'</span>':"")+'</button></li>'; }).join("");
   document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{ S.view=b.dataset.v; render(); }); }
 function render(){ renderNav(); const v=S.view; const M=$("#main"); M.scrollTop=0;
-  const f={buletin:vBuletin,radar:vRadar,matching:vMatching,pipeline:vPipeline,calendar:vCalendar,clienti:vClienti,prospect:vProspect,biblioteca:vBiblioteca,rapoarte:vRapoarte,conformitate:vConformitate,intel:vIntel,financiar:vFinanciar,baze:vBaze,admin:vAdmin}[v];
+  const f={buletin:vBuletin,radar:vRadar,matching:vMatching,pipeline:vPipeline,calendar:vCalendar,clienti:vClienti,prospect:vProspect,biblioteca:vBiblioteca,rapoarte:vRapoarte,conformitate:vConformitate,verif:vVerif,intel:vIntel,financiar:vFinanciar,baze:vBaze,admin:vAdmin}[v];
   M.innerHTML = f? f() : "<div class='empty'>…</div>"; if(window["after_"+v]) window["after_"+v](); }
 
 /* ---------- drawer ---------- */
@@ -1859,3 +1859,247 @@ function onrcAddProspect(cty,i){ const d=ONRC.c[cty]; const F=d.f[i]; const id="
     }
   }catch(e){}
 })();
+
+/* ============================================================
+   VERIFICARE PROIECT — evaluator universal, agnostic de măsură.
+   Motor determinist (client-side): confruntă dosarul cu un
+   "rulebook" învățat din ghid. Trei stări per regulă, cu sursă.
+   Ghidul e sursa de adevăr; codul nu presupune tipul proiectului.
+   Documentele rămân în browser.
+   ============================================================ */
+window.EVAL = window.EVAL || { rb:{} };
+const EV_LS="eufcc_rulebooks";
+function evLoad(){ try{ const s=localStorage.getItem(EV_LS); if(s) window.EVAL.rb=JSON.parse(s)||{}; }catch(e){} }
+function evSave(){ try{ localStorage.setItem(EV_LS, JSON.stringify(window.EVAL.rb)); }catch(e){} }
+function evList(){ return Object.values(window.EVAL.rb); }
+function evId(){ return "rb_"+Math.abs((JSON.stringify(window.EVAL.rb).length*7+evList().length*13+ (A?A.length:0))%99999)+"_"+evList().length; }
+
+/* ---- comparatoare deterministe ---- */
+function evCmp(op, a, b){
+  const na=parseFloat(a), nb=parseFloat(b); const bothNum=!isNaN(na)&&!isNaN(nb);
+  switch(op){
+    case "ge": return bothNum? na>=nb : null;
+    case "le": return bothNum? na<=nb : null;
+    case "gt": return bothNum? na>nb : null;
+    case "lt": return bothNum? na<nb : null;
+    case "eq": return bothNum? na===nb : String(a).trim().toLowerCase()===String(b).trim().toLowerCase();
+    case "ne": return bothNum? na!==nb : String(a).trim().toLowerCase()!==String(b).trim().toLowerCase();
+    case "in": { const list=String(b).split(/[,;/]/).map(x=>x.trim().toLowerCase()).filter(Boolean); return list.includes(String(a).trim().toLowerCase()); }
+    case "nin": { const list=String(b).split(/[,;/]/).map(x=>x.trim().toLowerCase()).filter(Boolean); return !list.includes(String(a).trim().toLowerCase()); }
+  }
+  return null;
+}
+const EV_OPLBL={ge:"≥",le:"≤",gt:">",lt:"<",eq:"=",ne:"≠",in:"∈ (în lista)",nin:"∉ (nu în lista)"};
+const EV_FACTFIELDS=[["dimensiune","Dimensiune (micro/mica/mijlocie/mare)"],["tip","Tip solicitant (privat/UAT/ONG…)"],["regiune","Regiune"],["judet","Județ"],["vechime_ani","Vechime (ani)"],["caen","CAEN"],["capitaluri_proprii_lei","Capitaluri proprii (lei)"],["nr_angajati","Nr. angajați"],["cifra_afaceri_lei","Cifră de afaceri (lei)"]];
+
+/* ---- seed: schiță de rulebook din apelul din radar (needs human validation) ---- */
+function evSeedFromApel(apelId){
+  const a=apelById(apelId)||{};
+  const src="Apel din radar (schiță auto) — DE VALIDAT cu ghidul";
+  const elig=[];
+  if((a.tip_beneficiar||[]).length) elig.push({camp:"dimensiune",op:"in",val:(a.tip_beneficiar||[]).map(b=>BEN[b]||b).join(", "),sursa:"tip_beneficiar din radar",confirmat:false});
+  if((a.regiuni||[]).length && !(a.regiuni||[]).includes("Național")) elig.push({camp:"regiune",op:"in",val:(a.regiuni||[]).join(", "),sursa:"regiuni din radar",confirmat:false});
+  const rb={
+    id:evId(), apel_id:apelId, titlu:a.titlu||"Apel", program:a.program||"", versiune:1, activ:false,
+    eligibilitate:elig,
+    financiar:{ sprijin_min:a.grant_min||null, sprijin_max:a.grant_max||null, intensitate_max_pct:a.intensitate_max_pct||null, cofinantare_min_pct:(a.intensitate_max_pct?100-a.intensitate_max_pct:null), tip_ajutor:/minimis/i.test(a.tip_ajutor||"")?"minimis":"", moneda:a.moneda||"EUR", plafoane:[], neeligibile:[], confirmat:false },
+    documente:[], grila:{ prag_minim:null, criterii:(a.criterii_cheie||[]).slice(0,6).map(c=>({nume:c,punctaj_max:null,tip:"subiectiv",eliminatoriu:false,sursa:"criterii_cheie din radar",confirmat:false})) },
+    eliminatorii:[], termene:{ depunere:a.data_inchidere||"" }, legislatie:[]
+  };
+  return rb;
+}
+
+/* ============ MOTORUL DE EVALUARE (determinist) ============ */
+function evNum(v){ const n=parseFloat(String(v==null?"":v).toString().replace(/[^0-9.\-]/g,"")); return isNaN(n)?null:n; }
+function evEvaluate(rb, f){
+  const checks=[]; // {strat, titlu, status:'CONFORM'|'NECONFORM'|'NV', gasit, cerut, dif, sursa, fix, blocant}
+  const add=(o)=>checks.push(Object.assign({status:"NV",blocant:false},o));
+  const sol=f.solicitant||{}, fin=f.financiar||{};
+
+  /* ---- A. Eligibilitate (din ghid) ---- */
+  (rb.eligibilitate||[]).forEach(c=>{
+    if(!c.confirmat){ add({strat:"Eligibilitate",titlu:c.camp,status:"NV",cerut:EV_OPLBL[c.op]+" "+c.val,sursa:c.sursa,fix:"Parametru neconfirmat din ghid — validează-l în rulebook."}); return; }
+    const val=sol[c.camp];
+    if(val==null||val===""){ add({strat:"Eligibilitate",titlu:c.camp,status:"NV",cerut:EV_OPLBL[c.op]+" "+c.val,sursa:c.sursa,fix:"Completează «"+c.camp+"» în dosar."}); return; }
+    const r=evCmp(c.op,val,c.val);
+    if(r===null){ add({strat:"Eligibilitate",titlu:c.camp,status:"NV",gasit:val,cerut:EV_OPLBL[c.op]+" "+c.val,sursa:c.sursa}); return; }
+    add({strat:"Eligibilitate",titlu:c.camp,status:r?"CONFORM":"NECONFORM",gasit:val,cerut:EV_OPLBL[c.op]+" "+c.val,sursa:c.sursa,blocant:!r,fix:r?"":"Solicitantul nu îndeplinește condiția de eligibilitate."});
+  });
+
+  /* ---- A. Financiar & plafoane (din ghid) ---- */
+  const fi=rb.financiar||{}; const val=evNum(fin.valoare_proiect), spr=evNum(fin.sprijin_solicitat);
+  if(fi.confirmat){
+    if(fi.sprijin_max!=null){ if(spr==null) add({strat:"Financiar",titlu:"Sprijin ≤ plafon",status:"NV",cerut:"≤ "+fi.sprijin_max+" "+(fi.moneda||""),sursa:"financiar (ghid)",fix:"Completează sprijinul solicitat."});
+      else add({strat:"Financiar",titlu:"Sprijin ≤ plafon max",status:spr<=fi.sprijin_max?"CONFORM":"NECONFORM",gasit:spr,cerut:"≤ "+fi.sprijin_max,dif:spr>fi.sprijin_max?(spr-fi.sprijin_max):0,sursa:"financiar (ghid)",blocant:spr>fi.sprijin_max,fix:spr>fi.sprijin_max?("Reduci sprijinul cu "+nf.format(spr-fi.sprijin_max)+" "+(fi.moneda||"")+" sau proiectul e neeligibil."):""}); }
+    if(fi.sprijin_min!=null && spr!=null) add({strat:"Financiar",titlu:"Sprijin ≥ minim",status:spr>=fi.sprijin_min?"CONFORM":"NECONFORM",gasit:spr,cerut:"≥ "+fi.sprijin_min,sursa:"financiar (ghid)",blocant:spr<fi.sprijin_min,fix:spr<fi.sprijin_min?"Sprijinul e sub minimul apelului.":""});
+    if(fi.intensitate_max_pct!=null){ if(val&&spr){ const it=Math.round(spr/val*1000)/10; add({strat:"Financiar",titlu:"Intensitate ≤ max",status:it<=fi.intensitate_max_pct?"CONFORM":"NECONFORM",gasit:it+"%",cerut:"≤ "+fi.intensitate_max_pct+"%",sursa:"financiar (ghid)",blocant:it>fi.intensitate_max_pct,fix:it>fi.intensitate_max_pct?"Crește cofinanțarea: intensitatea depășește plafonul.":""}); }
+      else add({strat:"Financiar",titlu:"Intensitate ≤ max",status:"NV",cerut:"≤ "+fi.intensitate_max_pct+"%",sursa:"financiar (ghid)",fix:"Completează valoarea proiectului și sprijinul."}); }
+    (fi.plafoane||[]).filter(p=>p.confirmat!==false).forEach(p=>{ const ch=(fin.cheltuieli||[]).find(x=>String(x.categorie).trim().toLowerCase()===String(p.categorie).trim().toLowerCase());
+      if(!ch){ add({strat:"Financiar",titlu:"Plafon "+p.categorie,status:"NV",cerut:(p.tip==="pct"?"≤ "+p.val+"%":"≤ "+p.val),sursa:p.sursa||"plafon (ghid)",fix:"Nu găsesc cheltuiala «"+p.categorie+"» în buget."}); return; }
+      const suma=evNum(ch.suma); let ok,gasit,cerut;
+      if(p.tip==="pct"){ const pct=val?Math.round(suma/val*1000)/10:null; ok=pct!=null&&pct<=p.val; gasit=(pct==null?"?":pct+"%"); cerut="≤ "+p.val+"%"; }
+      else { ok=suma<=p.val; gasit=suma; cerut="≤ "+p.val; }
+      add({strat:"Financiar",titlu:"Plafon "+p.categorie,status:ok?"CONFORM":"NECONFORM",gasit:gasit,cerut:cerut,sursa:p.sursa||"plafon (ghid)",blocant:!ok,fix:ok?"":"Categoria «"+p.categorie+"» depășește plafonul din ghid."}); });
+    (fi.neeligibile||[]).forEach(nl=>{ const ch=(fin.cheltuieli||[]).find(x=>String(x.categorie).trim().toLowerCase()===String(nl.categorie||nl).trim().toLowerCase()); if(ch&&evNum(ch.suma)>0) add({strat:"Financiar",titlu:"Cheltuială neeligibilă",status:"NECONFORM",gasit:nl.categorie||nl,cerut:"absentă",sursa:nl.sursa||"neeligibile (ghid)",blocant:true,fix:"Elimină din buget cheltuiala neeligibilă «"+(nl.categorie||nl)+"»."}); });
+  } else add({strat:"Financiar",titlu:"Reguli financiare",status:"NV",sursa:"financiar (ghid)",fix:"Confirmă parametrii financiari în rulebook."});
+
+  /* ---- B. Concordanțe (universale) ---- */
+  const cc=f.concordanta||{};
+  const pair=(k,label)=>{ const a=cc[k+"_cerere"], b=cc[k+"_buget"]; if((a==null||a==="")&&(b==null||b==="")) return; if(a==null||a===""||b==null||b===""){ add({strat:"Concordanță",titlu:label,status:"NV",sursa:"concordanță documente",fix:"Completează «"+label+"» din ambele documente."}); return;} const ok=String(a).trim().toLowerCase()===String(b).trim().toLowerCase(); add({strat:"Concordanță",titlu:label,status:ok?"CONFORM":"NECONFORM",gasit:a+" vs "+b,cerut:"identic",sursa:"cerere vs buget/anexe",blocant:false,fix:ok?"":"Clarificare probabilă: «"+label+"» diferă între documente."}); };
+  pair("cui","CUI solicitant");
+  pair("denumire","Denumire solicitant");
+  (cc.indicatori||[]).forEach(ind=>{ const vs=[ind.cerere,ind.buget,ind.anexa].filter(x=>x!=null&&x!==""); if(vs.length<2){ return; } const allEq=vs.every(x=>String(x).trim()===String(vs[0]).trim()); add({strat:"Concordanță",titlu:"Indicator: "+ind.nume,status:allEq?"CONFORM":"NECONFORM",gasit:vs.join(" / "),cerut:"identic peste documente",sursa:"triplă concordanță (dacă apelul o cere)",fix:allEq?"":"Aliniază indicatorul «"+ind.nume+"» în cerere/buget/anexe."}); });
+  if(val!=null&&spr!=null){ const cof=evNum(fin.cofinantare); const suma=spr+(cof!=null?cof:(val-spr)); const ok=Math.abs(suma-val)<=1; add({strat:"Concordanță",titlu:"Sprijin + cofinanțare = valoare",status:ok?"CONFORM":"NECONFORM",gasit:nf.format(spr)+" + "+nf.format(cof!=null?cof:(val-spr))+" = "+nf.format(suma),cerut:nf.format(val),sursa:"aritmetică buget",fix:ok?"":"Sumele nu se compun corect cu valoarea proiectului."}); }
+
+  /* ---- C. Documente (din ghid) ---- */
+  const prez=new Set((f.documente_prezente||[]).map(x=>String(x).trim().toLowerCase()));
+  (rb.documente||[]).filter(d=>d.confirmat!==false).forEach(d=>{ const has=prez.has(String(d.nume).trim().toLowerCase()); add({strat:"Documente",titlu:d.nume,status:has?"CONFORM":"NECONFORM",gasit:has?"prezent":"lipsă",cerut:"obligatoriu"+(d.forma?" ("+d.forma+")":""),sursa:d.sursa||"listă documente (ghid)",blocant:!has,fix:has?"":"Adaugă documentul «"+d.nume+"» în dosar."}); });
+
+  /* ---- D. Grila (simulare) ---- */
+  let gmin=0, gmax=0; const gcrit=[];
+  (rb.grila&&rb.grila.criterii||[]).forEach(cr=>{ const pmax=evNum(cr.punctaj_max)||0; gmax+=pmax; let got=0, tip=cr.tip;
+    if(cr.tip==="obiectiv" && cr.confirmat!==false && cr.camp && cr.op){ const v=sol[cr.camp]!=null?sol[cr.camp]:fin[cr.camp]; if(v!=null&&v!==""){ const r=evCmp(cr.op,v,cr.val); if(r) got=pmax; } }
+    gmin+=got; gcrit.push({nume:cr.nume,pmax,got,tip:cr.tip,elim:cr.eliminatoriu}); });
+  const prag=evNum(rb.grila&&rb.grila.prag_minim);
+  if(prag!=null && gmin<prag) add({strat:"Grilă",titlu:"Prag de calificare",status:"NECONFORM",gasit:"min garantat "+gmin,cerut:"≥ "+prag,sursa:"grilă (ghid)",blocant:false,fix:"Sub prag pe punctajul garantat — trebuie câștigate puncte pe criteriile de apreciere."});
+
+  /* ---- Strat transversal (doar dacă rulebook-ul îl invocă) ---- */
+  const leg=new Set(rb.legislatie||[]);
+  if(leg.has("dificultate")){ const cp=evNum(sol.capitaluri_proprii_lei); if(sol.tip!=="UAT"){ if(cp==null) add({strat:"Legislație",titlu:"Întreprindere în dificultate",status:"NV",sursa:"art. 2 pct. 18 Reg. 651/2014",fix:"Completează capitalurile proprii din bilanț."}); else add({strat:"Legislație",titlu:"Întreprindere în dificultate",status:cp>=0?"CONFORM":"NECONFORM",gasit:nf.format(cp)+" lei",cerut:"capitaluri proprii ≥ 0",sursa:"art. 2 pct. 18 Reg. 651/2014 (expiră 31.12.2026)",blocant:cp<0,fix:cp<0?"Capitaluri proprii negative → criteriu eliminatoriu; remediere înainte de depunere.":""}); } }
+  if(leg.has("minimis")){ const mu=evNum(sol.minimis_utilizat_eur); const sprE=(fi.moneda==="EUR")?spr:null; if(mu==null||sprE==null) add({strat:"Legislație",titlu:"Plafon minimis 300.000 €",status:"NV",sursa:"Reg. UE 2023/2831",fix:"Completează minimisul utilizat (€) și asigură sprijinul în €."}); else add({strat:"Legislație",titlu:"Plafon minimis 300.000 €/3 ani",status:(mu+sprE)<=300000?"CONFORM":"NECONFORM",gasit:nf.format(mu+sprE)+" €",cerut:"≤ 300.000 €",sursa:"Reg. UE 2023/2831 (întreprindere unică)",blocant:(mu+sprE)>300000,fix:(mu+sprE)>300000?"Depășește plafonul de minimis pe întreprindere unică.":""}); }
+  if(leg.has("imm")){ if(!sol.dimensiune) add({strat:"Legislație",titlu:"Încadrare IMM",status:"NV",sursa:"Reg. 651/2014 Anexa I",fix:"Completează dimensiunea (din situații financiare)."}); }
+
+  /* ---- Sinteză / verdict ---- */
+  const blocante=checks.filter(c=>c.blocant && c.status==="NECONFORM");
+  const clarificari=checks.filter(c=>c.strat==="Concordanță" && c.status==="NECONFORM");
+  const avert=checks.filter(c=>!c.blocant && c.status==="NECONFORM" && c.strat!=="Concordanță");
+  const nv=checks.filter(c=>c.status==="NV");
+  let verdict, vclass;
+  if(blocante.length){ verdict="NU se poate depune — "+blocante.length+" blocant(e) de rezolvat"; vclass="no"; }
+  else if(clarificari.length||avert.length){ verdict="Se poate depune CU RISCURI — "+(clarificari.length+avert.length)+" de clarificat/remediat"; vclass="warn"; }
+  else if(nv.length){ verdict="Se poate depune cu rezerve — "+nv.length+" verificări incomplete (vezi «nu s-a putut verifica»)"; vclass="warn"; }
+  else verdict="Se poate depune — nicio neconformitate deterministă găsită"; vclass=vclass||"go";
+  return { verdict, vclass, checks, blocante, clarificari, avert, nv, grila:{min:gmin,max:gmax,prag,criterii:gcrit} };
+}
+
+/* ===== Verificare proiect — UI ===== */
+window.evUI = window.evUI || { curId:null, dosar:{ solicitant:{}, financiar:{ cheltuieli:[] }, documente_prezente:[], concordanta:{ indicatori:[] } }, report:null };
+function evGetRb(){ return window.EVAL.rb[window.evUI.curId]||null; }
+function evSet(path,val){ const p=path.split("."); let o=window.evUI; for(let i=0;i<p.length-1;i++){ if(o[p[i]]==null) o[p[i]]={}; o=o[p[i]]; } o[p[p.length-1]]=val; }
+function evSetRb(path,val){ const rb=evGetRb(); if(!rb) return; const p=path.split("."); let o=rb; for(let i=0;i<p.length-1;i++){ if(o[p[i]]==null) o[p[i]]={}; o=o[p[i]]; } const last=p[p.length-1]; o[last]=(val===""?null:(isNaN(val)||typeof val!=="string"?val:(/^-?\d+(\.\d+)?$/.test(val)?parseFloat(val):val))); evSave(); }
+function evNewFromApel(){ const sel=document.getElementById("evApelSel"); if(!sel||!sel.value) return; const rb=evSeedFromApel(sel.value); window.EVAL.rb[rb.id]=rb; window.evUI.curId=rb.id; evSave(); toast("Schiță de rulebook creată — validează parametrii"); render(); }
+function evPick(id){ window.evUI.curId=id; render(); }
+function evDelRb(){ const rb=evGetRb(); if(!rb) return; if(!confirm("Ștergi rulebook-ul «"+rb.titlu+"»?")) return; delete window.EVAL.rb[window.evUI.curId]; window.evUI.curId=null; evSave(); render(); }
+function evActivate(){ const rb=evGetRb(); if(!rb) return; rb.activ=true; evSave(); toast("Rulebook activat"); render(); }
+function evAddElig(){ const rb=evGetRb(); rb.eligibilitate=rb.eligibilitate||[]; rb.eligibilitate.push({camp:"dimensiune",op:"in",val:"",sursa:"",confirmat:false}); evSave(); render(); }
+function evDelElig(i){ evGetRb().eligibilitate.splice(i,1); evSave(); render(); }
+function evAddDoc(){ const rb=evGetRb(); rb.documente=rb.documente||[]; rb.documente.push({nume:"",forma:"",confirmat:true,sursa:""}); evSave(); render(); }
+function evDelDoc(i){ evGetRb().documente.splice(i,1); evSave(); render(); }
+function evAddPlaf(){ const rb=evGetRb(); rb.financiar.plafoane=rb.financiar.plafoane||[]; rb.financiar.plafoane.push({categorie:"",tip:"pct",val:null,sursa:"",confirmat:true}); evSave(); render(); }
+function evDelPlaf(i){ evGetRb().financiar.plafoane.splice(i,1); evSave(); render(); }
+function evAddCrit(){ const rb=evGetRb(); rb.grila=rb.grila||{criterii:[]}; rb.grila.criterii.push({nume:"",punctaj_max:null,tip:"subiectiv",eliminatoriu:false,confirmat:true}); evSave(); render(); }
+function evDelCrit(i){ evGetRb().grila.criterii.splice(i,1); evSave(); render(); }
+function evLeg(k,on){ const rb=evGetRb(); rb.legislatie=rb.legislatie||[]; const s=new Set(rb.legislatie); on?s.add(k):s.delete(k); rb.legislatie=[...s]; evSave(); }
+function evAddChelt(){ window.evUI.dosar.financiar.cheltuieli.push({categorie:"",suma:null}); render(); }
+function evDelChelt(i){ window.evUI.dosar.financiar.cheltuieli.splice(i,1); render(); }
+function evAddInd(){ window.evUI.dosar.concordanta.indicatori.push({nume:"",cerere:"",buget:""}); render(); }
+function evDelInd(i){ window.evUI.dosar.concordanta.indicatori.splice(i,1); render(); }
+
+function vVerif(){
+  evLoad();
+  const rbs=evList();
+  let h='<div class="viewtitle"><h1>🧪 Verificare proiect</h1><span class="sub">evaluator universal · rulebook per apel</span></div>';
+  h+='<div class="callout">Motor determinist, rulat <b>în browserul tău</b> — documentele nu pleacă nicăieri. Ghidul e sursa de adevăr: sistemul verifică doar regulile pe care le înveți în rulebook. Fiecare regulă are 3 rezultate — <b>CONFORM · NECONFORM · NU SE POATE VERIFICA</b> — și sursă. <b>AI pregătește; omul decide.</b></div>';
+  h+='<div class="onrcbar"><select id="evApelSel"><option value="">— alege un apel din radar —</option>'+A.filter(a=>a.stare==="activ"||a.stare==="planificat").map(a=>'<option value="'+esc(a.id_apel)+'">'+esc(a.titlu.slice(0,60))+' ['+esc(a.program)+']</option>').join("")+'</select>'
+    +'<button class="btn small primary" onclick="evNewFromApel()">+ Rulebook (schiță din apel)</button></div>';
+  if(rbs.length){ h+='<div class="evsub">'+rbs.map(r=>'<button class="fchip'+(r.id===window.evUI.curId?" on":"")+'" onclick="evPick(\''+r.id+'\')">'+(r.activ?"✅ ":"📝 ")+esc((r.titlu||"apel").slice(0,32))+'</button>').join("")+'</div>'; }
+  const rb=evGetRb();
+  if(!rb){ h+='<div class="empty">Alege un apel și creează un rulebook, apoi validează-l și verifică un dosar.</div>'; return h; }
+
+  h+='<div class="evgrid">';
+  /* ---------- Editor rulebook ---------- */
+  h+='<div class="card"><h2 style="font-size:14px;margin-bottom:4px">📘 Rulebook — '+esc(rb.titlu)+' '+(rb.activ?'<span class="evst ok">ACTIV</span>':'<span class="evbadge-un">DE VALIDAT</span>')+'</h2>';
+  h+='<div class="evsrc" style="margin-bottom:8px">Editează regulile din ghid. Bifează «confirmat» pentru fiecare regulă validată la sursă.</div>';
+  h+='<div class="evform">';
+  const fi=rb.financiar||{};
+  h+='<div class="evmini"><b style="font-size:12.5px">💶 Financiar</b>'
+    +'<label><input type="checkbox" '+(fi.confirmat?"checked":"")+' onchange="evSetRb(\'financiar.confirmat\',this.checked)"> confirmat din ghid</label>'
+    +'<div class="r2"><div><label>Sprijin min</label><input type="number" value="'+(fi.sprijin_min??"")+'" onchange="evSetRb(\'financiar.sprijin_min\',this.value)"></div><div><label>Sprijin max</label><input type="number" value="'+(fi.sprijin_max??"")+'" onchange="evSetRb(\'financiar.sprijin_max\',this.value)"></div></div>'
+    +'<div class="r2"><div><label>Intensitate max %</label><input type="number" value="'+(fi.intensitate_max_pct??"")+'" onchange="evSetRb(\'financiar.intensitate_max_pct\',this.value)"></div><div><label>Monedă</label><input type="text" value="'+esc(fi.moneda||"EUR")+'" onchange="evSetRb(\'financiar.moneda\',this.value)"></div></div>'
+    +'<label>Tip ajutor</label><select onchange="evSetRb(\'financiar.tip_ajutor\',this.value)"><option value=""'+(!fi.tip_ajutor?" selected":"")+'>—</option><option value="minimis"'+(fi.tip_ajutor==="minimis"?" selected":"")+'>de minimis</option><option value="stat"'+(fi.tip_ajutor==="stat"?" selected":"")+'>ajutor de stat</option><option value="fara"'+(fi.tip_ajutor==="fara"?" selected":"")+'>fără ajutor de stat</option></select>';
+  h+='<div style="margin-top:6px"><b style="font-size:12px">Plafoane pe cheltuieli</b> <span class="chip" style="cursor:pointer" onclick="evAddPlaf()">+ adaugă</span>';
+  (fi.plafoane||[]).forEach((p,i)=>{ h+='<div class="r2" style="margin-top:4px;grid-template-columns:1fr 70px 70px auto"><input type="text" placeholder="categorie" value="'+esc(p.categorie||"")+'" onchange="evGetRb().financiar.plafoane['+i+'].categorie=this.value;evSave()"><select onchange="evGetRb().financiar.plafoane['+i+'].tip=this.value;evSave()"><option value="pct"'+(p.tip==="pct"?" selected":"")+'>%</option><option value="suma"'+(p.tip==="suma"?" selected":"")+'>sumă</option></select><input type="number" placeholder="val" value="'+(p.val??"")+'" onchange="evGetRb().financiar.plafoane['+i+'].val=parseFloat(this.value)||null;evSave()"><span class="evchipdel" onclick="evDelPlaf('+i+')">✕</span></div>'; });
+  h+='</div></div>';
+  /* eligibilitate */
+  h+='<div class="evmini"><b style="font-size:12.5px">👤 Eligibilitate solicitant</b> <span class="chip" style="cursor:pointer" onclick="evAddElig()">+ condiție</span>';
+  (rb.eligibilitate||[]).forEach((c,i)=>{ h+='<div style="margin-top:5px;border-top:1px dashed var(--grid);padding-top:5px"><div class="r2" style="grid-template-columns:1fr 90px auto"><select onchange="evGetRb().eligibilitate['+i+'].camp=this.value;evSave()">'+EV_FACTFIELDS.map(([k,l])=>'<option value="'+k+'"'+(c.camp===k?" selected":"")+'>'+esc(l)+'</option>').join("")+'</select><select onchange="evGetRb().eligibilitate['+i+'].op=this.value;evSave()">'+Object.keys(EV_OPLBL).map(o=>'<option value="'+o+'"'+(c.op===o?" selected":"")+'>'+EV_OPLBL[o]+'</option>').join("")+'</select><span class="evchipdel" onclick="evDelElig('+i+')">✕</span></div><input type="text" placeholder="valoare (ex: micro, IMM / 3 / Nord-Vest)" value="'+esc(c.val||"")+'" onchange="evGetRb().eligibilitate['+i+'].val=this.value;evSave()" style="margin-top:4px"><label style="margin-top:2px"><input type="checkbox" '+(c.confirmat?"checked":"")+' onchange="evGetRb().eligibilitate['+i+'].confirmat=this.checked;evSave()"> confirmat din ghid <span class="evsrc">'+esc(c.sursa||"")+'</span></label></div>'; });
+  h+='</div>';
+  /* documente */
+  h+='<div class="evmini"><b style="font-size:12.5px">📎 Documente cerute</b> <span class="chip" style="cursor:pointer" onclick="evAddDoc()">+ document</span>';
+  (rb.documente||[]).forEach((d,i)=>{ h+='<div class="r2" style="margin-top:4px;grid-template-columns:1fr 110px auto"><input type="text" placeholder="denumire document" value="'+esc(d.nume||"")+'" onchange="evGetRb().documente['+i+'].nume=this.value;evSave()"><input type="text" placeholder="formă (opț.)" value="'+esc(d.forma||"")+'" onchange="evGetRb().documente['+i+'].forma=this.value;evSave()"><span class="evchipdel" onclick="evDelDoc('+i+')">✕</span></div>'; });
+  h+='</div>';
+  /* grila */
+  const gr=rb.grila||{criterii:[]};
+  h+='<div class="evmini"><b style="font-size:12.5px">📊 Grilă</b> — prag minim <input type="number" style="width:70px;display:inline-block" value="'+(gr.prag_minim??"")+'" onchange="evSetRb(\'grila.prag_minim\',this.value)"> <span class="chip" style="cursor:pointer" onclick="evAddCrit()">+ criteriu</span>';
+  (gr.criterii||[]).forEach((c,i)=>{ h+='<div style="margin-top:5px;border-top:1px dashed var(--grid);padding-top:5px"><div class="r2" style="grid-template-columns:1fr 60px 90px auto"><input type="text" placeholder="criteriu" value="'+esc(c.nume||"")+'" onchange="evGetRb().grila.criterii['+i+'].nume=this.value;evSave()"><input type="number" placeholder="pmax" value="'+(c.punctaj_max??"")+'" onchange="evGetRb().grila.criterii['+i+'].punctaj_max=parseFloat(this.value)||null;evSave()"><select onchange="evGetRb().grila.criterii['+i+'].tip=this.value;evSave();render()"><option value="subiectiv"'+(c.tip==="subiectiv"?" selected":"")+'>apreciere</option><option value="obiectiv"'+(c.tip==="obiectiv"?" selected":"")+'>obiectiv</option></select><span class="evchipdel" onclick="evDelCrit('+i+')">✕</span></div>'+(c.tip==="obiectiv"?'<div class="r2" style="grid-template-columns:1fr 70px 1fr;margin-top:4px"><select onchange="evGetRb().grila.criterii['+i+'].camp=this.value;evSave()"><option value="">câmp…</option>'+EV_FACTFIELDS.map(([k,l])=>'<option value="'+k+'"'+(c.camp===k?" selected":"")+'>'+esc(k)+'</option>').join("")+'</select><select onchange="evGetRb().grila.criterii['+i+'].op=this.value;evSave()">'+Object.keys(EV_OPLBL).map(o=>'<option value="'+o+'"'+(c.op===o?" selected":"")+'>'+EV_OPLBL[o]+'</option>').join("")+'</select><input type="text" placeholder="valoare" value="'+esc(c.val||"")+'" onchange="evGetRb().grila.criterii['+i+'].val=this.value;evSave()"></div>':"")+'</div>'; });
+  h+='</div>';
+  /* legislatie */
+  h+='<div class="evmini"><b style="font-size:12.5px">⚖️ Legislație transversală</b> <span class="evsrc">(se aplică doar dacă apelul o invocă)</span><div style="margin-top:4px">';
+  [["minimis","de minimis (300.000 €)"],["imm","încadrare IMM"],["dificultate","întreprindere în dificultate"],["regional","ajutor regional pe județ"],["dnsh","DNSH"],["achizitii","achiziții / conflict interese"]].forEach(([k,l])=>{ const on=(rb.legislatie||[]).includes(k); h+='<label style="display:inline-flex;gap:5px;margin-right:12px;font-size:12px"><input type="checkbox" '+(on?"checked":"")+' onchange="evLeg(\''+k+'\',this.checked)"> '+esc(l)+'</label>'; });
+  h+='</div></div>';
+  h+='<button class="btn primary" onclick="evActivate()" style="margin-top:6px">✅ Activează rulebook-ul</button>';
+  h+='</div></div>';
+
+  /* ---------- Dosar ---------- */
+  const D=window.evUI.dosar; const s=D.solicitant, fn=D.financiar;
+  h+='<div class="card"><h2 style="font-size:14px;margin-bottom:8px">📂 Dosarul proiectului</h2><div class="evform">';
+  h+='<div class="evmini"><b style="font-size:12.5px">Solicitant</b>'
+    +'<div class="r2"><div><label>Dimensiune</label><select onchange="evSet(\'dosar.solicitant.dimensiune\',this.value)"><option value="">—</option>'+["microintreprindere","mica","mijlocie","mare"].map(x=>'<option'+(s.dimensiune===x?" selected":"")+'>'+x+'</option>').join("")+'</select></div><div><label>Tip</label><select onchange="evSet(\'dosar.solicitant.tip\',this.value)"><option value="">—</option>'+["privat","UAT","ONG"].map(x=>'<option'+(s.tip===x?" selected":"")+'>'+x+'</option>').join("")+'</select></div></div>'
+    +'<div class="r2"><div><label>Regiune</label><input type="text" value="'+esc(s.regiune||"")+'" onchange="evSet(\'dosar.solicitant.regiune\',this.value)"></div><div><label>Județ</label><input type="text" value="'+esc(s.judet||"")+'" onchange="evSet(\'dosar.solicitant.judet\',this.value)"></div></div>'
+    +'<div class="r2"><div><label>Vechime (ani)</label><input type="number" value="'+(s.vechime_ani??"")+'" onchange="evSet(\'dosar.solicitant.vechime_ani\',this.value)"></div><div><label>CAEN</label><input type="text" value="'+esc(s.caen||"")+'" onchange="evSet(\'dosar.solicitant.caen\',this.value)"></div></div>'
+    +'<div class="r2"><div><label>Capitaluri proprii (lei)</label><input type="number" value="'+(s.capitaluri_proprii_lei??"")+'" onchange="evSet(\'dosar.solicitant.capitaluri_proprii_lei\',this.value)"></div><div><label>Minimis utilizat (€)</label><input type="number" value="'+(s.minimis_utilizat_eur??"")+'" onchange="evSet(\'dosar.solicitant.minimis_utilizat_eur\',this.value)"></div></div></div>';
+  h+='<div class="evmini"><b style="font-size:12.5px">Financiar</b>'
+    +'<div class="r2"><div><label>Valoare proiect</label><input type="number" value="'+(fn.valoare_proiect??"")+'" onchange="evSet(\'dosar.financiar.valoare_proiect\',this.value)"></div><div><label>Sprijin solicitat</label><input type="number" value="'+(fn.sprijin_solicitat??"")+'" onchange="evSet(\'dosar.financiar.sprijin_solicitat\',this.value)"></div></div>'
+    +'<label>Cofinanțare (opț.)</label><input type="number" value="'+(fn.cofinantare??"")+'" onchange="evSet(\'dosar.financiar.cofinantare\',this.value)">'
+    +'<div style="margin-top:5px"><b style="font-size:12px">Cheltuieli pe categorii</b> <span class="chip" style="cursor:pointer" onclick="evAddChelt()">+</span>';
+  (fn.cheltuieli||[]).forEach((c,i)=>{ h+='<div class="r2" style="grid-template-columns:1fr 110px auto;margin-top:4px"><input type="text" placeholder="categorie" value="'+esc(c.categorie||"")+'" onchange="window.evUI.dosar.financiar.cheltuieli['+i+'].categorie=this.value"><input type="number" placeholder="sumă" value="'+(c.suma??"")+'" onchange="window.evUI.dosar.financiar.cheltuieli['+i+'].suma=parseFloat(this.value)||null"><span class="evchipdel" onclick="evDelChelt('+i+')">✕</span></div>'; });
+  h+='</div></div>';
+  /* documente prezente */
+  h+='<div class="evmini"><b style="font-size:12.5px">Documente prezente în dosar</b>';
+  if((rb.documente||[]).length){ h+='<div style="margin-top:4px">'+rb.documente.map(d=>{ const on=(D.documente_prezente||[]).includes(d.nume); return '<label style="display:block;font-size:12.5px"><input type="checkbox" '+(on?"checked":"")+' onchange="var a=window.evUI.dosar.documente_prezente;if(this.checked){if(a.indexOf(\''+esc(d.nume).replace(/'/g,"\\'")+'\')<0)a.push(\''+esc(d.nume).replace(/'/g,"\\'")+'\')}else{var k=a.indexOf(\''+esc(d.nume).replace(/'/g,"\\'")+'\');if(k>=0)a.splice(k,1)}"> '+esc(d.nume)+'</label>'; }).join("")+'</div>'; }
+  else h+='<div class="evsrc">Adaugă documente în rulebook ca să le poți bifa aici.</div>';
+  h+='</div>';
+  /* concordanta */
+  const cc=D.concordanta;
+  h+='<div class="evmini"><b style="font-size:12.5px">Concordanță documente</b>'
+    +'<div class="r2"><div><label>CUI (cerere)</label><input type="text" value="'+esc(cc.cui_cerere||"")+'" onchange="evSet(\'dosar.concordanta.cui_cerere\',this.value)"></div><div><label>CUI (buget)</label><input type="text" value="'+esc(cc.cui_buget||"")+'" onchange="evSet(\'dosar.concordanta.cui_buget\',this.value)"></div></div>'
+    +'<div class="r2"><div><label>Denumire (cerere)</label><input type="text" value="'+esc(cc.denumire_cerere||"")+'" onchange="evSet(\'dosar.concordanta.denumire_cerere\',this.value)"></div><div><label>Denumire (buget)</label><input type="text" value="'+esc(cc.denumire_buget||"")+'" onchange="evSet(\'dosar.concordanta.denumire_buget\',this.value)"></div></div>'
+    +'<div style="margin-top:5px"><b style="font-size:12px">Indicatori (concordanță)</b> <span class="chip" style="cursor:pointer" onclick="evAddInd()">+</span>';
+  (cc.indicatori||[]).forEach((ind,i)=>{ h+='<div class="r2" style="grid-template-columns:1fr 90px 90px auto;margin-top:4px"><input type="text" placeholder="indicator" value="'+esc(ind.nume||"")+'" onchange="window.evUI.dosar.concordanta.indicatori['+i+'].nume=this.value"><input type="text" placeholder="cerere" value="'+esc(ind.cerere||"")+'" onchange="window.evUI.dosar.concordanta.indicatori['+i+'].cerere=this.value"><input type="text" placeholder="buget" value="'+esc(ind.buget||"")+'" onchange="window.evUI.dosar.concordanta.indicatori['+i+'].buget=this.value"><span class="evchipdel" onclick="evDelInd('+i+')">✕</span></div>'; });
+  h+='</div></div>';
+  h+='<button class="btn primary" onclick="evRun()">▶ Evaluează dosarul</button>';
+  if(!rb.activ) h+=' <span class="evsrc">rulebook neactivat — regulile neconfirmate vor da «nu se poate verifica»</span>';
+  h+='</div></div>';
+
+  h+='<div id="evReport" style="margin-top:14px"></div>';
+  return h;
+}
+function evRun(){ const rb=evGetRb(); if(!rb) return; const rep=evEvaluate(rb, window.evUI.dosar); const box=document.getElementById("evReport"); if(box) box.innerHTML=evReportHtml(rep); box&&box.scrollIntoView({behavior:"smooth",block:"start"}); }
+function evReportHtml(rep){
+  const stEl=c=>'<span class="evst '+(c.status==="CONFORM"?"ok":c.status==="NECONFORM"?"no":"nv")+'">'+c.status+'</span>';
+  const rowEl=c=>'<div class="evrow"><div><b>'+esc(c.titlu)+'</b> <span class="evsrc">['+esc(c.strat)+']</span>'+((c.gasit!=null||c.cerut!=null)?'<div class="evsrc">găsit: '+esc(String(c.gasit==null?"—":c.gasit))+' · cerut: '+esc(String(c.cerut==null?"—":c.cerut))+'</div>':"")+(c.sursa?'<div class="evsrc">↳ sursă: '+esc(c.sursa)+'</div>':"")+(c.fix?'<div class="evfix">→ '+esc(c.fix)+'</div>':"")+'</div>'+stEl(c)+'</div>';
+  let h='<div class="card"><h2 style="font-size:15px;margin-bottom:8px">📋 Raport de verificare</h2>';
+  h+='<div class="evverdict '+rep.vclass+'">'+esc(rep.verdict)+'</div>';
+  if(rep.blocante.length){ h+='<div class="section"><h2 style="color:var(--critical)">🚫 Blocante ('+rep.blocante.length+')</h2>'+rep.blocante.map(rowEl).join("")+'</div>'; }
+  if(rep.clarificari.length){ h+='<div class="section"><h2>❓ Clarificări probabile ('+rep.clarificari.length+')</h2>'+rep.clarificari.map(rowEl).join("")+'</div>'; }
+  if(rep.avert.length){ h+='<div class="section"><h2>⚠️ Avertismente ('+rep.avert.length+')</h2>'+rep.avert.map(rowEl).join("")+'</div>'; }
+  /* grila */
+  const g=rep.grila; const pct=g.max?Math.round(g.min/g.max*100):0;
+  h+='<div class="section"><h2>📊 Simulare punctaj</h2><div class="evsrc">Minim garantat (obiectiv): <b>'+g.min+'</b> · Maxim posibil: <b>'+g.max+'</b>'+(g.prag!=null?' · Prag: <b>'+g.prag+'</b>':"")+'</div><div class="evmeter"><span style="width:'+pct+'%;background:'+(g.prag!=null&&g.min<g.prag?"var(--critical)":"var(--good)")+'"></span></div>'
+    +(g.criterii.length?'<ul class="list">'+g.criterii.map(c=>'<li>'+esc(c.nume)+' — <b>'+c.got+'</b>/'+(c.pmax||"?")+(c.tip==="subiectiv"?' <span class="evsrc">(apreciere — de argumentat)</span>':"")+'</li>').join("")+'</ul>':"")+'</div>';
+  if(rep.nv.length){ h+='<div class="section"><h2>🔍 Nu s-a putut verifica ('+rep.nv.length+')</h2><div class="evsrc" style="margin-bottom:6px">Obligatoriu afișat — nu se ascunde.</div>'+rep.nv.map(rowEl).join("")+'</div>'; }
+  h+='<div class="section"><button class="btn small" onclick="evExport()">⬇ Export raport (JSON)</button> <button class="btn small" onclick="window.print()">🖨 Printează</button></div>';
+  h+='<div class="callout" style="margin-top:10px">Verdictul e determinist, pe regulile validate din ghid. Criteriile de apreciere NU se punctează automat. Decizia finală și depunerea rămân la consultant (HITL).</div></div>';
+  return h;
+}
+function evExport(){ const rb=evGetRb(); const rep=evEvaluate(rb, window.evUI.dosar); dl("raport-verificare.json", JSON.stringify({apel:rb.titlu, verdict:rep.verdict, checks:rep.checks, grila:rep.grila},null,2), "application/json"); toast("Raport exportat"); }
