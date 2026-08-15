@@ -5,7 +5,7 @@
    - Iconițe / manifest: cache-first (nu se schimbă des).
    Bump CACHE_VERSION la orice schimbare pentru a purja cache-ul vechi. */
 
-const CACHE_VERSION = "eufcc-v3";
+const CACHE_VERSION = "eufcc-v4";
 const url = (p) => new URL(p, self.location).toString();
 
 const SHELL = [
@@ -27,7 +27,10 @@ const CACHE_FIRST = /\/(icons\/|manifest\.webmanifest)/;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) => cache.addAll(SHELL).catch(() => {}))
+    caches.open(CACHE_VERSION).then((cache) =>
+      // individual, ca un URL lipsă să nu anuleze tot precache-ul
+      Promise.allSettled(SHELL.map((u) => cache.add(u)))
+    )
   );
   self.skipWaiting();
 });
@@ -63,16 +66,34 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Restul (cod + date + navigări): network-first cu fallback pe cache
+  // Restul (cod + date + navigări): network-first cu timeout + fallback pe cache.
+  // Timeout-ul acoperă „lie-fi" (conectat dar blocat) — nu mai atârnă la infinit.
   event.respondWith(
-    fetch(req)
-      .then((res) => {
-        if (res && res.status === 200 && res.type === "basic") {
-          const copy = res.clone();
-          caches.open(CACHE_VERSION).then((c) => c.put(req, copy));
-        }
-        return res;
-      })
-      .catch(() => caches.match(req).then((c) => c || caches.match(url("index.html"))))
+    new Promise((resolve) => {
+      let done = false;
+      const finish = (r) => {
+        if (done) return;
+        done = true;
+        resolve(r);
+      };
+      const timer = setTimeout(() => {
+        caches.match(req).then((c) => c && finish(c));
+      }, 4000);
+      fetch(req)
+        .then((res) => {
+          clearTimeout(timer);
+          if (res && res.status === 200 && res.type === "basic") {
+            const copy = res.clone();
+            caches.open(CACHE_VERSION).then((c) => c.put(req, copy));
+          }
+          finish(res);
+        })
+        .catch(() => {
+          clearTimeout(timer);
+          caches
+            .match(req)
+            .then((c) => finish(c || caches.match(url("index.html"))));
+        });
+    })
   );
 });

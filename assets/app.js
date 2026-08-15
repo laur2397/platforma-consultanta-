@@ -1665,7 +1665,7 @@ const ONRC_IDB_NAME="eufcc_onrc", ONRC_IDB_STORE="counties";
 function onrcIDB(){ return new Promise((res,rej)=>{ try{ const r=indexedDB.open(ONRC_IDB_NAME,1);
   r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains(ONRC_IDB_STORE)) r.result.createObjectStore(ONRC_IDB_STORE); };
   r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error||new Error("IndexedDB indisponibil")); }catch(e){ rej(e); } }); }
-async function onrcPersist(county,data){ try{ const db=await onrcIDB(); await new Promise((res)=>{ const tx=db.transaction(ONRC_IDB_STORE,"readwrite"); tx.objectStore(ONRC_IDB_STORE).put(data,county); tx.oncomplete=()=>res(true); tx.onerror=()=>res(false); tx.onabort=()=>res(false); }); }catch(e){} }
+async function onrcPersist(county,data){ try{ const db=await onrcIDB(); return await new Promise((res)=>{ const tx=db.transaction(ONRC_IDB_STORE,"readwrite"); tx.objectStore(ONRC_IDB_STORE).put(data,county); tx.oncomplete=()=>res(true); tx.onerror=()=>res(false); tx.onabort=()=>res(false); }); }catch(e){ return false; } }
 async function onrcRestore(){ try{ const db=await onrcIDB();
   const keys=await new Promise((res)=>{ const tx=db.transaction(ONRC_IDB_STORE,"readonly"); const rq=tx.objectStore(ONRC_IDB_STORE).getAllKeys(); rq.onsuccess=()=>res(rq.result||[]); rq.onerror=()=>res([]); });
   for(const k of keys){ const v=await new Promise((res)=>{ const tx=db.transaction(ONRC_IDB_STORE,"readonly"); const rq=tx.objectStore(ONRC_IDB_STORE).get(k); rq.onsuccess=()=>res(rq.result); rq.onerror=()=>res(null); }); if(v&&v.f) window.ONRC.c[k]=v; }
@@ -1693,7 +1693,7 @@ async function onrcLoadFiles(fileList){
       if(!d||!d.f||!d.j){ if(status) status.innerHTML='⚠️ '+esc(f.name)+': structură necunoscută (aștept {j, f, ...}).'; continue; }
       ONRC.c[d.j]=d;
       if(status) status.innerHTML='✅ <b>'+esc(d.j)+'</b>: '+d.f.length.toLocaleString("ro-RO")+' firme încărcate.';
-      onrcPersist(d.j,d).then(()=>{ if(status) status.innerHTML='✅ <b>'+esc(d.j)+'</b>: '+d.f.length.toLocaleString("ro-RO")+' firme (salvate local pe dispozitiv).'; });
+      onrcPersist(d.j,d).then((ok)=>{ if(status) status.innerHTML='✅ <b>'+esc(d.j)+'</b>: '+d.f.length.toLocaleString("ro-RO")+' firme '+(ok?'(salvate local pe dispozitiv).':'(în memorie — spațiul local e plin, se pierd la închiderea tabului).'); });
     }catch(e){ if(status) status.innerHTML='❌ '+esc(f.name)+': '+esc(e.message); }
   }
   render();
@@ -1839,7 +1839,7 @@ function openFirm(cty,i){ const d=ONRC.c[cty]; if(!d) return; const F=d.f[i]; if
   openDrawer(h);
 }
 function onrcToRadar(reg){ closeDrawer(); S.radar.regiune=reg; S.radar.stari=new Set(["activ"]); S.view="radar"; render(); }
-function onrcAddProspect(cty,i){ const d=ONRC.c[cty]; const F=d.f[i]; const id="onrc_"+F[ONRC_FIELDS.cui];
+function onrcAddProspect(cty,i){ const d=ONRC.c[cty]; if(!d) return; const F=d.f[i]; if(!F) return; const id="onrc_"+F[ONRC_FIELDS.cui];
   if(CL.some(c=>c.id===id)){ toast("Deja în CRM"); return; }
   const cp=(F[ONRC_FIELDS.caen]||[])[0];
   CL.push({ id, denumire:F[ONRC_FIELDS.den], tip:"privat", dimensiune:"", forma_juridica:F[ONRC_FIELDS.forma]||"",
@@ -1884,8 +1884,8 @@ function evCmp(op, a, b){
     case "lt": return bothNum? na<nb : null;
     case "eq": return bothNum? na===nb : String(a).trim().toLowerCase()===String(b).trim().toLowerCase();
     case "ne": return bothNum? na!==nb : String(a).trim().toLowerCase()!==String(b).trim().toLowerCase();
-    case "in": { const list=String(b).split(/[,;/]/).map(x=>x.trim().toLowerCase()).filter(Boolean); return list.includes(String(a).trim().toLowerCase()); }
-    case "nin": { const list=String(b).split(/[,;/]/).map(x=>x.trim().toLowerCase()).filter(Boolean); return !list.includes(String(a).trim().toLowerCase()); }
+    case "in": { const fa=String(a).trim().toLowerCase(); const list=String(b).split(/[,;/]/).map(x=>x.trim().toLowerCase()).filter(Boolean); return list.some(t=>t===fa||fa.includes(t)||t.includes(fa)); }
+    case "nin": { const fa=String(a).trim().toLowerCase(); const list=String(b).split(/[,;/]/).map(x=>x.trim().toLowerCase()).filter(Boolean); return !list.some(t=>t===fa||fa.includes(t)||t.includes(fa)); }
   }
   return null;
 }
@@ -1910,7 +1910,10 @@ function evSeedFromApel(apelId){
 }
 
 /* ============ MOTORUL DE EVALUARE (determinist) ============ */
-function evNum(v){ const n=parseFloat(String(v==null?"":v).toString().replace(/[^0-9.\-]/g,"")); return isNaN(n)?null:n; }
+function evNum(v){ if(v==null||v==="") return null; let s=String(v).trim().replace(/[^0-9.,\-]/g,"");
+  if(s.indexOf(",")>=0 && s.indexOf(".")>=0){ s=s.replace(/\./g,"").replace(",","."); } // 1.234,56 -> 1234.56
+  else if(s.indexOf(",")>=0){ s=s.replace(",","."); } // 1234,56 -> 1234.56
+  const n=parseFloat(s); return isNaN(n)?null:n; }
 function evEvaluate(rb, f){
   const checks=[]; // {strat, titlu, status:'CONFORM'|'NECONFORM'|'NV', gasit, cerut, dif, sursa, fix, blocant}
   const add=(o)=>checks.push(Object.assign({status:"NV",blocant:false},o));
@@ -2004,6 +2007,7 @@ function evAddChelt(){ window.evUI.dosar.financiar.cheltuieli.push({categorie:""
 function evDelChelt(i){ window.evUI.dosar.financiar.cheltuieli.splice(i,1); render(); }
 function evAddInd(){ window.evUI.dosar.concordanta.indicatori.push({nume:"",cerere:"",buget:""}); render(); }
 function evDelInd(i){ window.evUI.dosar.concordanta.indicatori.splice(i,1); render(); }
+function evToggleDoc(i,on){ const rb=evGetRb(); if(!rb||!rb.documente||!rb.documente[i]) return; const nm=rb.documente[i].nume; const a=window.evUI.dosar.documente_prezente; const k=a.indexOf(nm); if(on){ if(k<0)a.push(nm); } else if(k>=0) a.splice(k,1); }
 
 function evStep(n){ window.evUI.step=Math.max(0,Math.min(3,n|0)); render(); const m=document.getElementById("main"); if(m) m.scrollTop=0; }
 function evNoRb(){ return '<div class="empty">Încă nu ai un rulebook. Mergi la pasul «Alege apelul» și alege un apel din radar sau apasă «Continuă» ca să creezi unul gol.</div>'; }
@@ -2063,7 +2067,7 @@ function evDosarCard(rb){ var h="";
   h+='</div></div>';
   /* documente prezente */
   h+='<div class="evmini"><b style="font-size:12.5px">Documente prezente în dosar</b>';
-  if((rb.documente||[]).length){ h+='<div style="margin-top:4px">'+rb.documente.map(d=>{ const on=(D.documente_prezente||[]).includes(d.nume); return '<label style="display:block;font-size:12.5px"><input type="checkbox" '+(on?"checked":"")+' onchange="var a=window.evUI.dosar.documente_prezente;if(this.checked){if(a.indexOf(\''+esc(d.nume).replace(/'/g,"\\'")+'\')<0)a.push(\''+esc(d.nume).replace(/'/g,"\\'")+'\')}else{var k=a.indexOf(\''+esc(d.nume).replace(/'/g,"\\'")+'\');if(k>=0)a.splice(k,1)}"> '+esc(d.nume)+'</label>'; }).join("")+'</div>'; }
+  if((rb.documente||[]).length){ h+='<div style="margin-top:4px">'+rb.documente.map((d,i)=>{ const on=(D.documente_prezente||[]).includes(d.nume); return '<label style="display:block;font-size:12.5px"><input type="checkbox" '+(on?"checked":"")+' onchange="evToggleDoc('+i+',this.checked)"> '+esc(d.nume||"(document)")+'</label>'; }).join("")+'</div>'; }
   else h+='<div class="evsrc">Adaugă documente în rulebook ca să le poți bifa aici.</div>';
   h+='</div>';
   /* concordanta */
@@ -2087,7 +2091,7 @@ function vVerif(){
   if(step===0){
     h+='<div class="callout">Motor determinist, rulat <b>în browserul tău</b> — documentele nu pleacă nicăieri. Ghidul e sursa de adevăr. Fiecare regulă are 3 rezultate: <b>CONFORM · NECONFORM · NU SE POATE VERIFICA</b>, cu sursă. <b>AI pregătește; omul decide.</b></div>';
     h+='<div class="card"><h2 style="font-size:14px;margin-bottom:8px">Pentru ce apel verifici? <span class="evsrc">(opțional — poți continua și fără)</span></h2>';
-    h+='<div class="onrcbar"><select id="evApelSel"><option value="">— alege un apel din radar —</option>'+A.filter(a=>a.stare==="activ"||a.stare==="planificat").map(a=>'<option value="'+esc(a.id_apel)+'"'+(rb&&rb.apel_id===a.id_apel?" selected":"")+'>'+esc(a.titlu.slice(0,60))+' ['+esc(a.program)+']</option>').join("")+'</select><button class="btn small primary" onclick="evNewFromApel()">+ Creează rulebook din apel</button></div>';
+    h+='<div class="onrcbar"><select id="evApelSel"><option value="">— alege un apel din radar —</option>'+A.filter(a=>a.stare==="activ"||a.stare==="planificat").map(a=>'<option value="'+esc(a.id_apel)+'"'+(rb&&rb.apel_id===a.id_apel?" selected":"")+'>'+esc((a.titlu||"Apel").slice(0,60))+' ['+esc(a.program||"")+']</option>').join("")+'</select><button class="btn small primary" onclick="evNewFromApel()">+ Creează rulebook din apel</button></div>';
     const rbs=evList();
     if(rbs.length){ h+='<div style="margin-top:12px"><b style="font-size:12.5px">Rulebook-uri salvate:</b><div class="evsub" style="margin-top:6px">'+rbs.map(r=>'<button class="fchip'+(r.id===window.evUI.curId?" on":"")+'" onclick="evPick(\''+r.id+'\')">'+(r.activ?"✅ ":"📝 ")+esc((r.titlu||"apel").slice(0,32))+'</button>').join("")+'</div>'+(rb?'<div style="margin-top:6px"><button class="btn small ghost" onclick="evDelRb()">🗑 șterge rulebook-ul selectat</button></div>':"")+'</div>'; }
     else h+='<div class="evsrc" style="margin-top:10px">Niciun rulebook încă — alege un apel sau apasă «Continuă» ca să creezi unul gol.</div>';
