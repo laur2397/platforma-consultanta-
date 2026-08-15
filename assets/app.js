@@ -1220,11 +1220,18 @@ function icsEsc(s){ return String(s).replace(/\\/g,"\\\\").replace(/;/g,"\\;").r
 function dl(name, content, mime){ const b=new Blob([content],{type:mime||"text/plain;charset=utf-8"}); const u=URL.createObjectURL(b); const a=document.createElement("a"); a.href=u; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(u),4000); }
 
 /* ---------- Clienți ---------- */
-function vClienti(){ let h='<div class="viewtitle"><h1>👥 CRM clienți</h1><span class="sub">'+CL.length+' clienți'+((DB.clienti||{}).nota?" · date DEMO":"")+'</span><div class="viewactions"><button class="btn small" onclick="toast(\'Trimite-mi în conversație fișierul Excel/CSV cu clienții și îl import aici.\')">➕ Import listă reală</button></div></div>';
-  if((DB.clienti||{}).nota) h+='<div class="callout warn">'+esc(DB.clienti.nota)+'</div>';
+function vClienti(){ const cc=crmCounts();
+  let h='<div class="viewtitle"><h1>👥 CRM clienți</h1><span class="sub">'+cc.reali+' reali'+(cc.demo?' · '+cc.demo+' demo':"")+'</span><div class="viewactions">'
+    +'<button class="btn small primary" onclick="crmNewForm()">+ Client nou</button>'
+    +'<button class="btn small" onclick="crmImportOpen()">⬆ Import CSV/JSON</button>'
+    +'<button class="btn small" onclick="crmExport()">⬇ Export</button>'
+    +(cc.demo||window.CRM.hideDemo?'<button class="btn small ghost" onclick="crmToggleDemo()">'+(window.CRM.hideDemo?"👁 arată demo":"🙈 ascunde demo")+'</button>':"")
+    +'</div></div>';
+  if(!cc.reali && !window.CRM.hideDemo) h+='<div class="callout">Încă n-ai clienți reali — vezi datele DEMO. Apasă <b>+ Client nou</b> sau <b>⬆ Import CSV/JSON</b> ca să-ți aduci portofoliul. Datele rămân doar pe acest dispozitiv, nu pleacă nicăieri.</div>';
+  else if(cc.demo && !window.CRM.hideDemo) h+='<div class="callout warn">Ai '+cc.reali+' clienți reali + '+cc.demo+' DEMO (fictivi). Folosește «🙈 ascunde demo» ca să lucrezi doar pe ai tăi.</div>';
   h+='<div class="grid3">'+CL.map(c=>{ const df=c.date_financiare||{}; const neg=df.capitaluri_proprii_lei!=null&&df.capitaluri_proprii_lei<0;
     const tops=topForClient(c.id,1)[0];
-    return '<div class="card" style="cursor:pointer" onclick="openClient(\''+c.id+'\')"><div style="display:flex;justify-content:space-between;gap:8px"><b>'+esc(c.denumire)+'</b>'+(c.demo?'<span class="tag-demo">DEMO</span>':"")+'</div><div style="color:var(--muted);font-size:12px;margin:2px 0 8px">'+esc((c.dimensiune||c.tip||"")+" · "+(c.judet||"")+" ("+(c.regiune||"")+")")+'</div>'+
+    return '<div class="card" style="cursor:pointer" onclick="openClient(\''+c.id+'\')"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><b>'+esc(c.denumire)+'</b>'+(c.demo?'<span class="tag-demo">DEMO</span>':'<span class="chip" style="cursor:pointer" onclick="event.stopPropagation();crmNewForm(\''+c.id+'\')">✎</span>')+'</div><div style="color:var(--muted);font-size:12px;margin:2px 0 8px">'+esc((c.dimensiune||c.tip||"")+" · "+(c.judet||"")+" ("+(c.regiune||"")+")")+'</div>'+
     (neg?'<div style="margin-bottom:6px"><span class="cd cd-crit">⚠ capitaluri negative</span></div>':"")+(c.datorii_fiscale?'<div style="margin-bottom:6px"><span class="cd cd-warn">datorii fiscale</span></div>':"")+
     (c.tip!=="UAT"&&c.plafon_minimis_eur!=null?'<div style="font-size:12px;color:var(--ink2)">minimis disponibil: <b>'+money(c.plafon_minimis_eur,"EUR")+'</b></div>':"")+
     (tops?'<div style="font-size:12px;margin-top:6px">🎯 '+esc(tops.apel.titlu.slice(0,48))+'… <b>'+tops.scor+'</b></div>':'<div style="font-size:12px;margin-top:6px;color:var(--muted)">fără potriviri active</div>')+
@@ -1842,10 +1849,10 @@ function onrcToRadar(reg){ closeDrawer(); S.radar.regiune=reg; S.radar.stari=new
 function onrcAddProspect(cty,i){ const d=ONRC.c[cty]; if(!d) return; const F=d.f[i]; if(!F) return; const id="onrc_"+F[ONRC_FIELDS.cui];
   if(CL.some(c=>c.id===id)){ toast("Deja în CRM"); return; }
   const cp=(F[ONRC_FIELDS.caen]||[])[0];
-  CL.push({ id, denumire:F[ONRC_FIELDS.den], tip:"privat", dimensiune:"", forma_juridica:F[ONRC_FIELDS.forma]||"",
+  crmAddClient({ id, denumire:F[ONRC_FIELDS.den], tip:"privat", dimensiune:"", forma_juridica:F[ONRC_FIELDS.forma]||"",
     judet:cty, regiune:onrcRegOf(cty), localitate:(d.loc||[])[F[ONRC_FIELDS.loc]]||"", cui:String(F[ONRC_FIELDS.cui]||""),
-    caen_principal:cp?String(cp[0]):"", interese:[], date_financiare:{}, sursa:"ONRC", nota:"Prospect importat din ONRC — de completat dimensiune și date financiare." });
-  MATCH=null; toast("Adăugat ca prospect: "+F[ONRC_FIELDS.den]);
+    telefon:F[ONRC_FIELDS.tel]||"", caen_principal:cp?String(cp[0]):"", interese:[], date_financiare:{}, sursa:"ONRC", nota:"Prospect importat din ONRC — de completat dimensiune și date financiare." });
+  toast("Adăugat ca prospect: "+F[ONRC_FIELDS.den]);
 }
 
 /* La pornire: restaurează datele ONRC salvate local pe dispozitiv (dacă există). */
@@ -2121,3 +2128,119 @@ function evReportHtml(rep){
   return h;
 }
 function evExport(){ const rb=evGetRb(); const rep=evEvaluate(rb, window.evUI.dosar); dl("raport-verificare.json", JSON.stringify({apel:rb.titlu, verdict:rep.verdict, checks:rep.checks, grila:rep.grila},null,2), "application/json"); toast("Raport exportat"); }
+
+/* ============================================================
+   CRM REAL — clienții & proiectele tale (Faza 1).
+   Datele reale se salvează LOCAL (localStorage), pe dispozitiv —
+   nu în cod, nu pe GitHub. Se pot ascunde clienții demo.
+   ============================================================ */
+const CRM_LS="eufcc_crm";
+const CRM_DEMO_C = (typeof CL!=="undefined"&&Array.isArray(CL))?CL.slice():[];   // snapshot demo la parse
+const CRM_DEMO_P = (typeof PR!=="undefined"&&Array.isArray(PR))?PR.slice():[];
+window.CRM = window.CRM || { clients:[], projects:[], hideDemo:false };
+function crmSave(){ try{ localStorage.setItem(CRM_LS, JSON.stringify({clients:window.CRM.clients,projects:window.CRM.projects,hideDemo:window.CRM.hideDemo})); }catch(e){ toast("Nu am putut salva local (spațiu plin?)"); } }
+function crmLoadStore(){ try{ const s=localStorage.getItem(CRM_LS); if(s){ const o=JSON.parse(s); window.CRM.clients=o.clients||[]; window.CRM.projects=o.projects||[]; window.CRM.hideDemo=!!o.hideDemo; } }catch(e){} }
+function crmApply(){ /* reconstruiește CL/PR din: demo (dacă nu-s ascunse) + clienții tăi */
+  if(typeof CL==="undefined") return;
+  CL.length=0; if(!window.CRM.hideDemo) CRM_DEMO_C.forEach(c=>CL.push(c)); window.CRM.clients.forEach(c=>{ if(!CL.find(x=>x.id===c.id)) CL.push(c); });
+  PR.length=0; if(!window.CRM.hideDemo) CRM_DEMO_P.forEach(p=>PR.push(p)); window.CRM.projects.forEach(p=>{ if(!PR.find(x=>x.id===p.id)) PR.push(p); });
+  MATCH=null; if(typeof IX!=="undefined") IX=null;
+}
+function crmCounts(){ const reali=CL.filter(c=>!c.demo).length; const demo=CL.filter(c=>c.demo).length; return {reali,demo}; }
+
+/* ---- construire client din câmpuri simple ---- */
+function crmMakeClient(f){
+  const cui=String(f.cui||"").trim();
+  const id=f.id || ("cl_"+(cui||("u"+(window.CRM.clients.length+1)+"_"+Date.now())));
+  const num=v=>{ if(v==null||v==="")return null; const n=parseFloat(String(v).replace(/[^0-9.,\-]/g,"").replace(/\.(?=\d{3}(\D|$))/g,"").replace(",",".")); return isNaN(n)?null:n; };
+  const df={};
+  const cap=num(f.capitaluri_proprii_lei); if(cap!=null) df.capitaluri_proprii_lei=cap;
+  const ca=num(f.cifra_afaceri_lei); if(ca!=null) df.cifra_afaceri_3ani_lei={ultim:ca};
+  const na=num(f.nr_angajati); if(na!=null) df.nr_angajati=na;
+  const minU=num(f.minimis_utilizat_eur);
+  const truthy=v=>/^(da|yes|true|1|x)$/i.test(String(v||"").trim());
+  const interese=String(f.interese||"").split(/[;|]/).map(x=>x.trim()).filter(Boolean);
+  const c={ id, denumire:String(f.denumire||"(fără nume)").trim(), cui,
+    tip:(f.tip||"privat").trim()||"privat", dimensiune:(f.dimensiune||"").trim(),
+    judet:(f.judet||"").trim(), regiune:(f.regiune||"").trim(),
+    forma_juridica:(f.forma_juridica||"").trim(), caen_principal:String(f.caen_principal||"").trim(),
+    interese, email:(f.email||"").trim(), telefon:(f.telefon||"").trim(),
+    datorii_fiscale:truthy(f.datorii_fiscale), date_financiare:df, sursa:f.sursa||"user" };
+  if(minU!=null) c.plafon_minimis_eur=Math.max(0,300000-minU);
+  return c;
+}
+function crmAddClient(c){ if(!c.id) c.id="cl_u"+(window.CRM.clients.length+1)+"_"+Date.now();
+  const ix=window.CRM.clients.findIndex(x=>x.id===c.id); if(ix>=0) window.CRM.clients[ix]=c; else window.CRM.clients.push(c);
+  crmSave(); crmApply(); }
+function crmDeleteClient(id){ if(!confirm("Ștergi acest client din CRM-ul tău local?")) return;
+  window.CRM.clients=window.CRM.clients.filter(x=>x.id!==id); crmSave(); crmApply();
+  if(typeof closeDrawer==="function") closeDrawer(); render(); }
+function crmToggleDemo(){ window.CRM.hideDemo=!window.CRM.hideDemo; crmSave(); crmApply(); render(); }
+
+/* ---- CSV ---- */
+function crmParseCSV(text){
+  const first=(text.split(/\r?\n/)[0]||""); const delim=(first.split(";").length>first.split(",").length)?";":",";
+  const rows=[]; let row=[], cur="", q=false;
+  for(let i=0;i<text.length;i++){ const ch=text[i];
+    if(q){ if(ch==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=ch; }
+    else { if(ch==='"') q=true; else if(ch===delim){ row.push(cur); cur=""; } else if(ch==='\n'){ row.push(cur); rows.push(row); row=[]; cur=""; } else if(ch==='\r'){} else cur+=ch; } }
+  if(cur!==""||row.length) { row.push(cur); rows.push(row); }
+  return rows.filter(r=>r.some(c=>String(c).trim()!==""));
+}
+const CRM_COLS=["denumire","cui","tip","dimensiune","judet","regiune","forma_juridica","caen_principal","capitaluri_proprii_lei","cifra_afaceri_lei","nr_angajati","datorii_fiscale","minimis_utilizat_eur","interese","email","telefon"];
+function crmImportText(text){
+  text=(text||"").trim(); if(!text){ toast("Nimic de importat"); return; }
+  let n=0;
+  if(text[0]==="{"||text[0]==="["){ // JSON
+    try{ const obj=JSON.parse(text);
+      const cls = Array.isArray(obj)?obj : (obj.clienti&&obj.clienti.clienti)||obj.clienti||obj.clients||[];
+      const prs = (obj.proiecte&&obj.proiecte.proiecte)||obj.proiecte||obj.projects||[];
+      (cls||[]).forEach(c=>{ const cc=c.date_financiare?Object.assign({sursa:"user"},c):crmMakeClient(c); if(!cc.id) cc.id="cl_u"+(window.CRM.clients.length+1)+"_"+Date.now(); const ix=window.CRM.clients.findIndex(x=>x.id===cc.id); if(ix>=0)window.CRM.clients[ix]=cc; else window.CRM.clients.push(cc); n++; });
+      (prs||[]).forEach(p=>{ if(!p.id) p.id="pr_u"+(window.CRM.projects.length+1)+"_"+Date.now(); p.sursa="user"; const ix=window.CRM.projects.findIndex(x=>x.id===p.id); if(ix>=0)window.CRM.projects[ix]=p; else window.CRM.projects.push(p); });
+    }catch(e){ toast("JSON invalid: "+e.message); return; }
+  } else { // CSV
+    const rows=crmParseCSV(text); if(rows.length<2){ toast("CSV fără date (aștept antet + rânduri)"); return; }
+    const hdr=rows[0].map(x=>String(x).trim().toLowerCase().replace(/\s+/g,"_"));
+    for(let r=1;r<rows.length;r++){ const f={}; hdr.forEach((h,i)=>{ if(CRM_COLS.includes(h)) f[h]=rows[r][i]; }); if(!f.denumire&&!f.cui) continue; const c=crmMakeClient(f); const ix=window.CRM.clients.findIndex(x=>x.id===c.id); if(ix>=0)window.CRM.clients[ix]=c; else window.CRM.clients.push(c); n++; }
+  }
+  crmSave(); crmApply(); toast(n+" client(i) importați"); if(typeof closeDrawer==="function")closeDrawer(); render();
+}
+function crmTemplate(){ const sample=CRM_COLS.join(",")+"\n"+
+  "SC Exemplu SRL,RO12345678,privat,microintreprindere,Cluj,Nord-Vest,SRL,6201,150000,640000,4,nu,80000,digitalizare;energie,contact@exemplu.ro,0740000000";
+  dl("sablon-clienti.csv", sample, "text/csv"); toast("Șablon descărcat"); }
+function crmExport(){ dl("clientii-mei.json", JSON.stringify({clienti:window.CRM.clients,proiecte:window.CRM.projects},null,2),"application/json"); toast("Export generat"); }
+
+/* ---- UI: drawer import ---- */
+function crmImportOpen(){ let h=drawerHead("Import clienți","CSV sau JSON · rămâne local pe dispozitiv")+'<div class="db">';
+  h+='<div class="callout">Încarcă un <b>CSV</b> (din Excel: Salvează ca → CSV) sau un <b>JSON</b>. Datele se salvează doar în acest browser. Descarcă întâi <a href="javascript:void(0)" onclick="crmTemplate()">șablonul CSV</a> ca să vezi coloanele.</div>';
+  h+='<label style="font-size:12px;color:var(--ink2)">Fișier (.csv / .json)</label><input type="file" id="crmFile" accept=".csv,.json,.txt" style="margin:6px 0 12px">';
+  h+='<label style="font-size:12px;color:var(--ink2)">…sau lipește direct (CSV/JSON)</label><textarea class="jsonio" id="crmPaste" placeholder="denumire,cui,tip,dimensiune,judet,…"></textarea>';
+  h+='<div style="margin-top:10px;display:flex;gap:8px"><button class="btn primary" onclick="crmImportText(document.getElementById(\'crmPaste\').value)">⬆ Aplică importul</button><button class="btn" onclick="crmTemplate()">⬇ Șablon CSV</button></div></div>';
+  openDrawer(h);
+  const fi=document.getElementById("crmFile"); if(fi) fi.onchange=e=>{ const f=e.target.files[0]; if(!f)return; const rd=new FileReader(); rd.onload=()=>crmImportText(String(rd.result||"")); rd.readAsText(f); };
+}
+/* ---- UI: formular client nou / editare ---- */
+function crmNewForm(id){ const ex=id?CL.find(c=>c.id===id):null; const df=(ex&&ex.date_financiare)||{};
+  const v=(k,d)=>esc(ex?(ex[k]!=null?ex[k]:""):(d||""));
+  const opt=(sel,list)=>list.map(x=>'<option'+(sel===x?" selected":"")+'>'+x+'</option>').join("");
+  let h=drawerHead(id?"Editează client":"Client nou","se salvează local pe dispozitiv")+'<div class="db"><div class="evform">';
+  h+='<label>Denumire *</label><input id="cf_denumire" value="'+v("denumire")+'">';
+  h+='<div class="r2"><div><label>CUI</label><input id="cf_cui" value="'+v("cui")+'"></div><div><label>Tip</label><select id="cf_tip"><option value=""></option>'+opt(ex?ex.tip:"privat",["privat","UAT","ONG","PFA"])+'</select></div></div>';
+  h+='<div class="r2"><div><label>Dimensiune</label><select id="cf_dimensiune"><option value=""></option>'+opt(ex?ex.dimensiune:"",["microintreprindere","mica","mijlocie","mare"])+'</select></div><div><label>Formă juridică</label><input id="cf_forma_juridica" value="'+v("forma_juridica")+'"></div></div>';
+  h+='<div class="r2"><div><label>Județ</label><input id="cf_judet" value="'+v("judet")+'"></div><div><label>Regiune</label><input id="cf_regiune" value="'+v("regiune")+'"></div></div>';
+  h+='<div class="r2"><div><label>CAEN principal</label><input id="cf_caen_principal" value="'+v("caen_principal")+'"></div><div><label>Nr. angajați</label><input id="cf_nr_angajati" type="number" value="'+esc(df.nr_angajati!=null?df.nr_angajati:"")+'"></div></div>';
+  h+='<div class="r2"><div><label>Capitaluri proprii (lei)</label><input id="cf_capitaluri_proprii_lei" type="number" value="'+esc(df.capitaluri_proprii_lei!=null?df.capitaluri_proprii_lei:"")+'"></div><div><label>Cifră afaceri (lei)</label><input id="cf_cifra_afaceri_lei" type="number" value="'+esc(df.cifra_afaceri_3ani_lei?Object.values(df.cifra_afaceri_3ani_lei).pop():"")+'"></div></div>';
+  h+='<div class="r2"><div><label>Minimis utilizat (€)</label><input id="cf_minimis_utilizat_eur" type="number" value=""></div><div><label style="margin-top:20px"><input type="checkbox" id="cf_datorii_fiscale" '+(ex&&ex.datorii_fiscale?"checked":"")+'> are datorii fiscale</label></div></div>';
+  h+='<label>Interese (separate prin ; )</label><input id="cf_interese" value="'+esc((ex&&ex.interese||[]).join("; "))+'">';
+  h+='<div class="r2"><div><label>Email</label><input id="cf_email" value="'+v("email")+'"></div><div><label>Telefon</label><input id="cf_telefon" value="'+v("telefon")+'"></div></div>';
+  h+='<div style="margin-top:12px;display:flex;gap:8px"><button class="btn primary" onclick="crmSaveForm('+(id?"'"+id+"'":"null")+')">💾 Salvează</button>'+(id?'<button class="btn" style="color:var(--critical)" onclick="crmDeleteClient(\''+id+'\')">🗑 Șterge</button>':"")+'</div></div></div>';
+  openDrawer(h);
+}
+function crmSaveForm(id){ const g=k=>{ const el=document.getElementById("cf_"+k); return el?(el.type==="checkbox"?el.checked:el.value):""; };
+  const f={id:id||undefined}; ["denumire","cui","tip","dimensiune","forma_juridica","judet","regiune","caen_principal","nr_angajati","capitaluri_proprii_lei","cifra_afaceri_lei","minimis_utilizat_eur","interese","email","telefon"].forEach(k=>f[k]=g(k)); f.datorii_fiscale=g("datorii_fiscale");
+  if(!String(f.denumire||"").trim()){ toast("Completează denumirea"); return; }
+  crmAddClient(crmMakeClient(f)); toast(id?"Client actualizat":"Client adăugat"); closeDrawer(); render();
+}
+
+/* boot: încarcă CRM-ul local și aplică */
+(function(){ try{ crmLoadStore(); crmApply(); if((window.CRM.clients.length||window.CRM.hideDemo) && typeof render==="function"){ if(typeof renderNav==="function")renderNav(); if(typeof S==="object"&&S.view) render(); } }catch(e){} })();
