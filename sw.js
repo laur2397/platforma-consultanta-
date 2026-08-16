@@ -5,7 +5,7 @@
    - Iconițe / manifest: cache-first (nu se schimbă des).
    Bump CACHE_VERSION la orice schimbare pentru a purja cache-ul vechi. */
 
-const CACHE_VERSION = "eufcc-v4";
+const CACHE_VERSION = "eufcc-v5";
 const url = (p) => new URL(p, self.location).toString();
 
 const SHELL = [
@@ -92,7 +92,8 @@ self.addEventListener("fetch", (event) => {
           clearTimeout(timer);
           caches
             .match(req)
-            .then((c) => finish(c || caches.match(url("index.html"))));
+            // fallback pe index.html doar pentru navigări (nu pentru subresurse)
+            .then((c) => finish(c || (req.mode === "navigate" ? caches.match(url("index.html")) : undefined)));
         });
     })
   );
