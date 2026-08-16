@@ -237,6 +237,7 @@ function openProiect(pid){ const p=PR.find(x=>x.id===pid); if(!p) return;
   h+='</dl>';
   if(apelById(p.apel_id)) h+='<button class="btn" onclick="openApel(\''+esc(p.apel_id)+'\')">📡 Vezi apelul</button> ';
   if(c) h+='<button class="btn" onclick="openClient(\''+c.id+'\')">👥 Vezi clientul</button>';
+  if(!p.demo) h+=' <button class="btn" onclick="crmProjForm(\''+esc(p.id)+'\')">✎ Editează</button> <button class="btn" style="color:var(--critical)" onclick="crmDeleteProject(\''+esc(p.id)+'\')">🗑 Șterge</button>';
   if(p.istoric&&p.istoric.length) h+='<div class="section"><h2>Istoric</h2><ul class="list">'+p.istoric.map(e=>'<li><span style="color:var(--muted);min-width:80px">'+fmtDs(e.data)+'</span> '+esc(e.eveniment)+'</li>').join("")+'</ul></div>';
   if(p.note) h+='<div class="callout">'+esc(p.note)+'</div>';
   h+='</div>'; openDrawer(h); }
@@ -1183,7 +1184,8 @@ function matchApelHtml(aid){ const tops=matchAll().filter(m=>m.apel.id_apel===ai
 
 /* ---------- Pipeline ---------- */
 function vPipeline(){ const cols=Object.keys(FAZE);
-  let h='<div class="viewtitle"><h1>📋 Pipeline proiecte</h1><span class="sub">'+PR.length+' proiecte · P0→P9</span></div>';
+  const _pc=crmProjCounts();
+  let h='<div class="viewtitle"><h1>📋 Pipeline proiecte</h1><span class="sub">'+_pc.reali+' reale'+(_pc.demo?' · '+_pc.demo+' demo':"")+' · P0→P9</span><div class="viewactions"><button class="btn small primary" onclick="crmProjForm()">+ Proiect nou</button><button class="btn small" onclick="crmImportOpen()">⬆ Import JSON</button>'+(_pc.demo||window.CRM.hideDemo?'<button class="btn small ghost" onclick="crmToggleDemo()">'+(window.CRM.hideDemo?"👁 arată demo":"🙈 ascunde demo")+'</button>':"")+'</div></div>';
   const totG=PR.reduce((s,p)=>s+(p.grant_lei||0),0), totC=PR.reduce((s,p)=>s+comisionPrognozat(p),0);
   h+='<div class="tiles" style="margin-bottom:6px">';
   h+=tile(money(totG,"lei"),"Grant total în pipeline","toate fazele","acc","pipeline",null);
@@ -1192,7 +1194,7 @@ function vPipeline(){ const cols=Object.keys(FAZE);
   h+='</div>';
   h+='<div class="kanban">'+cols.map(f=>{ const ps=PR.filter(p=>p.faza===f);
     return '<div class="kcol"><h3>'+f+' · '+esc(FAZE[f])+'<span>'+(ps.length||"")+'</span></h3>'+ps.map(p=>{const c=clientById(p.client_id);
-      return '<div class="kcard" onclick="openProiect(\''+p.id+'\')"><div class="t"><span>'+esc(p.titlu)+'</span><span class="hdot '+health(p)+'"></span></div><div class="m">'+esc(c?c.denumire:"")+'</div><div class="m">grant <b>'+money(p.grant_lei,"lei")+'</b> · '+esc(p.consultant||"")+'</div>'+(p.next_action?'<div class="na">▸ '+esc(p.next_action.descriere.slice(0,80))+(p.next_action.descriere.length>80?"…":"")+'<br>'+cdBadge(p.next_action.termen)+'</div>':"")+'</div>';}).join("")+'</div>';}).join("")+'</div>';
+      return '<div class="kcard" onclick="openProiect(\''+p.id+'\')"><div class="t"><span>'+esc(p.titlu)+'</span><span class="hdot '+health(p)+'"></span></div><div class="m">'+esc(c?c.denumire:"")+'</div><div class="m">grant <b>'+money(p.grant_lei,"lei")+'</b> · '+esc(p.consultant||"")+'</div>'+(p.next_action?'<div class="na">▸ '+esc(p.next_action.descriere.slice(0,80))+(p.next_action.descriere.length>80?"…":"")+'<br>'+cdBadge(p.next_action.termen)+'</div>':"")+(!p.demo?'<div class="na" style="display:flex;gap:5px;align-items:center" onclick="event.stopPropagation()"><select style="font-size:11px;padding:2px;flex:1;border:1px solid var(--grid);border-radius:5px;background:var(--page);color:var(--ink)" onchange="crmSetFaza(\''+p.id+'\',this.value)">'+Object.keys(FAZE).map(ff=>'<option value="'+ff+'"'+(p.faza===ff?" selected":"")+'>'+ff+' · '+esc(FAZE[ff].slice(0,14))+'</option>').join("")+'</select><span class="chip" style="cursor:pointer" onclick="crmProjForm(\''+p.id+'\')">✎</span></div>':"")+'</div>';}).join("")+'</div>';}).join("")+'</div>';
   const mx=Math.max(...Object.keys(FAZE).map(f=>PR.filter(p=>p.faza===f).reduce((s,p)=>s+(p.grant_lei||0),0)),1);
   h+='<div class="card section"><h2 style="font-size:14px;margin-bottom:10px">Valoare grant pe fază</h2>'+Object.keys(FAZE).map(f=>{const v=PR.filter(p=>p.faza===f).reduce((s,p)=>s+(p.grant_lei||0),0); if(!v) return "";
     return '<div class="hbar"><span>'+f+' · '+esc(FAZE[f])+'</span><div class="trk"><div class="fil" style="width:'+Math.max(2,v/mx*100)+'%"></div></div><span class="vv">'+money(v,"lei")+'</span></div>';}).join("")+'<div style="font-size:11px;color:var(--muted);margin-top:6px">Reguli sănătate: 🔴 termen depășit sau apel se închide ≤7 zile în faza de pregătire · 🟡 next action ≤3 zile · SLA clarificări (P5): prioritate absolută, 3-5 zile.</div></div>';
@@ -2260,3 +2262,41 @@ function crmSaveForm(id){ const g=k=>{ const el=document.getElementById("cf_"+k)
 
 /* boot: încarcă CRM-ul local și aplică */
 (function(){ try{ crmLoadStore(); crmApply(); if((window.CRM.clients.length||window.CRM.hideDemo) && typeof render==="function"){ if(typeof renderNav==="function")renderNav(); if(typeof S==="object"&&S.view) render(); } }catch(e){} })();
+
+/* ===== CRM proiecte (Faza 1+) — add/edit/delete + mutare pe faze ===== */
+function crmProjNum(v){ if(v==null||v==="")return null; let s=String(v).replace(/[^0-9.,\-]/g,""); if(s.indexOf(",")>=0&&s.indexOf(".")>=0)s=s.replace(/\./g,"").replace(",","."); else if(s.indexOf(",")>=0)s=s.replace(",","."); const n=parseFloat(s); return isNaN(n)?null:n; }
+function crmMakeProject(f){
+  const id=f.id||("pr_u"+(window.CRM.projects.length+1)+"_"+Date.now());
+  const p={ id, titlu:String(f.titlu||"(proiect fără nume)").trim(), client_id:(f.client_id||"").trim(), apel_id:(f.apel_id||"").trim(),
+    faza:(f.faza||"P0").trim()||"P0", valoare_totala_lei:crmProjNum(f.valoare_totala_lei), grant_lei:crmProjNum(f.grant_lei),
+    cofinantare_lei:crmProjNum(f.cofinantare_lei), comision:{ fix_lei:crmProjNum(f.comision_fix_lei)||0, succes_pct:crmProjNum(f.comision_succes_pct)||0 },
+    consultant:(f.consultant||"").trim(), cod_smis:(f.cod_smis||"").trim(), sursa:"user" };
+  if(f.next_action_descriere && String(f.next_action_descriere).trim()) p.next_action={ descriere:String(f.next_action_descriere).trim(), termen:(f.next_action_termen||"")||null };
+  if(p.cofinantare_lei==null && p.valoare_totala_lei!=null && p.grant_lei!=null) p.cofinantare_lei=p.valoare_totala_lei-p.grant_lei;
+  return p;
+}
+function crmAddProject(p){ if(!p.id) p.id="pr_u"+(window.CRM.projects.length+1)+"_"+Date.now(); const ix=window.CRM.projects.findIndex(x=>x.id===p.id); if(ix>=0)window.CRM.projects[ix]=p; else window.CRM.projects.push(p); crmSave(); crmApply(); }
+function crmDeleteProject(id){ if(!confirm("Ștergi acest proiect din pipeline-ul tău local?")) return; window.CRM.projects=window.CRM.projects.filter(x=>x.id!==id); crmSave(); crmApply(); if(typeof closeDrawer==="function")closeDrawer(); render(); }
+function crmSetFaza(id,faza){ const p=window.CRM.projects.find(x=>x.id===id); if(!p) return; p.faza=faza; crmSave(); crmApply(); render(); }
+function crmProjCounts(){ return {reali:PR.filter(p=>!p.demo).length, demo:PR.filter(p=>p.demo).length}; }
+function crmProjForm(id){ const ex=id?PR.find(p=>p.id===id):null; const na=(ex&&ex.next_action)||{}; const com=(ex&&ex.comision)||{};
+  const v=k=>esc(ex&&ex[k]!=null?ex[k]:"");
+  const clientOpts='<option value="">— alege client —</option>'+CL.map(c=>'<option value="'+esc(c.id)+'"'+(ex&&ex.client_id===c.id?" selected":"")+'>'+esc(c.denumire)+'</option>').join("");
+  const apelOpts='<option value="">— fără apel —</option>'+A.map(a=>'<option value="'+esc(a.id_apel)+'"'+(ex&&ex.apel_id===a.id_apel?" selected":"")+'>'+esc((a.titlu||"apel").slice(0,50))+'</option>').join("");
+  const fazaOpts=Object.keys(FAZE).map(f=>'<option value="'+f+'"'+((ex?ex.faza:"P0")===f?" selected":"")+'>'+f+' · '+esc(FAZE[f])+'</option>').join("");
+  let h=drawerHead(id?"Editează proiect":"Proiect nou","se salvează local pe dispozitiv")+'<div class="db"><div class="evform">';
+  h+='<label>Titlu proiect *</label><input id="pf_titlu" value="'+v("titlu")+'">';
+  h+='<div class="r2"><div><label>Client</label><select id="pf_client_id">'+clientOpts+'</select></div><div><label>Fază</label><select id="pf_faza">'+fazaOpts+'</select></div></div>';
+  h+='<label>Apel</label><select id="pf_apel_id">'+apelOpts+'</select>';
+  h+='<div class="r2"><div><label>Valoare totală (lei)</label><input id="pf_valoare_totala_lei" type="number" value="'+v("valoare_totala_lei")+'"></div><div><label>Grant (lei)</label><input id="pf_grant_lei" type="number" value="'+v("grant_lei")+'"></div></div>';
+  h+='<div class="r2"><div><label>Comision fix (lei)</label><input id="pf_comision_fix_lei" type="number" value="'+esc(com.fix_lei!=null?com.fix_lei:"")+'"></div><div><label>Comision succes (%)</label><input id="pf_comision_succes_pct" type="number" value="'+esc(com.succes_pct!=null?com.succes_pct:"")+'"></div></div>';
+  h+='<label>Consultant responsabil</label><input id="pf_consultant" value="'+v("consultant")+'">';
+  h+='<div class="r2"><div><label>Următoarea acțiune</label><input id="pf_next_action_descriere" value="'+esc(na.descriere||"")+'"></div><div><label>Termen</label><input id="pf_next_action_termen" type="date" value="'+esc(na.termen||"")+'"></div></div>';
+  h+='<div style="margin-top:12px;display:flex;gap:8px"><button class="btn primary" onclick="crmSaveProj('+(id?"'"+id+"'":"null")+')">💾 Salvează</button>'+(id?'<button class="btn" style="color:var(--critical)" onclick="crmDeleteProject(\''+id+'\')">🗑 Șterge</button>':"")+'</div></div></div>';
+  openDrawer(h);
+}
+function crmSaveProj(id){ const g=k=>{ const el=document.getElementById("pf_"+k); return el?el.value:""; };
+  const f={id:id||undefined}; ["titlu","client_id","apel_id","faza","valoare_totala_lei","grant_lei","comision_fix_lei","comision_succes_pct","consultant","next_action_descriere","next_action_termen"].forEach(k=>f[k]=g(k));
+  if(!String(f.titlu||"").trim()){ toast("Completează titlul proiectului"); return; }
+  crmAddProject(crmMakeProject(f)); toast(id?"Proiect actualizat":"Proiect adăugat"); closeDrawer(); render();
+}
