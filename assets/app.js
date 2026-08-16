@@ -242,12 +242,18 @@ function openProiect(pid){ const p=PR.find(x=>x.id===pid); if(!p) return;
   h+='</div>'; openDrawer(h); }
 
 /* ---------- Buletin ---------- */
+function radarAge(){ const s=(DB.apeluri||{}).extras_la||""; if(!s) return null; const d=new Date(s); if(isNaN(d)) return null;
+  const zile=Math.floor((TODAY-new Date(d.getFullYear(),d.getMonth(),d.getDate()))/86400000);
+  return {zile, cls:(zile<=2?"good":zile<=7?"warn":"crit")}; }
+function radarAgeColor(cls){ return cls==="good"?"var(--good)":cls==="warn"?"#b97900":"var(--critical)"; }
 function vBuletin(){ const b=(META.buletin)||{}; const act=A.filter(a=>a.stare==="activ").length, plan=A.filter(a=>a.stare==="planificat"||a.stare==="consultare").length;
+  const _ra=radarAge();
   const cl7=A.filter(a=>{const d=days(a.data_inchidere);return d!=null&&d>=0&&d<=7;}).length;
   const cl30=A.filter(a=>{const d=days(a.data_inchidere);return d!=null&&d>=0&&d<=30;}).length;
   const pipeG=PR.reduce((s,p)=>s+(p.grant_lei||0),0); const t7=calItems(7).length;
   const dv=A.filter(a=>(a.incredere_extractie||1)<0.8).length;
-  let h='<div class="viewtitle"><h1>'+esc(b.titlu||"Buletin")+'</h1><span class="sub">radar: '+A.length+' apeluri din 30+ surse</span><div class="viewactions"><button class="btn small" onclick="copyBuletin()">📋 Copiază buletinul</button></div></div>';
+  let h='<div class="viewtitle"><h1>'+esc(b.titlu||"Buletin")+'</h1><span class="sub">radar: '+A.length+' apeluri din 30+ surse'+(_ra?' · <b style="color:'+radarAgeColor(_ra.cls)+'">scanat acum '+_ra.zile+' '+(_ra.zile===1?"zi":"zile")+'</b>':"")+'</span><div class="viewactions"><button class="btn small" onclick="copyBuletin()">📋 Copiază buletinul</button></div></div>';
+  if(_ra && _ra.zile>7) h+='<div class="callout warn">⏳ <b>Date vechi de '+_ra.zile+' zile</b> (scanate '+esc(String((DB.apeluri||{}).extras_la||"").slice(0,10))+'). Termenele apelurilor se pot schimba — cere «scanează acum» în conversație sau așteaptă scanarea automată zilnică.</div>';
   h+='<div class="tiles">';
   h+=tile(act,"Apeluri active","din "+A.length+" în registru","acc","radar",()=>{S.radar.stari=new Set(["activ"]);});
   h+=tile(cl7,"Se închid ≤7 zile","atenție maximă",cl7?"crit":"","radar",()=>{S.radar.stari=new Set(["activ"]);S.radar.sort="termen";});
@@ -1417,7 +1423,7 @@ window.__reboot=function(){ MATCH=null; IX=null; render(); };
     '<div class="callout warn">Sursele gov.ro centrale sunt blocate din datacenter — scanarea folosește OI-uri regionale + comunicate oficiale + presă (marcate [DE VERIFICAT] unde e cazul). Pentru acces direct: browserul tău (Claude in Chrome) sau VPS românesc (Faza 3).</div></div>'); };
   $("#overlay").onclick=closeDrawer;
   $("#firmName").textContent=(META.firma||{}).nume||"";
-  $("#stampBox").innerHTML="radar: "+esc(String((DB.apeluri||{}).extras_la||"").slice(0,10))+"<br>v"+esc(META.versiune||"1");
+  $("#stampBox").innerHTML="radar: "+esc(String((DB.apeluri||{}).extras_la||"").slice(0,10))+(function(){const a=radarAge();return a?' · <b style="color:'+radarAgeColor(a.cls)+'">acum '+a.zile+'z</b>':'';})()+"<br>v"+esc(META.versiune||"1");
   hookSearch(); render();
 })();
 
@@ -1661,7 +1667,16 @@ window.ONRC = window.ONRC || { c:{} };
 const ONRC_FIELDS={den:0,cui:1,cod:2,data:3,forma:4,loc:5,adr:6,stare:7,web:8,caen:9,rep:10,coduri:11,euid:12,postal:13,tel:18,fax:19,caenAnaf:21,fiscal:22};
 const ONRC_STLBL={0:["onrc-0","necunoscut"],1:["onrc-1","ACTIV"],2:["onrc-2","RISC"],3:["onrc-3","INACTIV"]};
 const ONRC_CAENVER={"0":"rev1","1":"rev1.1","2":"rev2","3":"rev3"};
-const ONRC_REG={"cluj":"Nord-Vest","iasi":"Nord-Est","iaşi":"Nord-Est","ilfov":"București-Ilfov"};
+const ONRC_REG={
+  "bacau":"Nord-Est","botosani":"Nord-Est","iasi":"Nord-Est","neamt":"Nord-Est","suceava":"Nord-Est","vaslui":"Nord-Est",
+  "braila":"Sud-Est","buzau":"Sud-Est","constanta":"Sud-Est","galati":"Sud-Est","tulcea":"Sud-Est","vrancea":"Sud-Est",
+  "arges":"Sud-Muntenia","calarasi":"Sud-Muntenia","dambovita":"Sud-Muntenia","giurgiu":"Sud-Muntenia","ialomita":"Sud-Muntenia","prahova":"Sud-Muntenia","teleorman":"Sud-Muntenia",
+  "dolj":"Sud-Vest Oltenia","gorj":"Sud-Vest Oltenia","mehedinti":"Sud-Vest Oltenia","olt":"Sud-Vest Oltenia","valcea":"Sud-Vest Oltenia",
+  "arad":"Vest","caras-severin":"Vest","hunedoara":"Vest","timis":"Vest",
+  "bihor":"Nord-Vest","bistrita-nasaud":"Nord-Vest","cluj":"Nord-Vest","maramures":"Nord-Vest","satu mare":"Nord-Vest","salaj":"Nord-Vest",
+  "alba":"Centru","brasov":"Centru","covasna":"Centru","harghita":"Centru","mures":"Centru","sibiu":"Centru",
+  "bucuresti":"București-Ilfov","ilfov":"București-Ilfov"
+};
 function onrcNorm(s){ return String(s||"").toLowerCase().replace(/ș|ş/g,"s").replace(/ț|ţ/g,"t").replace(/ă|â/g,"a").replace(/î/g,"i"); }
 function onrcRegOf(j){ return ONRC_REG[onrcNorm(j)]||""; }
 function onrcTotal(){ const O=window.ONRC; return (O&&O.c)?Object.values(O.c).reduce((s,d)=>s+((d.f&&d.f.length)||0),0):0; }
