@@ -2030,6 +2030,19 @@ function evLeg(k,on){ const rb=evGetRb(); rb.legislatie=rb.legislatie||[]; const
 function evAddChelt(){ window.evUI.dosar.financiar.cheltuieli.push({categorie:"",suma:null}); render(); }
 function evDelChelt(i){ window.evUI.dosar.financiar.cheltuieli.splice(i,1); render(); }
 function evAddInd(){ window.evUI.dosar.concordanta.indicatori.push({nume:"",cerere:"",buget:""}); render(); }
+function evApplyCRM(){ const ce=document.getElementById("evCrmClient"), pe=document.getElementById("evCrmProj"); const cid=ce?ce.value:"", pid=pe?pe.value:"";
+  const D=window.evUI.dosar, s=D.solicitant, fn=D.financiar, cc=D.concordanta;
+  if(cid){ const c=clientById(cid); if(c){ const df=c.date_financiare||{};
+    s.dimensiune=c.dimensiune||""; s.tip=c.tip||""; s.regiune=c.regiune||""; s.judet=c.judet||""; s.caen=c.caen_principal||"";
+    if(df.capitaluri_proprii_lei!=null) s.capitaluri_proprii_lei=df.capitaluri_proprii_lei;
+    if(df.cifra_afaceri_3ani_lei) s.cifra_afaceri_lei=Object.values(df.cifra_afaceri_3ani_lei).pop();
+    if(df.nr_angajati!=null) s.nr_angajati=df.nr_angajati;
+    const mu=(c.ajutoare_minimis||[]).reduce((a,x)=>a+(x.suma_eur||0),0); if(mu) s.minimis_utilizat_eur=mu;
+    cc.cui_cerere=c.cui||""; cc.cui_buget=c.cui||""; cc.denumire_cerere=c.denumire||""; cc.denumire_buget=c.denumire||""; } }
+  if(pid){ const p=PR.find(x=>x.id===pid); if(p){ if(p.valoare_totala_lei!=null) fn.valoare_proiect=p.valoare_totala_lei; if(p.grant_lei!=null) fn.sprijin_solicitat=p.grant_lei; if(p.cofinantare_lei!=null) fn.cofinantare=p.cofinantare_lei; } }
+  if(!cid&&!pid){ toast("Alege un client sau un proiect"); return; }
+  toast("Date încărcate din CRM"); render();
+}
 function evDelInd(i){ window.evUI.dosar.concordanta.indicatori.splice(i,1); render(); }
 function evToggleDoc(i,on){ const rb=evGetRb(); if(!rb||!rb.documente||!rb.documente[i]) return; const nm=rb.documente[i].nume; const a=window.evUI.dosar.documente_prezente; const k=a.indexOf(nm); if(on){ if(k<0)a.push(nm); } else if(k>=0) a.splice(k,1); }
 
@@ -2078,6 +2091,7 @@ function evEditorCard(rb){ var h="";
 function evDosarCard(rb){ var h="";
   const D=window.evUI.dosar; const s=D.solicitant, fn=D.financiar;
   h+='<div class="card"><h2 style="font-size:14px;margin-bottom:8px">📂 Dosarul proiectului</h2><div class="evform">';
+  h+='<div class="evmini" style="border-color:var(--accent)"><b style="font-size:12.5px">⚡ Pre-completează din CRM</b><div class="evsrc" style="margin-bottom:4px">Alege un client (și opțional un proiect) — completez automat datele de mai jos.</div><div class="r2"><select id="evCrmClient"><option value="">— client —</option>'+CL.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.denumire)+(c.demo?" (demo)":"")+'</option>').join("")+'</select><select id="evCrmProj"><option value="">— proiect (opțional) —</option>'+PR.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.titlu)+'</option>').join("")+'</select></div><button class="btn small primary" onclick="evApplyCRM()" style="margin-top:5px">⚡ Încarcă datele</button></div>';
   h+='<div class="evmini"><b style="font-size:12.5px">Solicitant</b>'
     +'<div class="r2"><div><label>Dimensiune</label><select onchange="evSet(\'dosar.solicitant.dimensiune\',this.value)"><option value="">—</option>'+["microintreprindere","mica","mijlocie","mare"].map(x=>'<option'+(s.dimensiune===x?" selected":"")+'>'+x+'</option>').join("")+'</select></div><div><label>Tip</label><select onchange="evSet(\'dosar.solicitant.tip\',this.value)"><option value="">—</option>'+["privat","UAT","ONG"].map(x=>'<option'+(s.tip===x?" selected":"")+'>'+x+'</option>').join("")+'</select></div></div>'
     +'<div class="r2"><div><label>Regiune</label><input type="text" value="'+esc(s.regiune||"")+'" onchange="evSet(\'dosar.solicitant.regiune\',this.value)"></div><div><label>Județ</label><input type="text" value="'+esc(s.judet||"")+'" onchange="evSet(\'dosar.solicitant.judet\',this.value)"></div></div>'
