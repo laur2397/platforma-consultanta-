@@ -1274,20 +1274,24 @@ function vRapoarte(){ const rc=S.repClient;
   h+='<div class="section card"><h2 style="font-size:14px;margin-bottom:10px">KPI de operare (K2) — luna curentă</h2><table class="tbl"><thead><tr><th>Indicator</th><th>Valoare</th><th>Țintă</th></tr></thead><tbody>'+
   [["Timp detectare apel nou → alertă","prima scanare: aceeași zi","aceeași zi lucrătoare"],
    ["Surse monitorizate funcționale",SURSE.filter(s=>s.stare==="ok").length+" / "+SURSE.length+" (multe gov.ro blocate din datacenter)","100% acoperite (direct sau prin proxy)"],
-   ["Corrigende detectate întâi de radar","1 / 1 (PTJ parcuri industriale)","100%"],
-   ["Clarificări răspunse în termen","— (nicio clarificare activă)","100%"],
-   ["CR autorizate fără tăieri","1 / 1 (CR2 PRJ-007, demo)",">95% din valoare"],
+   ["Corrigende urmărite de radar",A.filter(a=>a.corrigendum).length+" active"+(A.filter(a=>a.corrigendum).length?" (ex: "+(A.find(a=>a.corrigendum)||{}).titlu+")":""),"100% detectate"],
+   ["Clarificări în derulare (pipeline real)",(PR.filter(p=>!p.demo&&p.faza==="P5").length||"—")+"","răspuns în termen"],
+   ["Proiecte reale în implementare/rambursare",PR.filter(p=>!p.demo&&["P7","P8","P9"].includes(p.faza)).length+"",">95% fără tăieri"],
    ["Corecții financiare suferite","0 lei","0 lei"],
    ["Termene ratate","0","0"],
    ["Valoare pipeline (grant)",money(PR.reduce((s,p)=>s+(p.grant_lei||0),0),"lei"),"↑"]].map(r=>'<tr><td>'+r[0]+'</td><td><b>'+r[1]+'</b></td><td style="color:var(--muted)">'+r[2]+'</td></tr>').join("")+'</tbody></table></div>';
   return h; }
 function raportL4(){ const d=new Date().toLocaleDateString("ro-RO"); const cl7=A.filter(a=>{const x=days(a.data_inchidere);return x!=null&&x>=0&&x<=7;});
   const items=calItems(7);
-  let t="RAPORT SĂPTĂMÂNAL INTERN — "+d+"\n\n1) NOUTĂȚI RADAR\n• Registru: "+A.length+" apeluri ("+A.filter(a=>a.stare==="activ").length+" active, "+A.filter(a=>a.stare==="planificat").length+" planificate, "+A.filter(a=>a.stare==="consultare").length+" în consultare)\n• Corrigende: PTJ Parcuri industriale — termen prelungit la 28.09.2026 (Ordin MIPE 1204/2026)\n• Închideri ≤7 zile: "+(cl7.map(a=>a.titlu+" ("+fmtDs(a.data_inchidere)+")").join("; ")||"—")+"\n\n2) PIPELINE\n";
+  const cor=A.filter(a=>a.corrigendum);
+  let t="RAPORT SĂPTĂMÂNAL INTERN — "+d+"\n\n1) NOUTĂȚI RADAR\n• Registru: "+A.length+" apeluri ("+A.filter(a=>a.stare==="activ").length+" active, "+A.filter(a=>a.stare==="planificat").length+" planificate, "+A.filter(a=>a.stare==="consultare").length+" în consultare)\n• Corrigende active: "+(cor.length?cor.map(a=>a.titlu).join("; "):"niciuna")+"\n• Închideri ≤7 zile: "+(cl7.map(a=>a.titlu+" ("+fmtDs(a.data_inchidere)+")").join("; ")||"—")+"\n\n2) PIPELINE\n";
   Object.keys(FAZE).forEach(f=>{ const ps=PR.filter(p=>p.faza===f); if(ps.length) t+="• "+f+" "+FAZE[f]+": "+ps.length+" proiect(e), grant "+money(ps.reduce((s,p)=>s+(p.grant_lei||0),0),"lei")+"\n"; });
   t+="\n3) TERMENELE SĂPTĂMÂNII\n"+(items.map(i=>"• "+fmtDs(i.data)+" — ["+i.tip+"] "+i.titlu).join("\n")||"—");
-  t+="\n\n4) RISCURI DESCHISE (top)\n"+RISCURI.slice(0,5).map(r=>"• ["+r.sev+"] "+r.risc+" → expunere: "+r.expunere).join("\n");
-  t+="\n\n5) DECIZII CERUTE\n• GO/NO-GO Panificație Siret × Schema energie AFIR (până 4.08)\n• Aprobarea listei de clienți pentru pregătirea PR NE micro Apel 2\n\nGenerat automat de Command Center — de validat înainte de difuzare.";
+  const rr=riskRegister(); t+="\n\n4) RISCURI DESCHISE (top)"+(rr.isDemo?" [demo — adaugă proiecte reale pentru riscuri proprii]":"")+"\n"+(rr.rows.length?rr.rows.slice(0,5).map(r=>"• ["+r.sev+"] "+r.risc+" → expunere: "+r.expunere).join("\n"):"• niciun risc detectat automat");
+  // Decizii GO/NO-GO derivate: proiecte reale în P0/P1 cu apel care se închide în ≤30 zile
+  const dec=PR.filter(p=>!p.demo&&["P0","P1"].includes(p.faza)).map(p=>{ const ap=apelById(p.apel_id); const az=ap&&ap.data_inchidere?days(ap.data_inchidere):null; return {p,ap,az}; }).filter(x=>x.az==null||x.az<=30).sort((a,b)=>((a.az==null?999:a.az)-(b.az==null?999:b.az)));
+  t+="\n\n5) DECIZII CERUTE\n"+(dec.length?dec.map(x=>"• GO/NO-GO "+x.p.titlu+(x.ap?" × "+x.ap.titlu:"")+(x.ap&&x.ap.data_inchidere?" (până "+fmtDs(x.ap.data_inchidere)+")":"")).join("\n"):"• (niciun GO/NO-GO în așteptare pe proiecte reale)");
+  t+="\n\nGenerat automat de Command Center — de validat înainte de difuzare.";
   return t; }
 function raportL5(cid){ const c=clientById(cid); if(!c) return "";
   const ps=PR.filter(p=>p.client_id===cid);
@@ -1304,9 +1308,34 @@ const RISCURI=[
  {proiect:"PRJ-007",sev:"MINOR",cat:"publicitate",risc:"Autocolante lipsă pe echipamentele achiziționate",expunere:"corecție până la 3% ≈ 35.400 lei",masura:"foto-audit la vizita din 4.09 + comandă autocolante 150×150mm",resp:"Consultant 3"},
  {proiect:"PRJ-005",sev:"MAJOR",cat:"termene",risc:"Clarificare CAE cu termen 3-5 zile în perioada concediilor",expunere:"respingere administrativă",masura:"monitorizare zilnică MySMIS + backup consultant desemnat",resp:"Consultant 2"},
  {proiect:"PRJ-003",sev:"MINOR",cat:"eligibilitate",risc:"Plafon minimis pe întreprinderea unică (2 firme legate) insuficient verificat",expunere:"respingere la CAE / recuperare ajutor",masura:"interogare RegAS + declarații pe propria răspundere pe TOT grupul",resp:"Consultant 1"}];
+/* Registru de riscuri — derivat DETERMINIST din proiectele tale reale.
+   Cade pe setul demo doar cât timp nu ai niciun proiect real în pipeline. */
+function riskRegister(){
+  const reali=PR.filter(p=>!p.demo);
+  if(!reali.length) return {rows:RISCURI.map(r=>Object.assign({demo:true},r)), isDemo:true};
+  const rows=[];
+  reali.forEach(p=>{ const resp=p.consultant||"—";
+    const ap=apelById(p.apel_id); const az=ap&&ap.data_inchidere?days(ap.data_inchidere):null;
+    const pre=["P0","P1","P2","P3"].includes(p.faza);
+    if(pre&&az!=null&&az>=0&&az<=14) rows.push({proiect:p.id,sev:"MAJOR",cat:"termene",risc:"Apelul „"+(ap.titlu||p.apel_id)+"” se închide în "+az+" zile, iar proiectul e încă în „"+(FAZE[p.faza]||p.faza)+"”",expunere:"nedepunere / pierderea finanțării",masura:"decizie GO/NO-GO acum + listă documente cu responsabili pe zile",resp});
+    else if(pre&&az!=null&&az>14&&az<=30) rows.push({proiect:p.id,sev:"MINOR",cat:"termene",risc:"Apelul „"+(ap.titlu||p.apel_id)+"” se închide în "+az+" zile — grăbește pregătirea dosarului",expunere:"risc dosar incomplet",masura:"plan pe zile + verificare checklist pre-depunere",resp});
+    if(p.next_action&&p.next_action.termen){ const t=days(p.next_action.termen);
+      if(t!=null&&t<0) rows.push({proiect:p.id,sev:"MAJOR",cat:"termene",risc:"Acțiune restantă: "+(p.next_action.descriere||"—")+" (termen depășit din "+fmtD(p.next_action.termen)+")",expunere:"întârziere / respingere administrativă",masura:"execută imediat sau reprogramează cu clientul",resp});
+      else if(t!=null&&t>=0&&t<=5) rows.push({proiect:p.id,sev:"MINOR",cat:"termene",risc:"Termen apropiat: "+(p.next_action.descriere||"—")+" (până "+fmtD(p.next_action.termen)+")",expunere:"întârziere dacă alunecă",masura:"confirmă azi disponibilitatea documentelor",resp}); }
+    if(p.faza==="P5") rows.push({proiect:p.id,sev:"MAJOR",cat:"termene",risc:"Clarificări CAE/ETF în derulare — termen tipic de răspuns 3–5 zile",expunere:"respingere administrativă la nerăspuns",masura:"monitorizare zilnică MySMIS + backup consultant desemnat",resp});
+    const c=clientById(p.client_id); if(c){ const mu=(c.ajutoare_minimis||[]).reduce((a,x)=>a+(x.suma_eur||0),0);
+      if(mu>250000) rows.push({proiect:p.id,sev:"MAJOR",cat:"eligibilitate",risc:"Plafon minimis aproape epuizat pentru "+(c.denumire||c.id)+" ("+nf.format(mu)+" din 300.000 EUR)",expunere:"respingere la CAE / recuperare ajutor",masura:"interogare RegAS + verificare întreprindere unică pe tot grupul",resp}); } });
+  const ord={MAJOR:0,MINOR:1}; rows.sort((a,b)=>((ord[a.sev]||9)-(ord[b.sev]||9)));
+  return {rows, isDemo:false};
+}
 function vConformitate(){ const r=REF;
   let h='<div class="viewtitle"><h1>🛡️ Conformitate & audit</h1><span class="sub">referențial D5 · valori la 30.07.2026 · elementele ⏳ se reverifică periodic</span></div>';
-  h+='<div class="section"><h2>Registru de riscuri (proiecte active)</h2><div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr><th>Proiect</th><th>Sev.</th><th>Risc</th><th>Expunere potențială</th><th>Măsură</th></tr></thead><tbody>'+RISCURI.map(x=>'<tr onclick="openProiect(\''+x.proiect+'\')"><td>'+x.proiect+'</td><td><span class="cd '+(x.sev==="MAJOR"?"cd-crit":"cd-warn")+'">'+x.sev+'</span></td><td>'+esc(x.risc)+'</td><td><b>'+esc(x.expunere)+'</b></td><td style="font-size:12px">'+esc(x.masura)+'</td></tr>').join("")+'</tbody></table></div></div>';
+  const _rr=riskRegister();
+  h+='<div class="section"><h2>Registru de riscuri (proiecte active)</h2>';
+  if(_rr.isDemo) h+='<div class="callout warn" style="margin-bottom:8px">Riscuri <b>demo</b> — se generează automat din proiectele tale reale imediat ce adaugi proiecte în Pipeline.</div>';
+  if(!_rr.rows.length) h+='<div class="card"><div class="empty">Niciun risc detectat automat pe proiectele reale. 🎉 Continuă monitorizarea termenelor și a plafonului de minimis.</div></div>';
+  else h+='<div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr><th>Proiect</th><th>Sev.</th><th>Risc</th><th>Expunere potențială</th><th>Măsură</th></tr></thead><tbody>'+_rr.rows.map(x=>'<tr onclick="openProiect(\''+esc(x.proiect)+'\')"><td>'+esc(x.proiect)+'</td><td><span class="cd '+(x.sev==="MAJOR"?"cd-crit":"cd-warn")+'">'+esc(x.sev)+'</span></td><td>'+esc(x.risc)+'</td><td><b>'+esc(x.expunere)+'</b></td><td style="font-size:12px">'+esc(x.masura)+'</td></tr>').join("")+'</tbody></table></div>';
+  h+='</div>';
   h+='<div class="grid2 section"><div class="card"><h2 style="font-size:14px;margin-bottom:8px">Simulator minimis (întreprindere unică)</h2><select id="msClient" style="width:100%;padding:7px;border:1px solid var(--grid);border-radius:8px;background:var(--page);color:var(--ink)" onchange="msRender()">'+CL.filter(c=>c.tip!=="UAT").map(c=>'<option value="'+c.id+'">'+esc(c.denumire)+'</option>').join("")+'</select><div id="msBox" style="margin-top:10px"></div><div class="callout warn" style="margin-top:8px">Plafon 300.000 EUR / orice 3 ani (glisant) / <b>întreprindere unică</b> — tot grupul legat. Verificarea finală: RegAS + declarații. Interzis: minimis pentru vehicule de transport marfă.</div></div>';
   h+='<div class="card"><h2 style="font-size:14px;margin-bottom:8px">Intensități GBER pe județ (harta 2022-2027)</h2><select id="gberJud" style="width:100%;padding:7px;border:1px solid var(--grid);border-radius:8px;background:var(--page);color:var(--ink)" onchange="gberRender()"><option value="">— alege județul —</option>'+gberAllJud().map(j=>'<option>'+j+'</option>').join("")+'</select><div id="gberBox" style="margin-top:10px" class="empty">Alege județul pentru intensitatea maximă.</div><div style="font-size:11.5px;color:var(--muted);margin-top:8px">Bonus IMM: +20pp micro/mici, +10pp mijlocii (≤50 mil EUR) · +10pp în teritorii de tranziție justă · Efect stimulativ: depunere ÎNAINTE de începerea lucrărilor.</div></div></div>';
   h+='<div class="section"><h2>Scala corecțiilor financiare (OUG 66/2011 + HG 519/2014)</h2><div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr><th>Abatere</th><th>Corecție</th><th>Normă</th></tr></thead><tbody>'+(r.corectii_oug66||[]).map(c=>'<tr><td>'+esc(c.abatere)+'</td><td><b style="color:var(--critical)">'+esc(c.corectie)+'</b></td><td style="color:var(--muted);font-size:12px">'+esc(c.norma)+'</td></tr>').join("")+'</tbody></table></div></div>';
