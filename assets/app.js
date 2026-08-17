@@ -1379,18 +1379,62 @@ function msRender(){ const sel=$("#msClient"); if(!sel) return; const c=clientBy
 function after_conformitate(){ msRender(); }
 
 /* ---------- Market Intel ---------- */
-function vIntel(){ let h='<div class="viewtitle"><h1>🔎 Market intelligence</h1><span class="sub">prospectare pe date deschise — flux lunar W10</span></div>';
-  h+='<div class="grid2"><div class="card"><h2 style="font-size:14px;margin-bottom:8px">Surse de prospectare</h2><ul class="list">'+
-  '<li>📊 <b>data.gov.ro «Proiecte contractate»</b> (MIPE, XLSX) — cine a contractat, pe ce program → firme «educate» = prospecți calzi. <a href="https://data.europa.eu/data/datasets?catalog=data-gov-ro&query=proiecte%20contractate" target="_blank">oglinda data.europa.eu ↗</a></li>'+
-  '<li>🗺 <b>Kohesio</b> — operațiunile de coeziune pe județ/localitate. <a href="https://kohesio.ec.europa.eu/ro/" target="_blank">kohesio.ec.europa.eu ↗</a></li>'+
-  '<li>🏛 <b>RegAS</b> — ajutoarele primite de o firmă (verificare minimis). <a href="https://regas.consiliulconcurentei.ro/transparenta/" target="_blank">regas ↗</a></li>'+
-  '<li>🧾 <b>ANAF API</b> — status TVA/inactivitate pentru îmbogățirea CRM.</li></ul>'+
-  '<div class="callout" style="margin-top:8px">Activare: cere în Claude «rulează W10 market intelligence» — descarcă seturile, încrucișează cu CAEN/județele țintă și scoate liste de prospecți.</div></div>';
-  h+='<div class="card"><h2 style="font-size:14px;margin-bottom:8px">Piste imediate (din radarul de azi)</h2><ul class="list">'+
-  '<li>🎯 <b>Județele PTJ</b> (Gorj, Hunedoara, Dolj, Galați, Prahova, Mureș): val de apeluri + STEP pentru IMM în nov. 2026 — cartografiază UAT-urile fără proiecte PTJ depuse («piață albă») și micii producători industriali.</li>'+
-  '<li>🌱 <b>SEE/Norvegiene</b>: ~110 mil EUR dezvoltare locală (FRDS) — pregătește oferte pentru UAT-urile mici înainte de lansare.</li>'+
-  '<li>⚡ <b>Schema energie AFIR</b> + FM: firmele agroalimentare cu consum mare de energie = prospecți dubli (AFIR acum, FM stocare în sept).</li>'+
-  '<li>🏭 <b>PR NE micro Apel 2</b> (20,4 mil EUR, lansare așteptată): microîntreprinderile urbane din NE cu CA în creștere — campanie de contact în august.</li></ul></div></div>';
+/* Market Intel — încrucișare DETERMINISTĂ a datelor reale din platformă:
+   proiecte contractate (istoric absorbție), primării, GBER, apeluri active, SICAP. */
+let _INTEL=null;
+function gberIntensity(jud){ const g=REF.gber_harta_2022_2027||{}; const sp=(g.special||{})[jud];
+  let base=null; if((g["60_pct"]||[]).includes(jud))base=60; else if((g["50_pct"]||[]).includes(jud))base=50; else if((g["40_pct"]||[]).includes(jud))base=40; else if((g["30_pct"]||[]).includes(jud))base=30;
+  if(sp){ const m=String(sp).match(/(\d+)/); if(m) base=+m[1]; }
+  if(base==null) return null; return {mari:base, imm:Math.min(base+20,70)}; }
+function intelStats(){ if(_INTEL) return _INTEL;
+  const mipe=((DB.proiecte_mipe||{}).items)||[]; const uat=((DB.primarii||{}).uat)||[]; const sic=((DB.sicap||{}).items)||[];
+  const byJud={}, ben={}, sup={};
+  mipe.forEach(i=>{ const j=i.jud||"—"; const b=(byJud[j]=byJud[j]||{n:0,val:0}); b.n++; b.val+=(i.v||0);
+    const k=i.ben||"—"; const e=(ben[k]=ben[k]||{n:0,val:0,pg:new Set(),jud:new Set()}); e.n++; e.val+=(i.v||0); if(i.pg)e.pg.add(i.pg); if(i.jud)e.jud.add(i.jud); });
+  const uatJud={}; uat.forEach(u=>{ const j=u.j||"—"; uatJud[j]=(uatJud[j]||0)+1; });
+  sic.forEach(i=>{ const k=i.sup||"—"; if(!k||k==="—")return; const e=(sup[k]=sup[k]||{n:0,val:0,dom:new Set()}); e.n++; e.val+=(i.val||0); if(i.dom)e.dom.add(i.dom); });
+  const judList=Object.keys(byJud).filter(j=>j&&j!=="—").sort((a,b)=>byJud[b].val-byJud[a].val);
+  const warm=Object.keys(ben).map(k=>({nume:k,n:ben[k].n,val:ben[k].val,pg:[...ben[k].pg],jud:[...ben[k].jud]})).filter(x=>x.n>=2&&x.nume!=="—").sort((a,b)=>b.n-a.n||b.val-a.val);
+  const supl=Object.keys(sup).map(k=>({nume:k,n:sup[k].n,val:sup[k].val,dom:[...sup[k].dom]})).sort((a,b)=>b.n-a.n||b.val-a.val);
+  _INTEL={byJud,uatJud,judList,warm,supl,totMipe:mipe.length}; return _INTEL; }
+function intelApeluriJud(jud){ const reg=onrcRegOf(jud); return A.filter(a=>{ if(a.stare!=="activ")return false; const rs=a.regiuni||[];
+  if(rs.includes("Național")||!rs.length) return true; if(reg&&rs.includes(reg)) return true;
+  if((a.judete_eligibile||[]).some(x=>onrcNorm(x)===onrcNorm(jud))) return true; return false; }); }
+function vIntel(){ const st=intelStats(); const sel=S.intelJud||"", sort=S.intelSort||"val";
+  let h='<div class="viewtitle"><h1>🔎 Market intelligence</h1><span class="sub">încrucișare pe date reale — '+nf.format(st.totMipe)+' proiecte contractate · '+nf.format((st.judList||[]).reduce((s,j)=>s+st.uatJud[j]||s,0)||((DB.primarii||{}).total||0))+' UAT · SICAP</span></div>';
+  // selector județ + radiografie
+  h+='<div class="card"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:14px">Radiografie județ:</b><select style="padding:7px;border:1px solid var(--grid);border-radius:8px;background:var(--page);color:var(--ink);min-width:180px" onchange="S.intelJud=this.value;render()"><option value="">— alege un județ —</option>'+st.judList.map(j=>'<option '+(j===sel?"selected":"")+'>'+esc(j)+'</option>').join("")+'</select>'+(sel?'<button class="btn small" onclick="S.intelJud=\'\';render()">✕</button>':"")+'</div>';
+  if(sel){ const b=st.byJud[sel]||{n:0,val:0}; const gb=gberIntensity(sel); const aps=intelApeluriJud(sel); const uatn=st.uatJud[sel]||0;
+    const warmJ=st.warm.filter(w=>w.jud.includes(sel)).slice(0,8);
+    h+='<div class="tiles" style="margin-top:10px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">'+
+      '<div class="tile"><div class="v">'+nf.format(b.n)+'</div><div class="l">firme cu proiecte contractate (istoric absorbție)</div></div>'+
+      '<div class="tile"><div class="v">'+money(b.val,"lei")+'</div><div class="l">valoare contractată cumulată</div></div>'+
+      '<div class="tile"><div class="v">'+(gb?gb.imm+"%":"—")+'</div><div class="l">intensitate GBER max (IMM micro/mici)</div></div>'+
+      '<div class="tile"><div class="v">'+aps.length+'</div><div class="l">apeluri deschise ACUM pe județ</div></div>'+
+      '<div class="tile"><div class="v">'+nf.format(uatn)+'</div><div class="l">primării (prospecți publici)</div></div>'+
+      '</div>';
+    if(aps.length) h+='<div style="margin-top:10px"><b style="font-size:13px">Apeluri active care acoperă '+esc(sel)+':</b><ul class="list" style="margin-top:6px">'+aps.slice(0,6).map(a=>'<li style="cursor:pointer" onclick="openApel(\''+esc(a.id_apel)+'\')">📡 '+esc(a.titlu)+' <span class="chip">'+esc(a.program||"")+'</span>'+(a.data_inchidere?' <span class="chip hl">'+fmtDs(a.data_inchidere)+'</span>':"")+'</li>').join("")+(aps.length>6?'<li style="color:var(--muted)">+ încă '+(aps.length-6)+' — vezi Radar</li>':"")+'</ul></div>';
+    if(warmJ.length) h+='<div style="margin-top:10px"><b style="font-size:13px">Beneficiari recurenți din '+esc(sel)+' (leaduri calde — au mai accesat):</b><ul class="list" style="margin-top:6px">'+warmJ.map(w=>'<li>🏢 <b>'+esc(w.nume)+'</b> — '+w.n+' proiecte · '+money(w.val,"lei")+' <span class="chip">'+w.pg.join(", ")+'</span></li>').join("")+'</ul></div>';
+    h+='<div class="callout" style="margin-top:10px">Firmele cu istoric de absorbție cunosc procesul → cost de conversie mic. Verifică minimis (RegAS) și status TVA (ANAF) înainte de contact.</div>';
+  }
+  h+='</div>';
+  // harta pieței (toate județele) — tabel sortabil
+  const hdr=(k,l)=>'<th style="cursor:pointer" onclick="S.intelSort=\''+k+'\';render()">'+l+(sort===k?" ▾":"")+'</th>';
+  const rows=st.judList.slice().sort((a,b)=>{ if(sort==="uat")return (st.uatJud[b]||0)-(st.uatJud[a]||0); if(sort==="n")return st.byJud[b].n-st.byJud[a].n; if(sort==="apeluri")return intelApeluriJud(b).length-intelApeluriJud(a).length; if(sort==="gber"){const ga=gberIntensity(a),gb=gberIntensity(b);return (gb?gb.imm:0)-(ga?ga.imm:0);} return st.byJud[b].val-st.byJud[a].val; });
+  h+='<div class="section"><h2>Harta pieței pe județ (istoric absorbție + oportunitate curentă)</h2><div class="card" style="padding:4px 10px;max-height:520px;overflow:auto"><table class="tbl"><thead><tr>'+hdr("jud","Județ")+hdr("n","Firme contractate")+hdr("val","Valoare contractată")+hdr("gber","GBER IMM")+hdr("apeluri","Apeluri active")+hdr("uat","Primării")+'</tr></thead><tbody>'+
+    rows.map(j=>{ const b=st.byJud[j]; const gb=gberIntensity(j); const na=intelApeluriJud(j).length; return '<tr style="cursor:pointer" onclick="S.intelJud=\''+esc(j)+'\';render()"><td><b>'+esc(j)+'</b></td><td>'+nf.format(b.n)+'</td><td>'+money(b.val,"lei")+'</td><td>'+(gb?gb.imm+"%":"—")+'</td><td>'+(na?'<span class="cd cd-good">'+na+'</span>':'<span style="color:var(--muted)">0</span>')+'</td><td>'+nf.format(st.uatJud[j]||0)+'</td></tr>'; }).join("")+'</tbody></table></div><div style="font-size:11.5px;color:var(--muted);margin-top:6px">Click pe rând → radiografia județului. „Firme contractate" = istoric absorbție (proiecte MIPE), semnal de piață educată.</div></div>';
+  // leaduri calde naționale
+  h+='<div class="grid2 section"><div class="card"><h2 style="font-size:14px;margin-bottom:8px">Beneficiari recurenți — top leaduri calde (≥2 proiecte)</h2><div style="max-height:360px;overflow:auto"><table class="tbl"><thead><tr><th>Firmă</th><th>Proiecte</th><th>Valoare</th><th>Județe</th></tr></thead><tbody>'+
+    st.warm.slice(0,25).map(w=>'<tr><td><b>'+esc(w.nume)+'</b><br><span style="font-size:11px;color:var(--muted)">'+w.pg.join(", ")+'</span></td><td><b>'+w.n+'</b></td><td>'+money(w.val,"lei")+'</td><td style="font-size:11px">'+w.jud.slice(0,3).join(", ")+(w.jud.length>3?"…":"")+'</td></tr>').join("")+'</tbody></table></div><div style="font-size:11.5px;color:var(--muted);margin-top:6px">'+nf.format(st.warm.length)+' firme cu ≥2 proiecte contractate în total.</div></div>';
+  // prospecți SICAP
+  h+='<div class="card"><h2 style="font-size:14px;margin-bottom:8px">Prospecți SICAP — capacitate & cash-flow (furnizori câștigători)</h2><div style="max-height:360px;overflow:auto"><table class="tbl"><thead><tr><th>Furnizor</th><th>Contracte</th><th>Valoare</th><th>Domenii</th></tr></thead><tbody>'+
+    st.supl.slice(0,25).map(s=>'<tr><td><b>'+esc(s.nume)+'</b></td><td><b>'+s.n+'</b></td><td>'+money(s.val,"lei")+'</td><td style="font-size:11px">'+s.dom.slice(0,2).join(", ")+'</td></tr>').join("")+'</tbody></table></div><div style="font-size:11.5px;color:var(--muted);margin-top:6px">Firme care câștigă contracte publice → au capacitate de execuție și flux de numerar pentru cofinanțare.</div></div></div>';
+  // surse deschise (referință)
+  h+='<div class="section card"><h2 style="font-size:14px;margin-bottom:8px">Surse deschise pentru îmbogățire (ruleaza în Claude)</h2><ul class="list">'+
+  '<li>📊 <b>data.gov.ro «Proiecte contractate»</b> — refresh istoric absorbție. <a href="https://data.europa.eu/data/datasets?catalog=data-gov-ro&query=proiecte%20contractate" target="_blank">data.europa.eu ↗</a></li>'+
+  '<li>🗺 <b>Kohesio</b> — operațiuni coeziune pe localitate. <a href="https://kohesio.ec.europa.eu/ro/" target="_blank">kohesio ↗</a></li>'+
+  '<li>🏛 <b>RegAS</b> — verificare minimis pe firmă. <a href="https://regas.consiliulconcurentei.ro/transparenta/" target="_blank">regas ↗</a> · 🧾 <b>ANAF API</b> — status TVA/inactivitate.</li></ul>'+
+  '<div class="callout" style="margin-top:8px">Pentru refresh: cere în Claude «rulează W10 market intelligence» — se descarcă seturile noi și se reinjectează în platformă.</div></div>';
   return h; }
 
 /* ---------- Administrare ---------- */

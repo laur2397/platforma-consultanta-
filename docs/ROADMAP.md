@@ -37,7 +37,7 @@ Snapshot-ul apelurilor e din 1 august 2026 — ~2 săptămâni vechime, fără r
 | 📊 Rapoarte | parțial | L4/L5 din date reale; unele KPI hardcodate |
 | 🛡️ Conformitate | funcțional | minimis, GBER pe județ, praguri; riscuri demo |
 | 🧪 Verificare proiect | funcțional | evaluator determinist, wizard 4 pași, 3 stări |
-| 🔎 Market Intel | **stub** | listă statică; de construit |
+| 🔎 Market Intel | funcțional | harta pieței pe județ, leaduri calde, prospecți SICAP — din date reale |
 | 🧮 Financiar | funcțional | 8 tab-uri: bilanț, P&P, ETF, buget, deviz HG907 |
 | 🗄️ Baze de date | funcțional | 7 registre publice + export CSV |
 | ⚙️ Administrare | funcțional | surse, export/import JSON, jurnal |
