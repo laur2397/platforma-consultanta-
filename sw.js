@@ -5,7 +5,7 @@
    - Iconițe / manifest: cache-first (nu se schimbă des).
    Bump CACHE_VERSION la orice schimbare pentru a purja cache-ul vechi. */
 
-const CACHE_VERSION = "eufcc-v12";
+const CACHE_VERSION = "eufcc-v13";
 const url = (p) => new URL(p, self.location).toString();
 
 const SHELL = [
