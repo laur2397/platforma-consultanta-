@@ -56,11 +56,12 @@ function dimMatch(cl, ap){ const tb = ap.tip_beneficiar||[];
   if(d==="mica"||d==="mijlocie") return tb.includes("IMM");
   if(d==="mare") return tb.includes("intreprindere_mare");
   return tb.includes("IMM"); }
-function regMatch(cl, ap){ const rg=ap.regiuni||[];
-  if(ap.judete_eligibile && ap.judete_eligibile.length) return ap.judete_eligibile.includes(cl.judet);
+function regMatch(cl, ap){ const rg=ap.regiuni||[]; const nj=onrcNorm(cl.judet||""); const nr=onrcNorm(cl.regiune||(cl.judet?onrcRegOf(cl.judet):""));
+  if(ap.judete_eligibile && ap.judete_eligibile.length) return !!nj && ap.judete_eligibile.some(j=>onrcNorm(j)===nj);
   if(rg.includes("Național")) return true;
   if(rg.includes("ITI")) return null; /* necunoscut fără verificare areal ITI */
-  return rg.includes(cl.regiune); }
+  return !!nr && rg.some(r=>onrcNorm(r)===nr); }
+function judLabel(j){ const k=onrcNorm(j||""); if(!k) return j||""; return BZ_JUD.find(x=>onrcNorm(x)===k)||j; }
 function evalPair(cl, ap){
   const fails=[], unk=[], plus=[];
   if(ap.stare==="in_evaluare"||ap.stare==="inchis") fails.push("Apel închis pentru depuneri noi");
@@ -130,7 +131,7 @@ function calItems(hor){ hor=hor||120; const out=[];
 
 /* ---------- navigation ---------- */
 const NAV=[["buletin","🏠","Buletin"],["radar","📡","Radar apeluri"],["matching","🎯","Matching"],["pipeline","📋","Pipeline"],["calendar","📅","Calendar"],["clienti","👥","Clienți"],["prospect","🏢","Prospect ONRC"],["biblioteca","📚","Bibliotecă"],["rapoarte","📊","Rapoarte"],["conformitate","🛡️","Conformitate"],["verif","🧪","Verificare proiect"],["intel","🔎","Market Intel"],["financiar","🧮","Financiar"],["baze","🗄️","Baze de date"],["admin","⚙️","Administrare"]];
-function navCounts(id){ if(id==="radar") return A.filter(a=>a.stare==="activ").length; if(id==="pipeline") return PR.length; if(id==="clienti") return CL.length; if(id==="calendar") return calItems(30).length; if(id==="baze") return (DB.primarii&&DB.primarii.uat?DB.primarii.uat.length:null); if(id==="prospect"){ const n=onrcTotal(); return n||null; } return null; }
+function navCounts(id){ if(id==="radar") return A.filter(a=>a.stare==="activ").length; if(id==="pipeline") return PR.length; if(id==="clienti"){ const r=CL.filter(c=>!c.demo).length; return r||null; } if(id==="calendar") return calItems(30).length; if(id==="baze") return (DB.primarii&&DB.primarii.uat?DB.primarii.uat.length:null); if(id==="prospect"){ const n=onrcTotal(); return n||null; } return null; }
 /* Iconițe SVG (stroke, 24×24) — înlocuiesc emoji-urile din navigare și titluri */
 const ICONS={
   buletin:'<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
@@ -163,15 +164,17 @@ function renderNav(){ $("#nav").innerHTML=NAV_GROUPS.map(([g,ids])=>'<li class="
     tb.querySelectorAll("button").forEach(b=>b.onclick=()=>{ if(b.dataset.v==="__more") sheetOpen(); else { S.view=b.dataset.v; render(); } }); } }
 function sheetOpen(){ $("#sheetGrid").innerHTML=NAV.map(([id,ic,l])=>'<button class="'+(S.view===id?"on":"")+'" onclick="S.view=\''+id+'\';sheetClose();render()">'+ico(id)+l+'</button>').join(""); $("#moreSheet").classList.add("open"); }
 function sheetClose(){ const s=$("#moreSheet"); if(s) s.classList.remove("open"); }
-function render(){ renderNav(); const v=S.view; const M=$("#main"); M.scrollTop=0;
+function wrapTables(root){ (root||document).querySelectorAll("table.tbl").forEach(t=>{ if(!t.parentElement.classList.contains("tw")){ const w=document.createElement("div"); w.className="tw"; t.parentNode.insertBefore(w,t); w.appendChild(t); } }); }
+function sessSave(){ try{ sessionStorage.setItem("eufcc_sess",JSON.stringify({view:S.view,intelJud:S.intelJud||"",intelSort:S.intelSort||"",intelDir:S.intelDir||0,fin:S.fin?{sub:S.fin.sub}:null,baze:S.baze||null,calMode:S.calMode,matchClient:S.matchClient,repClient:S.repClient})); }catch(e){} }
+function sessLoad(){ try{ const o=JSON.parse(sessionStorage.getItem("eufcc_sess")||"null"); if(!o) return; window.__sess=o; if(o.view&&NAV.some(n=>n[0]===o.view)) S.view=o.view; if(o.intelJud) S.intelJud=o.intelJud; if(o.intelSort) S.intelSort=o.intelSort; if(o.intelDir) S.intelDir=o.intelDir; if(o.calMode) S.calMode=o.calMode; if(o.matchClient) S.matchClient=o.matchClient; if(o.repClient) S.repClient=o.repClient; }catch(e){} }
+function render(keep){ renderNav(); const v=S.view; const M=$("#main"); const _st=M.scrollTop;
   // pe ecrane înguste radarul se deschide în modul „carduri” până când utilizatorul alege altfel
   if(v==="radar"&&!S.radar._touched) S.radar.mode = window.innerWidth<720 ? "carduri" : "tabel";
   const f={buletin:vBuletin,radar:vRadar,matching:vMatching,pipeline:vPipeline,calendar:vCalendar,clienti:vClienti,prospect:vProspect,biblioteca:vBiblioteca,rapoarte:vRapoarte,conformitate:vConformitate,verif:function(){ return typeof vVerif==="function"?vVerif():"<div class='empty'>Modulul de verificare nu s-a încărcat.</div>"; },intel:vIntel,financiar:vFinanciar,baze:vBaze,admin:vAdmin}[v];
   M.innerHTML = f? f() : "<div class='empty'>…</div>";
   // titlu: emoji → iconiță SVG a secțiunii
   const h1=M.querySelector(".viewtitle h1"); if(h1&&!h1.querySelector(".vi")) h1.innerHTML='<span class="vi">'+ico(v)+'</span>'+esc(h1.textContent.replace(/^[^\p{L}\p{N}\[]+/u,"").trim());
-  // tabelele derulează orizontal pe ecrane mici, fără să rupă pagina
-  M.querySelectorAll("table.tbl").forEach(t=>{ if(!t.parentElement.classList.contains("tw")){ const w=document.createElement("div"); w.className="tw"; t.parentNode.insertBefore(w,t); w.appendChild(t); } });
+  wrapTables(M); M.scrollTop=keep?_st:0; sessSave();
   if(window["after_"+v]) window["after_"+v](); }
 
 /* ---------- drawer ---------- */
@@ -228,7 +231,8 @@ function openMemo(cid, aid){ const cl=clientById(cid), a=apelById(aid); if(!cl||
   openDrawer(h); }
 function openClient(cid){ const c=clientById(cid); if(!c) return;
   const df=c.date_financiare||{}; const tops=topForClient(cid,5); const prj=PR.filter(p=>p.client_id===cid);
-  let h=drawerHead(esc(c.denumire)+(c.demo?' <span class="tag-demo">DEMO</span>':""), esc((c.forma_juridica||"")+" · "+(c.judet||"")+" · "+(c.regiune||"")))+'<div class="db">';
+  let h=drawerHead(esc(c.denumire)+(c.demo?' <span class="tag-demo">DEMO</span>':""), esc([c.forma_juridica,c.localitate,c.judet,c.regiune||(c.judet?onrcRegOf(c.judet):"")].filter(Boolean).join(" · ")))+'<div class="db">';
+  if(!c.demo) h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><button class="btn small primary" onclick="crmProjForm(null,\''+esc(c.id)+'\')">➕ Proiect nou</button><button class="btn small" onclick="S.view=\'verif\';render();evChooseClient(\''+esc(c.id)+'\')">🧪 Verifică un proiect</button><button class="btn small" onclick="crmNewForm(\''+esc(c.id)+'\')">✎ Editează</button><button class="btn small ghost" style="margin-left:auto;color:var(--critical)" onclick="crmDeleteClient(\''+esc(c.id)+'\')">🗑 Șterge</button></div>';
   const flags=[];
   if(df.capitaluri_proprii_lei!=null&&df.capitaluri_proprii_lei<0) flags.push('<div class="callout crit"><b>Capitaluri proprii negative ('+nf.format(df.capitaluri_proprii_lei)+' lei)</b> — risc «întreprindere în dificultate»: criteriu eliminatoriu la CAE. Nu se depune nimic nou până la remediere.</div>');
   if(c.datorii_fiscale) flags.push('<div class="callout warn">Datorii fiscale / eșalonare — '+esc(c.nota_datorii||"certificat fiscal de verificat")+'</div>');
@@ -238,7 +242,8 @@ function openClient(cid){ const c=clientById(cid); if(!c) return;
   h+=row("CUI",esc(c.cui||"—")+(c.demo?" (fictiv)":""));
   h+=row("CAEN principal",esc(c.caen_principal||"—"));
   h+=row("Dimensiune",esc(c.dimensiune||c.tip||"—"));
-  h+=row("Angajați",c.angajati!=null?String(c.angajati):null);
+  h+=row("Angajați",c.angajati!=null?String(c.angajati):(df.nr_angajati!=null?String(df.nr_angajati):null));
+  h+=row("Interese",(c.interese||[]).length?c.interese.map(x=>'<span class="chip hl">'+esc(x)+'</span>').join(""):null);
   if(df.cifra_afaceri_3ani_lei){ const y=Object.keys(df.cifra_afaceri_3ani_lei);
     h+=row("Cifra de afaceri",y.map(k=>k+": "+money(df.cifra_afaceri_3ani_lei[k],"lei")).join(" · "));
     h+=row("Profit exploatare",Object.keys(df.profit_exploatare_3ani_lei||{}).map(k=>k+": "+money(df.profit_exploatare_3ani_lei[k],"lei")).join(" · ")); }
@@ -246,11 +251,12 @@ function openClient(cid){ const c=clientById(cid); if(!c) return;
   h+=row("Capitaluri proprii",df.capitaluri_proprii_lei!=null?money(df.capitaluri_proprii_lei,"lei"):null);
   h+=row("Întreprinderi legate",(c.intreprinderi_legate&&c.intreprinderi_legate.length)?esc(c.intreprinderi_legate.join("; ")):null);
   h+=row("Capacitate cofinanțare",esc(c.capacitate_cofinantare||""));
-  h+=row("Contact",c.contact?esc((c.contact.nume||"")+" · "+(c.contact.email||"")):null);
+  h+=row("Contact",c.contact?esc((c.contact.nume||"")+" · "+(c.contact.email||"")):((c.email||c.telefon)?[c.email?'<a href="mailto:'+esc(c.email)+'">'+esc(c.email)+'</a>':'',c.telefon?'<a href="tel:'+esc(c.telefon)+'">'+esc(c.telefon)+'</a>':''].filter(Boolean).join(' · '):null));
+  h+=row("Sursă",c.sursa&&c.sursa!=="user"?esc(c.sursa):null);
   h+='</dl>';
   if(c.tip!=="UAT"){ const used=(c.ajutoare_minimis||[]).reduce((s,x)=>s+(x.suma_eur||0),0); const plaf=c.plafon_minimis_eur!=null?c.plafon_minimis_eur:(300000-used);
     h+='<div class="section"><h2>Plafon de minimis (întreprindere unică)</h2>';
-    h+='<div class="minibar"><span style="width:'+Math.min(100,used/3000)+'%;background:var(--s2)"></span></div>';
+    h+='<div class="minibar"><span style="width:'+Math.min(100,used/3000)+'%;background:'+(used>=300000?'var(--critical)':used>=240000?'var(--warn)':'var(--accent)')+'"></span></div>';
     h+='<div style="display:flex;justify-content:space-between;font-size:12px;margin-top:4px"><span>utilizat: <b>'+money(used,"EUR")+'</b></span><span>disponibil: <b style="color:var(--good-text)">'+money(plaf,"EUR")+'</b> / 300.000</span></div>';
     if(c.nota_minimis) h+='<div class="callout warn" style="margin-top:8px">'+esc(c.nota_minimis)+'</div>';
     if(c.ajutoare_minimis&&c.ajutoare_minimis.length) h+='<table class="tbl" style="margin-top:6px"><thead><tr><th>An</th><th>Schemă</th><th class="num">EUR</th></tr></thead><tbody>'+c.ajutoare_minimis.map(x=>'<tr><td>'+x.an+'</td><td>'+esc(x.schema)+'</td><td class="num">'+nf.format(x.suma_eur)+'</td></tr>').join("")+'</tbody></table>';
@@ -258,7 +264,7 @@ function openClient(cid){ const c=clientById(cid); if(!c) return;
   if(prj.length) h+='<div class="section"><h2>Proiecte</h2>'+prj.map(p=>'<div class="kcard" onclick="openProiect(\''+p.id+'\')"><div class="t">'+esc(p.titlu)+' <span class="hdot '+health(p)+'"></span></div><div class="m">'+esc(p.faza)+' · '+esc(FAZE[p.faza]||"")+' · grant '+money(p.grant_lei,"lei")+'</div></div>').join("")+'</div>';
   h+='<div class="section"><h2>Top apeluri potrivite</h2>';
   h+= tops.length? '<table class="tbl"><thead><tr><th>Apel</th><th>Termen</th><th>Verdict · scor</th></tr></thead><tbody>'+tops.map(m=>'<tr onclick="openMemo(\''+cid+'\',\''+esc(m.apel.id_apel)+'\')"><td><b>'+esc(m.apel.titlu)+'</b><br><small style="color:var(--muted)">'+esc(m.apel.program)+'</small></td><td>'+cdBadge(m.apel.data_inchidere,{cont:/continuu/.test(m.apel.tip_depunere||"")})+'</td><td>'+vChip(m.verdict,m.scor)+'</td></tr>').join("")+'</tbody></table>' : '<div class="empty">Nimic potrivit acum'+(df.capitaluri_proprii_lei<0?" — blocat de capitalurile negative":"")+'.</div>';
-  h+='</div>'+(c.note?'<div class="callout">'+esc(c.note)+'</div>':"")+'</div>';
+  h+='</div>'+((c.note||c.nota)?'<div class="callout">'+esc(c.note||c.nota)+'</div>':"")+'</div>';
   openDrawer(h); }
 function openProiect(pid){ const p=PR.find(x=>x.id===pid); if(!p) return;
   const c=clientById(p.client_id); const a=apelById(p.apel_id)||{titlu:(p.apel_istoric||{}).titlu||p.apel_id, program:(p.apel_istoric||{}).program||"apel istoric"};
@@ -394,7 +400,7 @@ const PRIM = (DB.primarii && DB.primarii.uat) || [];
 const bznorm = s=>(s||'').toString().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[ăâîșțĂÂÎȘȚ]/g,c=>({'ă':'a','â':'a','î':'i','ș':'s','ț':'t','Ă':'A','Â':'A','Î':'I','Ș':'S','Ț':'T'}[c]||c)).toLowerCase();
 PRIM.forEach(u=>u._k=bznorm(u.n+' '+u.j+' '+u.pr));
 
-function bzState(){ if(!S.baze) S.baze={sub:'prezentare',q:'',judet:'',tip:'',limit:200}; return S.baze; }
+function bzState(){ if(!S.baze){ S.baze={sub:'prezentare',q:'',judet:'',tip:'',limit:200}; const o=window.__sess&&window.__sess.baze; if(o&&typeof o==="object") Object.assign(S.baze,o); } return S.baze; }
 
 const SIC = DB.sicap || {items:[]};
 const SICI = SIC.items || [];
@@ -413,7 +419,7 @@ function bzDash(){
   const tot=PRIM.reduce((s,u)=>s+u.p,0);
   let h='<div class="tiles">';
   h+='<div class="tile acc"><div class="v">'+nf.format(PRIM.length)+'</div><div class="l">primării (UAT)</div><div class="d">42 județe + București</div></div>';
-  h+='<div class="tile"><div class="v">'+nM+' / '+nO+' / '+nC+'</div><div class="l">municipii / orașe / comune</div></div>';
+  h+='<div class="tile long"><div class="v">'+nM+' / '+nO+' / '+nC+'</div><div class="l">municipii / orașe / comune</div></div>';
   h+='<div class="tile acc"><div class="v">'+nf.format(tot)+'</div><div class="l">locuitori (RPL 2021)</div></div>';
   h+='<div class="tile"><div class="v">'+Math.round(100*nP/PRIM.length)+'%</div><div class="l">cu primar</div><div class="d">'+Math.round(100*nE/PRIM.length)+'% e-mail · '+Math.round(100*nW/PRIM.length)+'% website</div></div>';
   h+='</div>';
@@ -445,9 +451,10 @@ function bzDir(){ const b=bzState();
   h+='<select onchange="bzSet(\'judet\',this.value)"><option value="">— toate județele —</option>'+BZ_JUD.map(j=>'<option '+(b.judet===j?'selected':'')+'>'+esc(j)+'</option>').join('')+'</select>';
   h+=[['','Toate'],['municipiu','Municipii'],['oras','Orașe'],['comuna','Comune']].map(([t,l])=>'<button class="fchip '+(b.tip===t?'on':'')+'" onclick="bzSet(\'tip\',\''+t+'\')">'+l+'</button>').join('');
   h+=[['tel','☎ cu telefon'],['live','🌐 site viu'],['prob','⚠ de actualizat']].map(([k,l])=>'<button class="fchip '+(b.only===k?'on':'')+'" onclick="bzSet(\'only\',\''+(b.only===k?'':k)+'\')">'+l+'</button>').join('');
-  h+='<button class="btn small" onclick="bzExport()">⬇ Export CSV</button>';
+  h+='<button class="btn small" onclick="bzExport()">⬇ Export CSV</button><button class="btn small" onclick="bzCopy(\'email\')" title="copiază e-mailurile din lista filtrată">✉ copiază e-mailurile</button><button class="btn small" onclick="bzCopy(\'tel\')" title="copiază telefoanele din lista filtrată">☎ copiază telefoanele</button>'+(b.sort?'<button class="btn small ghost" onclick="bzSort(null)">↺ grupare pe județ</button>':'');
   h+='<span class="count" id="bzCount" style="margin-left:auto;color:var(--muted);font-size:12.5px"></span></div>';
-  h+='<div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr><th onclick="bzSort(\'n\')" style="cursor:pointer">Primărie</th><th onclick="bzSort(\'j\')" style="cursor:pointer">Județ</th><th class="num" onclick="bzSort(\'p\')" style="cursor:pointer">Populație</th><th onclick="bzSort(\'pr\')" style="cursor:pointer">Primar</th><th>Contact</th></tr></thead><tbody id="bzBody"></tbody></table></div>';
+  const sh=(k,l,cls)=>'<th class="sortable'+(cls?' '+cls:'')+(b.sort===k?' on':'')+'" onclick="bzSort(\''+k+'\')" title="sortează">'+l+(b.sort===k?(b.dir<0?' ▾':' ▴'):'')+'</th>';
+  h+='<div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr>'+sh('n','Primărie')+sh('j','Județ')+sh('p','Populație','num')+sh('pr','Primar')+'<th>Contact</th></tr></thead><tbody id="bzBody"></tbody></table></div>';
   h+='<button class="btn" id="bzMore" style="margin:14px auto;display:block" onclick="bzState().limit+=500;bzRefresh()">Arată mai multe…</button>';
   const LV=(DB.primarii||{}).liveness;
   if(LV){ h+='<div class="callout warn" style="margin-top:12px"><b>Verificare contacte, '+esc(LV.verificat_la)+':</b> din '+nf.format(LV.total_site)+' de site-uri testate, <b>'+nf.format(LV.live)+' funcționează</b>, '+nf.format(LV.mort)+' sunt moarte (domeniu inexistent/timeout) și '+nf.format(LV.eroare)+' dau erori HTTP. Am extras <b>'+nf.format(LV.tel_extrase)+' telefoane</b> și '+nf.format(LV.email_extrase)+' e-mailuri de pe site-urile vii, înlocuind '+nf.format(LV.email_recomandat_nou)+' adrese vechi. Atenție: '+nf.format(LV.email_freemail)+' adrese din setul oficial 2017 sunt pe free-mail (yahoo/rcnet) — marcate în listă. Telefonul afișat este cel <b>oficial al primăriei</b>; numerele personale ale primarilor nu sunt date publice.</div>'; }
@@ -456,7 +463,8 @@ function bzDir(){ const b=bzState();
   return h; }
 function bzSet(k,v){ const b=bzState(); b[k]=v; b.limit=200;
   if(k==='q'){ bzRefresh(); } else { render(); } }
-function bzSort(k){ const b=bzState(); if(b.sort===k) b.dir=-(b.dir||1); else { b.sort=k; b.dir=(k==='p'?-1:1); } b.limit=200; bzRefresh(); }
+function bzSort(k){ const b=bzState(); if(k===null){ b.sort=null; b.dir=1; } else if(b.sort===k) b.dir=-(b.dir||1); else { b.sort=k; b.dir=(k==='p'?-1:1); } b.limit=200; render(true); }
+function bzCopy(kind){ const r=bzFilter(); const vals=[...new Set(r.map(u=>kind==='email'?(u.e_rec||u.e||''):(u.tel||u.ph2||'')).filter(Boolean))]; if(!vals.length){ toast('Nimic de copiat în lista filtrată'); return; } copyTxt(vals.join(kind==='email'?'; ':'\n'), vals.length+(kind==='email'?' e-mailuri copiate':' telefoane copiate')); }
 function bzFilter(){ const b=bzState(); let r=PRIM;
   if(b.judet) r=r.filter(u=>u.j===b.judet);
   if(b.tip) r=r.filter(u=>u.t===b.tip);
@@ -537,7 +545,7 @@ function scFilter(){ const s=scState(); let r=SICI;
 function scRefresh(){ const s=scState(); const r=scFilter(); const body=document.getElementById('scBody'); if(!body) return;
   const show=r.slice(0,s.limit); let html='';
   for(const o of show){
-    html+='<tr><td style="max-width:340px"><b>'+esc(o.n||'(fără titlu)')+'</b><br><span class="tpb comuna" style="background:var(--accent)">'+esc(o.dom)+'</span> <small style="color:var(--muted)">'+esc(o.cpv.slice(0,46))+'</small></td>'+
+    html+='<tr><td style="max-width:340px"><b>'+esc(o.n||'(fără titlu)')+'</b><br><span class="tpb comuna" style="background:var(--accent)">'+esc(o.dom)+'</span> <small style="color:var(--muted)">'+esc((o.cpv||'').slice(0,46))+'</small></td>'+
       '<td style="font-size:12px">'+esc(o.auth)+(o.sup?'<br><small style="color:var(--muted)">furnizor: '+esc(o.sup)+'</small>':'')+'</td>'+
       '<td class="num">'+(o.val?nf.format(Math.round(o.val))+' lei':'—')+'</td>'+
       '<td>'+esc(o.pub)+(o.dl?'<br><small style="color:var(--muted)">termen '+esc(o.dl)+'</small>':'')+'</td>'+
@@ -594,12 +602,12 @@ const CATC={'Privat':'var(--s2)','Public/UAT':'var(--s1)','ONG':'var(--s7)','Edu
 function pjRefresh(){ const s=pjState(); const r=pjFilter(); const body=document.getElementById('pjBody'); if(!body) return;
   const show=r.slice(0,s.limit); let html='';
   for(const p of show){
-    html+='<tr><td style="max-width:360px"><b>'+esc(p.ben)+'</b>'+(p.tit?'<br><small style="color:var(--muted)">'+esc(p.tit)+'</small>':'')+(p.smis?' <small style="color:var(--muted)">· SMIS '+esc(p.smis)+'</small>':'')+'</td>'+
+    html+='<tr><td style="max-width:360px"><b class="lnk" title="toate proiectele acestui beneficiar" onclick="pjBen(this)">'+esc(p.ben)+'</b>'+(p.tit?'<br><small style="color:var(--muted)">'+esc(p.tit)+'</small>':'')+(p.smis?' <small style="color:var(--muted)">· SMIS '+esc(p.smis)+'</small>':'')+'</td>'+
       '<td><span class="chip hl">'+esc(p.pg)+'</span></td>'+
       '<td style="font-size:12px">'+(esc(p.jud)||'<span style="color:var(--muted)">—</span>')+'</td>'+
       '<td><span class="tpb" style="background:'+(CATC[p.cat]||'var(--muted)')+'">'+esc(p.cat)+'</span></td>'+
       '<td class="num">'+(p.v?nf.format(p.v)+' lei':'—')+'</td>'+
-      '<td>'+(p.smis?'<a href="https://mysmis2021.gov.ro" target="_blank" rel="noopener" style="font-size:11px;color:var(--muted)" title="cod SMIS '+esc(p.smis)+'">SMIS</a>':'')+'</td></tr>';
+      '<td style="white-space:nowrap">'+(p.cat==='Privat'?'<button class="btn small ghost" title="adaugă ca prospect în CRM" onclick="pjToCrm(this)" data-ben="'+esc(p.ben)+'" data-jud="'+esc(p.jud||'')+'" data-pg="'+esc(p.pg||'')+'">→ CRM</button>':'')+(p.smis?' <a href="https://mysmis2021.gov.ro" target="_blank" rel="noopener" style="font-size:11px;color:var(--muted)" title="cod SMIS '+esc(p.smis)+'">SMIS</a>':'')+'</td></tr>';
   }
   body.innerHTML=html;
   const c=document.getElementById('pjCount'); if(c) c.textContent=nf.format(r.length)+' din '+nf.format(PROJ.length);
@@ -613,6 +621,9 @@ function pjRefresh(){ const s=pjState(); const r=pjFilter(); const body=document
   const pt=Object.entries(pc).sort((a,b)=>b[1]-a[1]); const pmax=Math.max(1,...pt.map(x=>x[1]));
   const pe=document.getElementById('pjProgChart'); if(pe) pe.innerHTML=pt.map(([j,n])=>'<div class="hbar"><span style="font-size:12px">'+esc(j)+'</span><div class="trk"><div class="fil" style="width:'+Math.max(2,n/pmax*100)+'%;background:var(--s3)"></div></div><span class="vv">'+n+'</span></div>').join('');
 }
+function pjBen(el){ const q=el.textContent; pjState().q=q; const i=document.getElementById('pjq'); if(i) i.value=q; pjRefresh(); }
+function pjToCrm(el){ const ben=el.dataset.ben, jud=el.dataset.jud, pg=el.dataset.pg; if(CL.some(c=>onrcNorm(c.denumire)===onrcNorm(ben))){ toast('Există deja în CRM'); return; }
+  crmAddClient(crmMakeClient({denumire:ben, judet:jud, regiune:jud?onrcRegOf(jud):'', tip:'privat', interese:pg, sursa:'MIPE'})); toast('Adăugat ca prospect: '+ben); }
 function pjExport(){ const r=pjFilter();
   const head=['Beneficiar','Titlu','Program','Judet','Tip','SMIS','Valoare_lei'];
   const rows=r.map(p=>[p.ben,p.tit,p.pg,p.jud,p.cat,p.smis,p.v]);
@@ -716,7 +727,7 @@ RG_TIP.forEach(([t])=>{ const a=(REG.reg||{})[t]||[];
     r._g=(t==='aud'?(r[8]||''):''); r._m=r[7]||'';
     r._k=bznorm(r[0]+' '+r._j+' '+r._d.join(' ')+' '+(r[6]||[]).join(' ')+' '+(r[2]||'')); });
   RG_ALL[t]=a; });
-const RG_AN = 2026;
+const RG_AN = TODAY.getFullYear();
 
 function rgState(){ const b=bzState(); if(!b.rg) b.rg={tip:'ver',q:'',jud:'',dom:'',doarContact:false,doarValabil:false,sort:'n',limit:60}; return b.rg; }
 
@@ -753,7 +764,7 @@ function rgDir(){ const s=rgState(), st=(REG.stat||{})[s.tip]||{}, cur=RG_TIP.fi
   return h; }
 
 function rgSet(k,v){ const s=rgState(); s[k]=v; s.limit=60;
-  if(k==='tip'){ s.q=''; s.jud=''; s.dom=''; }
+  if(k==='tip'){ s.q=''; s.dom=''; }
   if(k==='q'){ rgRefresh(); } else { render(); } }
 
 function rgFilter(){ const s=rgState(); let r=RG_ALL[s.tip]||[];
@@ -808,8 +819,11 @@ function rgExport(){ const s=rgState(), r=rgFilter(), tl=(RG_TIP.find(x=>x[0]===
    Reg. UE 651/2014 (Anexa I – IMM, art. 2 pct.18 – întreprindere în dificultate),
    HG 873/2022 art. 9 (TVA nedeductibilă = eligibilă), OUG 133/2021 (fluxuri financiare). */
 
-function finState(){ if(!S.fin) S.fin={
-  sub:'bilant', ani:['N-2','N-1','N'],
+function finSave(){ try{ localStorage.setItem("eufcc_fin",JSON.stringify(S.fin)); }catch(e){} }
+function finState(){ if(!S.fin){ let sv=null; try{ sv=JSON.parse(localStorage.getItem("eufcc_fin")||"null"); }catch(e){} S.fin=Object.assign(finDefaults(),sv||{}); const o=window.__sess&&window.__sess.fin; if(o&&o.sub) S.fin.sub=o.sub; }
+  const f=S.fin; const y=f.anN||(TODAY.getFullYear()-1); f.anN=y; f.ani=[String(y-2),String(y-1),String(y)]; return f; }
+function finDefaults(){ return {
+  sub:'bilant', anN:TODAY.getFullYear()-1, ani:['N-2','N-1','N'],
   b:{ /* bilanț: [N-2,N-1,N] */
     terenuri:[0,0,0], constructii:[0,0,0], echip:[0,0,0], imobCurs:[0,0,0], imobNecorp:[0,0,0], imobFin:[0,0,0], amortiz:[0,0,0],
     stocuri:[0,0,0], creante:[0,0,0], casa:[0,0,0], cheltAvans:[0,0,0],
@@ -826,7 +840,7 @@ function finState(){ if(!S.fin) S.fin={
   bugCfg:{ intensitate:70, tvaDeductibil:false, minimisDisp:300000 },
   deviz:{ c11:0,c12:0,c13:0,c14:0,c2:0,c31:0,c32:0,c33:0,c34:0,c35:0,c36:0,c37:0,c38:0,c41:0,c42:0,c43:0,c44:0,c45:0,c46:0,c511:0,c512:0,c52:0,c53:0,c54:0,c6:0 },
   cf:{ valElig:1000000, intensitate:70, prefPct:30, ajutorStat:false, durata:12, transe:3 }
-}; return S.fin; }
+}; }
 
 const fmtL=v=>(v==null||isNaN(v))?'—':nf.format(Math.round(v))+' lei';
 const fmtP=v=>(v==null||isNaN(v)||!isFinite(v))?'—':(Math.round(v*100)/100).toLocaleString('ro-RO')+'%';
@@ -863,18 +877,26 @@ function vFinanciar(){ const f=finState();
            ['buget','Buget proiect'],['deviz','Deviz general'],['cashflow','Cash-flow'],['mapari','Mapări conturi']];
   let h='<div class="viewtitle"><h1>🧮 Financiar & contabilitate</h1><span class="sub">macheta Anexa 5 · indicatori de grilă · deviz HG 907/2016 · fluxuri OUG 133/2021</span></div>';
   h+='<div class="subnav">'+T.map(([k,l])=>'<button class="'+(f.sub===k?'on':'')+'" onclick="finSub(\''+k+'\')">'+l+'</button>').join('')+'</div>';
+  h+='<div class="fintools"><label>Anul N <input type="number" value="'+f.anN+'" style="width:84px" onchange="finState().anN=parseInt(this.value)||'+f.anN+';finSave();render(true)"></label><span class="evsrc">coloanele: '+f.ani.join(' · ')+'</span><span style="flex:1"></span><button class="btn small" onclick="finExportJSON()" title="salvează toată fișa (bilanț, P&P, IMM, buget, deviz, cash-flow)">⬇ Salvează fișa (JSON)</button><button class="btn small" onclick="finImportJSON()">⬆ Încarcă fișă</button><button class="btn small ghost" onclick="finReset()">↺ golește</button><span class="evsrc">se salvează automat pe acest dispozitiv</span></div>';
   h+='<div id="finView">'+({bilant:fBilant,pp:fPP,indicatori:fInd,imm:fIMM,buget:fBuget,deviz:fDeviz,cashflow:fCash,mapari:fMapari}[f.sub]||fBilant)()+'</div>';
   return h; }
-function finSub(s){ finState().sub=s; render(); }
+function finSub(s){ finState().sub=s; render(true); }
+function finExportJSON(){ dl('Financiar_'+finState().anN+'.json',JSON.stringify(finState(),null,2),'application/json'); toast('Fișă exportată'); }
+function finImportJSON(){ const i=document.createElement('input'); i.type='file'; i.accept='.json,application/json'; i.onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const o=JSON.parse(r.result); if(!o||!o.b||!o.p) throw new Error('nu e o fișă Financiar'); S.fin=Object.assign(finDefaults(),o); finSave(); render(true); toast('Fișă încărcată'); }catch(err){ toast('Fișier invalid: '+err.message); } }; r.readAsText(f); }; i.click(); }
+function finReset(){ if(!confirm('Golești toată fișa financiară de pe acest dispozitiv?')) return; S.fin=null; try{ localStorage.removeItem('eufcc_fin'); }catch(e){} render(true); }
+function finKey(ev,el){ if(ev.key!=='Enter') return; ev.preventDefault(); const all=[...document.querySelectorAll('#finView input[data-fk]')]; const i=all.indexOf(el); const suf=(el.dataset.fk||'').split('.').pop(); for(let j=i+1;j<all.length;j++){ if((all[j].dataset.fk||'').split('.').pop()===suf){ all[j].focus(); all[j].select&&all[j].select(); return; } } }
 function finSet(grp,key,idx,val){ const f=finState(); const v=fnum(val);
   if(idx===null){ f[grp][key]=v; } else { f[grp][key][idx]=v; }
   finLive(); }
-function finLive(){ const f=finState();
+function finLive(){ const f=finState(); finSave();
   const el=document.getElementById('finView'); if(!el) return;
-  el.innerHTML=({bilant:fBilant,pp:fPP,indicatori:fInd,imm:fIMM,buget:fBuget,deviz:fDeviz,cashflow:fCash,mapari:fMapari}[f.sub]||fBilant)();
+  const act=document.activeElement; const fk=(act&&act.dataset&&act.dataset.fk)||null; let pos=null; try{ pos=(act&&typeof act.selectionStart==='number')?act.selectionStart:null; }catch(e){}
+  el.innerHTML=({bilant:fBilant,pp:fPP,indicatori:fInd,imm:fIMM,buget:fBuget,deviz:fDeviz,cashflow:fCash,mapari:fMapari}[f.sub]||fBilant)(); wrapTables(el);
+  if(fk){ const n=el.querySelector('[data-fk="'+fk+'"]'); if(n){ n.focus(); try{ if(pos!=null) n.setSelectionRange(pos,pos); }catch(e){} } }
 }
-function inp(grp,key,idx,val,ph){ return '<input type="number" step="any" value="'+(val||'')+'" placeholder="'+(ph||'0')+'" oninput="finSet(\''+grp+'\',\''+key+'\','+(idx===null?'null':idx)+',this.value)" style="width:100%;padding:5px 7px;border:1px solid var(--grid);border-radius:6px;background:var(--page);color:var(--ink);font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums">'; }
-function vrd(ok,txt){ return '<span class="cd '+(ok?'cd-good':'cd-crit')+'">'+(ok?'✅ ':'❌ ')+txt+'</span>'; }
+function inp(grp,key,idx,val,ph){ return '<input type="number" step="any" class="finin" data-fk="'+grp+'.'+key+'.'+(idx===null?'x':idx)+'" value="'+(val||'')+'" placeholder="'+(ph||'—')+'" oninput="finSet(\''+grp+'\',\''+key+'\','+(idx===null?'null':idx)+',this.value)" onkeydown="finKey(event,this)">'; }
+function vrd(ok,txt){ return '<span class="cd '+(ok?'cd-good':'cd-crit')+'">'+txt+'</span>'; }
+function fpill(k){ return {ok:'<span class="cd cd-good">OK</span>',no:'<span class="cd cd-crit">NU</span>',warn:'<span class="cd cd-warn">ATENȚIE</span>',info:'<span class="cd cd-off">INFO</span>'}[k]||''; }
 
 /* ---------- 1. BILANȚ ---------- */
 function fBilant(){ const f=finState(), b=f.b;
@@ -902,7 +924,7 @@ function fBilant(){ const f=finState(), b=f.b;
   h+='</tbody></table></div>';
   h+='<div class="section"><h2>Verificări automate</h2><div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr><th>Indicator</th>'+f.ani.map(a=>'<th class="num">'+a+'</th>').join('')+'</tr></thead><tbody>';
   const rows=[['Total ACTIV',i=>fmtL(calcBil(i).totalActiv)],['Total PASIV',i=>fmtL(calcBil(i).totalPasiv)],
-    ['<b>Diferență (trebuie 0)</b>',i=>{const c=calcBil(i);return (Math.abs(c.dif)<1?'<span class="cd cd-good">✅ echilibrat</span>':'<span class="cd cd-crit">❌ '+fmtL(c.dif)+'</span>');}],
+    ['<b>Diferență (trebuie 0)</b>',i=>{const c=calcBil(i);return (Math.abs(c.dif)<1?'<span class="cd cd-good">✅ echilibrat</span>':'<span class="cd cd-crit">'+fmtL(c.dif)+'</span>');}],
     ['Capitaluri proprii',i=>{const c=calcBil(i);return '<b style="color:'+(c.capProprii<0?'var(--critical)':'var(--ink)')+'">'+fmtL(c.capProprii)+'</b>';}],
     ['Active imobilizate nete',i=>fmtL(calcBil(i).imobNet)],['Active circulante',i=>fmtL(calcBil(i).circ)],['Datorii totale',i=>fmtL(calcBil(i).datorii)]];
   rows.forEach(([l,fn])=>{ h+='<tr><td>'+l+'</td>'+[0,1,2].map(i=>'<td class="num">'+fn(i)+'</td>').join('')+'</tr>'; });
@@ -970,7 +992,8 @@ function fInd(){ const f=finState();
     ['Rentabilitatea cifrei de afaceri','rca','Profit net / CA × 100','> 0%',v=>v>0,'%'],
     ['Grad de îndatorare','indat','Datorii totale / Total activ × 100','≤ 75%',v=>v<=75,'%'],
   ];
-  let h='<div class="callout" style="margin-bottom:12px">Indicatorii pe care <b>grilele ETF îi punctează</b> cel mai frecvent, calculați din bilanț și contul de profit și pierdere. Pragurile afișate sunt cele uzuale — <b>verifică întotdeauna grila apelului</b>, care poate folosi alte formule sau alte praguri.</div>';
+  let h=''; if(!f.p.ca.some(x=>x)&&!f.b.casa.some(x=>x)&&!f.b.capVarsat.some(x=>x)) h+=emptyState('🧮','Indicatorii se calculează din Bilanț și P&P','Completează întâi anul N (măcar cifra de afaceri, capitalurile proprii și datoriile curente) — tabelul de mai jos se umple automat.','<button class="btn small primary" onclick="finSub(\'bilant\')">→ Bilanț</button><button class="btn small" onclick="finSub(\'pp\')">→ Cont P&P</button>');
+  h+='<div class="callout" style="margin-bottom:12px">Indicatorii pe care <b>grilele ETF îi punctează</b> cel mai frecvent, calculați din bilanț și contul de profit și pierdere. Pragurile afișate sunt cele uzuale — <b>verifică întotdeauna grila apelului</b>, care poate folosi alte formule sau alte praguri.</div>';
   h+='<div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr><th>Indicator</th><th>Formulă</th><th class="num">Prag uzual</th>'+f.ani.map(a=>'<th class="num">'+a+'</th>').join('')+'</tr></thead><tbody>';
   PRAG.forEach(([l,k,form,prag,test,u])=>{
     h+='<tr><td><b>'+l+'</b></td><td style="font-size:11.5px;color:var(--muted)">'+form+'</td><td class="num" style="font-size:12px">'+prag+'</td>'+
@@ -991,9 +1014,9 @@ function fInd(){ const f=finState();
     '</tbody></table><div style="font-size:12px;color:var(--ink2);margin-top:8px">Multe grile punctează creșterea profitului din exploatare pe ultimii 2-3 ani. Un rezultat din exploatare <b>pozitiv în anul N</b> este adesea criteriu eliminatoriu la CAE.</div></div>';
   const p2=calcPP(2);
   h+='<div class="card"><h2 style="font-size:14px;margin-bottom:8px">Semnale pentru CAE</h2><ul class="list">'+
-    '<li>'+(p2.rezExpl>0?'✅':'❌')+' Rezultat din exploatare pozitiv în anul N: <b>'+fmtL(p2.rezExpl)+'</b></li>'+
-    '<li>'+(calcBil(2).capProprii>0?'✅':'❌')+' Capitaluri proprii pozitive: <b>'+fmtL(calcBil(2).capProprii)+'</b></li>'+
-    '<li>'+(f.p.angajati[2]>0?'✅':'⚠️')+' Număr mediu de angajați declarat: <b>'+(f.p.angajati[2]||'—')+'</b></li>'+
+    '<li>'+(p2.rezExpl>0?fpill("ok"):fpill("no"))+' Rezultat din exploatare pozitiv în anul N: <b>'+fmtL(p2.rezExpl)+'</b></li>'+
+    '<li>'+(calcBil(2).capProprii>0?fpill("ok"):fpill("no"))+' Capitaluri proprii pozitive: <b>'+fmtL(calcBil(2).capProprii)+'</b></li>'+
+    '<li>'+(f.p.angajati[2]>0?fpill("ok"):fpill("warn"))+' Număr mediu de angajați declarat: <b>'+(f.p.angajati[2]||'—')+'</b></li>'+
     '</ul><div style="font-size:12px;color:var(--muted);margin-top:6px">Verificările de mai sus nu înlocuiesc grila CAE a apelului — sunt semnalele cele mai frecvente.</div></div>';
   h+='</div>';
   return h; }
@@ -1009,6 +1032,7 @@ function fIMM(){ const f=finState(), m=f.imm;
   if(ang<10 && (caEur<=2e6 || actEur<=2e6)) { cat='Microîntreprindere'; bonus=20; }
   else if(ang<50 && (caEur<=10e6 || actEur<=10e6)) { cat='Întreprindere mică'; bonus=20; }
   else if(ang<250 && (caEur<=50e6 || actEur<=43e6)) { cat='Întreprindere mijlocie'; bonus=10; }
+  const immEmpty=!(ang||ca||act); if(immEmpty){ cat='— introdu datele anului N'; bonus=0; }
   let h='<div class="callout" style="margin-bottom:12px">Încadrarea se face conform <b>Anexei I la Reg. (UE) 651/2014</b> (și Legea 346/2004): pragurile de <b>angajați</b> ȘI (cifră de afaceri <b>SAU</b> active totale). Datele întreprinderilor <b>legate</b> se cumulează 100%, iar ale celor <b>partenere</b> proporțional cu procentul deținut. Încadrarea se schimbă doar dacă pragul e depășit <b>doi ani consecutivi</b>.</div>';
   h+='<div class="grid2"><div class="card"><h2 style="font-size:14px;margin-bottom:10px">Datele întreprinderii solicitante (anul N)</h2><table class="tbl"><tbody>';
   h+='<tr><td>Număr mediu de angajați (AME)</td><td style="width:150px">'+inp('imm','ang',null,m.ang)+'</td></tr>';
@@ -1028,12 +1052,12 @@ function fIMM(){ const f=finState(), m=f.imm;
   // intreprinderi legate
   h+='<div class="section"><h2>Întreprinderi legate și partenere</h2><div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr><th>Denumire</th><th>Relație</th><th class="num">% deținut</th><th class="num">Angajați</th><th class="num">CA (lei)</th><th class="num">Active (lei)</th><th></th></tr></thead><tbody id="immRows">';
   (m.legate||[]).forEach((L,i)=>{
-    h+='<tr><td><input type="text" value="'+esc(L.den||'')+'" oninput="immSet('+i+',\'den\',this.value)" style="width:100%;padding:5px 7px;border:1px solid var(--grid);border-radius:6px;background:var(--page);color:var(--ink);font-size:12.5px"></td>'+
-      '<td><select onchange="immSet('+i+',\'tip\',this.value)" style="padding:5px;border:1px solid var(--grid);border-radius:6px;background:var(--page);color:var(--ink);font-size:12px"><option value="legata" '+(L.tip==='legata'?'selected':'')+'>legată (100%)</option><option value="partenera" '+(L.tip==='partenera'?'selected':'')+'>parteneră (pro-rata)</option></select></td>'+
-      '<td style="width:90px"><input type="number" value="'+(L.pct||'')+'" oninput="immSet('+i+',\'pct\',this.value)" style="width:100%;padding:5px;border:1px solid var(--grid);border-radius:6px;background:var(--page);color:var(--ink);font-size:12.5px;text-align:right"></td>'+
-      '<td style="width:100px"><input type="number" value="'+(L.ang||'')+'" oninput="immSet('+i+',\'ang\',this.value)" style="width:100%;padding:5px;border:1px solid var(--grid);border-radius:6px;background:var(--page);color:var(--ink);font-size:12.5px;text-align:right"></td>'+
-      '<td style="width:130px"><input type="number" value="'+(L.ca||'')+'" oninput="immSet('+i+',\'ca\',this.value)" style="width:100%;padding:5px;border:1px solid var(--grid);border-radius:6px;background:var(--page);color:var(--ink);font-size:12.5px;text-align:right"></td>'+
-      '<td style="width:130px"><input type="number" value="'+(L.activ||'')+'" oninput="immSet('+i+',\'activ\',this.value)" style="width:100%;padding:5px;border:1px solid var(--grid);border-radius:6px;background:var(--page);color:var(--ink);font-size:12.5px;text-align:right"></td>'+
+    h+='<tr><td><input type="text" value="'+esc(L.den||'')+'" oninput="immSet('+i+',\'den\',this.value)" data-fk="imm.den.'+i+'" style="width:100%;padding:5px 7px;border:1px solid var(--grid);border-radius:6px;background:var(--surface2);color:var(--ink);font-size:12.5px"></td>'+
+      '<td><select onchange="immSet('+i+',\'tip\',this.value)" style="padding:5px;border:1px solid var(--grid);border-radius:6px;background:var(--surface2);color:var(--ink);font-size:12px"><option value="legata" '+(L.tip==='legata'?'selected':'')+'>legată (100%)</option><option value="partenera" '+(L.tip==='partenera'?'selected':'')+'>parteneră (pro-rata)</option></select></td>'+
+      '<td style="width:90px"><input type="number" value="'+(L.pct||'')+'" oninput="immSet('+i+',\'pct\',this.value)" data-fk="imm.pct.'+i+'" style="width:100%;padding:5px;border:1px solid var(--grid);border-radius:6px;background:var(--surface2);color:var(--ink);font-size:12.5px;text-align:right"></td>'+
+      '<td style="width:100px"><input type="number" value="'+(L.ang||'')+'" oninput="immSet('+i+',\'ang\',this.value)" data-fk="imm.ang.'+i+'" style="width:100%;padding:5px;border:1px solid var(--grid);border-radius:6px;background:var(--surface2);color:var(--ink);font-size:12.5px;text-align:right"></td>'+
+      '<td style="width:130px"><input type="number" value="'+(L.ca||'')+'" oninput="immSet('+i+',\'ca\',this.value)" data-fk="imm.ca.'+i+'" style="width:100%;padding:5px;border:1px solid var(--grid);border-radius:6px;background:var(--surface2);color:var(--ink);font-size:12.5px;text-align:right"></td>'+
+      '<td style="width:130px"><input type="number" value="'+(L.activ||'')+'" oninput="immSet('+i+',\'activ\',this.value)" data-fk="imm.activ.'+i+'" style="width:100%;padding:5px;border:1px solid var(--grid);border-radius:6px;background:var(--surface2);color:var(--ink);font-size:12.5px;text-align:right"></td>'+
       '<td><button class="btn small" onclick="immDel('+i+')">✕</button></td></tr>';
   });
   h+='</tbody></table></div><button class="btn small" style="margin-top:9px" onclick="immAdd()">+ Adaugă întreprindere</button>';
@@ -1067,9 +1091,9 @@ function fBuget(){ const f=finState(), cfg=f.bugCfg;
   h+='<button class="btn small" onclick="bugAdd()">+ Poziție</button><button class="btn small" onclick="bugExport()">⬇ Export CSV</button></div>';
   h+='<div class="card" style="padding:4px 10px;overflow-x:auto"><table class="tbl"><thead><tr><th>Poziție</th><th class="num">Bază (lei)</th><th class="num">TVA %</th><th class="num">Elig.</th><th class="num">Bază elig.</th><th class="num">TVA elig.</th><th class="num">Total elig.</th><th class="num">Total neelig.</th><th class="num">TOTAL</th><th></th></tr></thead><tbody>';
   rows.forEach(r=>{
-    h+='<tr><td style="min-width:180px"><input type="text" value="'+esc(r.d||'')+'" oninput="bugSet('+r.i+',\'d\',this.value)" style="width:100%;padding:5px 7px;border:1px solid var(--grid);border-radius:6px;background:var(--page);color:var(--ink);font-size:12.5px"></td>'+
-      '<td style="width:120px"><input type="number" value="'+(r.bRaw||'')+'" oninput="bugSet('+r.i+',\'b\',this.value)" style="width:100%;padding:5px;border:1px solid var(--grid);border-radius:6px;background:var(--page);color:var(--ink);font-size:12.5px;text-align:right"></td>'+
-      '<td style="width:70px"><input type="number" value="'+r.tvaPct+'" oninput="bugSet('+r.i+',\'tva\',this.value)" style="width:100%;padding:5px;border:1px solid var(--grid);border-radius:6px;background:var(--page);color:var(--ink);font-size:12.5px;text-align:right"></td>'+
+    h+='<tr><td style="min-width:180px"><input type="text" value="'+esc(r.d||'')+'" oninput="bugSet('+r.i+',\'d\',this.value)" data-fk="bug.d.'+r.i+'" style="width:100%;padding:5px 7px;border:1px solid var(--grid);border-radius:6px;background:var(--surface2);color:var(--ink);font-size:12.5px"></td>'+
+      '<td style="width:120px"><input type="number" value="'+(r.bRaw||'')+'" oninput="bugSet('+r.i+',\'b\',this.value)" data-fk="bug.b.'+r.i+'" style="width:100%;padding:5px;border:1px solid var(--grid);border-radius:6px;background:var(--surface2);color:var(--ink);font-size:12.5px;text-align:right"></td>'+
+      '<td style="width:70px"><input type="number" value="'+r.tvaPct+'" oninput="bugSet('+r.i+',\'tva\',this.value)" data-fk="bug.tva.'+r.i+'" style="width:100%;padding:5px;border:1px solid var(--grid);border-radius:6px;background:var(--surface2);color:var(--ink);font-size:12.5px;text-align:right"></td>'+
       '<td class="num"><input type="checkbox" '+(r.el?'checked':'')+' onchange="bugSet('+r.i+',\'el\',this.checked)"></td>'+
       '<td class="num">'+fmtL(r.bE)+'</td><td class="num">'+fmtL(r.tE)+'</td><td class="num"><b>'+fmtL(r.totE)+'</b></td>'+
       '<td class="num">'+fmtL(r.totN)+'</td><td class="num"><b>'+fmtL(r.total)+'</b></td>'+
@@ -1085,10 +1109,10 @@ function fBuget(){ const f=finState(), cfg=f.bugCfg;
   h+='</div>';
   // verificari
   h+='<div class="section"><h2>Verificări</h2><div class="card"><ul class="list">';
-  h+='<li>'+(Math.abs((S1.totE+S1.totN)-S1.tot)<1?'✅':'❌')+' Total eligibil + total neeligibil = TOTAL general</li>';
-  h+='<li>'+(rows.every(r=>Math.abs(r.total-(r.baza+r.tvaVal))<1)?'✅':'❌')+' Pe fiecare poziție: total = bază + TVA</li>';
-  h+='<li>'+(depMin?'❌':'✅')+' Grantul ('+fmtX(grantEur)+' EUR) '+(depMin?'<b>DEPĂȘEȘTE</b>':'se încadrează în')+' plafonul de minimis disponibil ('+fmtX(fnum(cfg.minimisDisp))+' EUR)</li>';
-  h+='<li>'+(cfg.tvaDeductibil?'ℹ️ Firma este plătitoare de TVA → TVA-ul este deductibil, deci <b>neeligibil</b>':'ℹ️ Firma NU este plătitoare de TVA → TVA-ul nedeductibil este <b>eligibil</b> (HG 873/2022 art. 9)')+'</li>';
+  h+='<li>'+(Math.abs((S1.totE+S1.totN)-S1.tot)<1?fpill("ok"):fpill("no"))+' Total eligibil + total neeligibil = TOTAL general</li>';
+  h+='<li>'+(rows.every(r=>Math.abs(r.total-(r.baza+r.tvaVal))<1)?fpill("ok"):fpill("no"))+' Pe fiecare poziție: total = bază + TVA</li>';
+  h+='<li>'+(depMin?fpill("no"):fpill("ok"))+' Grantul ('+fmtX(grantEur)+' EUR) '+(depMin?'<b>DEPĂȘEȘTE</b>':'se încadrează în')+' plafonul de minimis disponibil ('+fmtX(fnum(cfg.minimisDisp))+' EUR)</li>';
+  h+='<li>'+(cfg.tvaDeductibil?fpill("info")+' Firma este plătitoare de TVA → TVA-ul este deductibil, deci <b>neeligibil</b>':fpill("info")+' Firma NU este plătitoare de TVA → TVA-ul nedeductibil este <b>eligibil</b> (HG 873/2022 art. 9)')+'</li>';
   h+='</ul>';
   if(depMin) h+='<div class="callout crit" style="margin-top:8px">Grantul depășește plafonul de minimis rămas. Variante: reduci valoarea proiectului, cauți o schemă GBER (ajutor regional) în loc de minimis, sau aștepți ieșirea din fereastra glisantă de 3 ani a ajutoarelor vechi.</div>';
   h+='</div></div>';
@@ -1149,10 +1173,10 @@ function fDeviz(){ const f=finState(), d=f.deviz;
     h+='<tr><td>'+l+'</td><td class="num">'+fmtL(v)+'</td><td class="num">'+(total?fmtP(v/total*100):'—')+'</td></tr>'; });
   h+='</tbody></table></div></div>';
   h+='<div class="section"><h2>Verificări de structură</h2><div class="card"><ul class="list">';
-  h+='<li>'+(pctNeprev<=10.01?'✅':'⚠️')+' Diverse și neprevăzute (5.3): <b>'+fmtP(pctNeprev)+'</b> din capitolele 1+2+3+4 — limita uzuală este <b>10%</b> (verifică ghidul apelului; la intervenții pe construcții existente poate fi mai mare)</li>';
-  h+='<li>'+(g('c37')>0?'ℹ️':'⚠️')+' Consultanța se trece la <b>3.7</b> ('+fmtL(g('c37'))+'), proiectarea la <b>3.5</b> ('+fmtL(g('c35'))+'), dotările la <b>4.5</b> ('+fmtL(g('c45'))+')</li>';
-  h+='<li>'+(CM>0?'✅':'ℹ️')+' Valoarea C+M determină <b>cota ISC</b> (0,5% + 0,1%) și cota Casei Sociale a Constructorilor — se trec la 5.2</li>';
-  h+='<li>ℹ️ Bugetul proiectului trebuie să fie <b>corelat 1:1</b> cu devizul general și cu planul de achiziții — necorelarea este un motiv frecvent de clarificări la ETF</li>';
+  h+='<li>'+(pctNeprev<=10.01?fpill("ok"):fpill("warn"))+' Diverse și neprevăzute (5.3): <b>'+fmtP(pctNeprev)+'</b> din capitolele 1+2+3+4 — limita uzuală este <b>10%</b> (verifică ghidul apelului; la intervenții pe construcții existente poate fi mai mare)</li>';
+  h+='<li>'+(g('c37')>0?fpill("info"):fpill("warn"))+' Consultanța se trece la <b>3.7</b> ('+fmtL(g('c37'))+'), proiectarea la <b>3.5</b> ('+fmtL(g('c35'))+'), dotările la <b>4.5</b> ('+fmtL(g('c45'))+')</li>';
+  h+='<li>'+(CM>0?fpill("ok"):fpill("info"))+' Valoarea C+M determină <b>cota ISC</b> (0,5% + 0,1%) și cota Casei Sociale a Constructorilor — se trec la 5.2</li>';
+  h+='<li>'+fpill("info")+' Bugetul proiectului trebuie să fie <b>corelat 1:1</b> cu devizul general și cu planul de achiziții — necorelarea este un motiv frecvent de clarificări la ETF</li>';
   h+='</ul></div></div>';
   return h; }
 
@@ -1292,23 +1316,36 @@ function icsEsc(s){ return String(s).replace(/\\/g,"\\\\").replace(/;/g,"\\;").r
 function dl(name, content, mime){ const b=new Blob([content],{type:mime||"text/plain;charset=utf-8"}); const u=URL.createObjectURL(b); const a=document.createElement("a"); a.href=u; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(u),4000); }
 
 /* ---------- Clienți ---------- */
-function vClienti(){ const cc=crmCounts();
+function vClienti(){ const cc=crmCounts(); const F=S.crm||(S.crm={q:"",tip:"",sort:"nume"});
   let h='<div class="viewtitle"><h1>👥 CRM clienți</h1><span class="sub">'+cc.reali+' reali'+(cc.demo?' · '+cc.demo+' demo':"")+'</span><div class="viewactions">'
     +'<button class="btn small primary" onclick="crmNewForm()">+ Client nou</button>'
-    +'<button class="btn small" onclick="crmImportOpen()">⬆ Import CSV/JSON</button>'
-    +'<button class="btn small" onclick="crmExport()">⬇ Export</button>'
+    +'<button class="btn small" onclick="crmImportOpen()">⬆ Import</button>'
+    +'<button class="btn small" onclick="crmExportCSV()" title="Excel (CSV)">⬇ CSV</button><button class="btn small" onclick="crmExport()" title="backup JSON">⬇ JSON</button>'
     +(cc.demo||window.CRM.hideDemo?'<button class="btn small ghost" onclick="crmToggleDemo()">'+(window.CRM.hideDemo?"👁 arată demo":"🙈 ascunde demo")+'</button>':"")
     +'</div></div>';
-  if(!cc.reali && !window.CRM.hideDemo) h+='<div class="callout">Încă n-ai clienți reali — vezi datele DEMO. Apasă <b>+ Client nou</b> sau <b>⬆ Import CSV/JSON</b> ca să-ți aduci portofoliul. Datele rămân doar pe acest dispozitiv, nu pleacă nicăieri.</div>';
+  if(!CL.length) return h+emptyState('👥','Niciun client încă','Adaugă primul client sau importă portofoliul din Excel/CSV. Datele rămân doar pe acest dispozitiv.','<button class="btn primary" onclick="crmNewForm()">+ Client nou</button><button class="btn" onclick="crmImportOpen()">⬆ Import CSV/JSON</button><button class="btn" onclick="crmTemplate()">⬇ Șablon CSV</button>'+(window.CRM.hideDemo?'<button class="btn ghost" onclick="crmToggleDemo()">👁 arată clienții demo</button>':''));
+  if(!cc.reali && !window.CRM.hideDemo) h+='<div class="callout">Încă n-ai clienți reali — vezi datele DEMO. Apasă <b>+ Client nou</b> sau <b>⬆ Import</b> ca să-ți aduci portofoliul. Datele rămân doar pe acest dispozitiv, nu pleacă nicăieri.</div>';
   else if(cc.demo && !window.CRM.hideDemo) h+='<div class="callout warn">Ai '+cc.reali+' clienți reali + '+cc.demo+' DEMO (fictivi). Folosește «🙈 ascunde demo» ca să lucrezi doar pe ai tăi.</div>';
-  h+='<div class="grid3">'+CL.map(c=>{ const df=c.date_financiare||{}; const neg=df.capitaluri_proprii_lei!=null&&df.capitaluri_proprii_lei<0;
-    const tops=topForClient(c.id,1)[0];
-    return '<div class="card" style="cursor:pointer" onclick="openClient(\''+c.id+'\')"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><b>'+esc(c.denumire)+'</b>'+(c.demo?'<span class="tag-demo">DEMO</span>':'<span class="chip" style="cursor:pointer" onclick="event.stopPropagation();crmNewForm(\''+c.id+'\')">✎</span>')+'</div><div style="color:var(--muted);font-size:12px;margin:2px 0 8px">'+esc((c.dimensiune||c.tip||"")+" · "+(c.judet||"")+" ("+(c.regiune||"")+")")+'</div>'+
-    (neg?'<div style="margin-bottom:6px"><span class="cd cd-crit">⚠ capitaluri negative</span></div>':"")+(c.datorii_fiscale?'<div style="margin-bottom:6px"><span class="cd cd-warn">datorii fiscale</span></div>':"")+
-    (c.tip!=="UAT"&&c.plafon_minimis_eur!=null?'<div style="font-size:12px;color:var(--ink2)">minimis disponibil: <b>'+money(c.plafon_minimis_eur,"EUR")+'</b></div>':"")+
-    (tops?'<div style="font-size:12px;margin-top:6px">🎯 '+esc(tops.apel.titlu.slice(0,48))+'… <b>'+tops.scor+'</b></div>':'<div style="font-size:12px;margin-top:6px;color:var(--muted)">fără potriviri active</div>')+
-    '<div style="margin-top:8px">'+(PR.filter(p=>p.client_id===c.id).length?'<span class="chip hl">'+PR.filter(p=>p.client_id===c.id).length+' proiect(e)</span>':'<span class="chip">prospect pipeline</span>')+'</div></div>';}).join("")+'</div>';
+  const withRisk=c=>{ const df=c.date_financiare||{}; return (df.capitaluri_proprii_lei!=null&&df.capitaluri_proprii_lei<0)||c.datorii_fiscale; };
+  let list=CL.filter(c=>{ if(F.tip==="UAT"&&c.tip!=="UAT") return false; if(F.tip==="privat"&&c.tip==="UAT") return false; if(F.tip==="proiecte"&&!PR.some(p=>p.client_id===c.id)) return false; if(F.tip==="risc"&&!withRisk(c)) return false;
+    if(F.q){ const q=onrcNorm(F.q); if(!onrcNorm((c.denumire||"")+" "+(c.cui||"")+" "+(c.judet||"")+" "+(c.caen_principal||"")).includes(q)) return false; } return true; });
+  const scoreOf=c=>{ const t=topForClient(c.id,1)[0]; return t?t.scor:-1; };
+  list.sort((x,y)=> F.sort==="judet"?(x.judet||"").localeCompare(y.judet||"","ro"): F.sort==="minimis"?((y.plafon_minimis_eur==null?-1:y.plafon_minimis_eur)-(x.plafon_minimis_eur==null?-1:x.plafon_minimis_eur)): F.sort==="scor"?(scoreOf(y)-scoreOf(x)): (x.denumire||"").localeCompare(y.denumire||"","ro"));
+  h+='<div class="filters"><input type="search" placeholder="caută denumire, CUI, județ, CAEN…" value="'+esc(F.q)+'" oninput="S.crm.q=this.value;render(true)" style="flex:1;min-width:200px">'+[["","Toți"],["privat","Privați"],["UAT","UAT"],["proiecte","Cu proiecte"],["risc","Cu risc"]].map(([k,l])=>'<button class="fchip'+(F.tip===k?" on":"")+'" onclick="S.crm.tip=\''+k+'\';render(true)">'+l+'</button>').join("")+'<select onchange="S.crm.sort=this.value;render(true)">'+[["nume","sortare: nume"],["judet","sortare: județ"],["minimis","sortare: minimis disponibil"],["scor","sortare: scor top apel"]].map(([k,l])=>'<option value="'+k+'"'+(F.sort===k?" selected":"")+'>'+l+'</option>').join("")+'</select><span style="margin-left:auto;color:var(--muted);font-size:12.5px">'+list.length+' din '+CL.length+'</span></div>';
+  if(!list.length) h+='<div class="empty">Niciun client pentru filtrele curente.</div>';
+  h+='<div class="grid3">'+list.map(c=>{ const df=c.date_financiare||{}; const neg=df.capitaluri_proprii_lei!=null&&df.capitaluri_proprii_lei<0;
+    const tops=topForClient(c.id,1)[0]; const nP=PR.filter(p=>p.client_id===c.id).length; const t=tops?tops.apel.titlu:"";
+    const used=(c.ajutoare_minimis||[]).reduce((s,x)=>s+(x.suma_eur||0),0); const plaf=c.plafon_minimis_eur!=null?c.plafon_minimis_eur:(c.tip!=="UAT"&&(c.ajutoare_minimis||[]).length?300000-used:null);
+    return '<div class="card click" tabindex="0" onkeydown="if(event.key===\'Enter\')this.click()" onclick="openClient(\''+c.id+'\')"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><b>'+esc(c.denumire)+'</b>'+(c.demo?'<span class="tag-demo">DEMO</span>':'<button class="btn small ghost" title="Editează" style="padding:2px 7px" onclick="event.stopPropagation();crmNewForm(\''+c.id+'\')">✎</button>')+'</div><div style="color:var(--muted);font-size:12px;margin:2px 0 8px">'+esc([c.dimensiune||c.tip||"",c.judet||"",c.regiune||(c.judet?onrcRegOf(c.judet):"")].filter(Boolean).join(" · "))+'</div>'+
+    ((neg||c.datorii_fiscale)?'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">'+(neg?'<span class="cd cd-crit">⚠ capitaluri negative</span>':"")+(c.datorii_fiscale?'<span class="cd cd-warn">datorii fiscale</span>':"")+'</div>':"")+
+    (c.tip!=="UAT"?(plaf!=null?'<div style="font-size:12px;color:var(--ink2)">minimis disponibil <b>'+money(plaf,"EUR")+'</b><div class="minibar" style="margin-top:3px"><span style="width:'+Math.min(100,(300000-plaf)/3000)+'%;background:'+(plaf<=0?'var(--critical)':plaf<60000?'var(--warn)':'var(--accent)')+'"></span></div></div>':'<div style="font-size:12px;color:var(--muted)">minimis: necunoscut — de verificat în RegAS</div>'):"")+
+    '<div class="na" style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--grid);font-size:12px">'+(tops?'🎯 <span title="'+esc(t)+'">'+esc(t.length>48?t.slice(0,48)+"…":t)+'</span> <b>'+tops.scor+'</b>':'<span style="color:var(--muted)">fără potriviri active</span>')+'</div>'+
+    '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">'+(nP?'<span class="chip hl">'+nP+' proiect(e)</span>':'<span class="chip">prospect pipeline</span>')+(c.telefon?'<a class="chip" href="tel:'+esc(c.telefon)+'" onclick="event.stopPropagation()">☎ '+esc(c.telefon)+'</a>':'')+(c.email?'<a class="chip" href="mailto:'+esc(c.email)+'" onclick="event.stopPropagation()" title="'+esc(c.email)+'">✉</a>':'')+'</div></div>';}).join("")+'</div>';
   return h; }
+function crmExportCSV(){ const cols=["denumire","cui","tip","dimensiune","judet","regiune","forma_juridica","caen_principal","email","telefon","localitate","plafon_minimis_eur","datorii_fiscale","interese","sursa"];
+  const rows=CL.filter(c=>!c.demo).map(c=>cols.map(k=>{ let v=c[k]; if(k==="interese") v=(c.interese||[]).join("; "); if(k==="datorii_fiscale") v=c.datorii_fiscale?"DA":"NU"; return v==null?"":String(v); }));
+  if(!rows.length){ toast("Niciun client real de exportat"); return; }
+  const csv=[cols].concat(rows).map(r=>r.map(x=>/[";\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x).join(";")).join("\n"); dl("clienti.csv","\ufeff"+csv,"text/csv;charset=utf-8"); toast("CSV exportat ("+rows.length+" clienți)"); }
 
 /* ---------- Bibliotecă ---------- */
 const SABLOANE={
@@ -1320,37 +1357,48 @@ const SABLOANE={
  "L6 — Raport constatări (A9)":"RAPORT DE CONSTATĂRI — audit intern\nObiect auditat / versiune / data: …\nVerdict general: SE POATE DEPUNE: DA/NU\nPer constatare: [BLOCANT/MAJOR/MINOR] · descriere + proba (document, pagină) · norma încălcată (act, articol) · consecința potențială (respingere / corecție X% ≈ Y lei) · recomandare + responsabil + termen",
  "L7 — Checklist cerere de rambursare":"CHECKLIST CR\nPer categorie de cheltuieli × documente cerute × prezent/lipsă/observații\nSemnături necesare: diriginte, RTE, contabil, auditor (unde e cerut)\nVerificări finale: sume CR = documente = evidența analitică · publicitate probată foto · dosare achiziții atașate"
 };
-function vBiblioteca(){ const ghid=A.filter(a=>a.url_ghid);
-  let h='<div class="viewtitle"><h1>📚 Bibliotecă ghiduri & șabloane</h1><span class="sub">ghiduri per apel · versiuni & corrigende · șabloane L1–L7</span></div>';
-  h+='<div class="section"><h2>Corrigende detectate</h2>';
-  const corr=A.filter(a=>a.corrigendum);
-  h+= corr.length? corr.map(a=>'<div class="calit" style="cursor:pointer" onclick="openApel(\''+esc(a.id_apel)+'\')"><span class="dt">24.07</span><div style="flex:1"><span class="tp">corrigendum</span><br><b>'+esc(a.titlu)+'</b><br><small style="color:var(--ink2)">'+esc(a.note||"")+'</small></div><span class="cd cd-warn">⚠</span></div>').join("") : '<div class="empty">Niciun corrigendum activ.</div>';
+function genL1(aid){ const a=apelById(aid); if(!a){ toast("Alege un apel"); return; } const v=x=>(x==null||x===""||(Array.isArray(x)&&!x.length))?"… [DE VERIFICAT]":(Array.isArray(x)?x.join(", "):String(x));
+  const tops=topForApel(aid,5).map(m=>m.client.denumire+" ("+m.scor+")");
+  const t="FIȘĂ APEL (L1)\nProgram/Administrator: "+v(a.program)+" / "+v(a.administrator)+"\nTitlu + cod: "+v(a.titlu)+" · "+v(a.id_apel)+(a.actiune_prioritate?" · "+a.actiune_prioritate:"")+"\nStatus + termene: "+v(a.stare)+" · deschidere "+(a.data_deschidere?fmtD(a.data_deschidere):"…")+" · închidere "+(a.data_inchidere?fmtD(a.data_inchidere):"… [DE VERIFICAT]")+" · depunere "+v(a.tip_depunere)+"\nBeneficiari eligibili: "+v((a.tip_beneficiar||[]).map(b=>BEN[b]||b))+"\nRegiuni/județe: "+v(a.regiuni)+(a.judete_eligibile?" · "+a.judete_eligibile.join(", "):"")+"\nBuget apel / grant min-max / intensitate: "+(a.buget_apel?nf.format(a.buget_apel)+" "+(a.moneda||""):"…")+" / "+(a.grant_min!=null||a.grant_max!=null?(a.grant_min!=null?nf.format(a.grant_min):"…")+"–"+(a.grant_max!=null?nf.format(a.grant_max):"…")+" "+(a.moneda||""):"… [DE VERIFICAT]")+" / "+(a.intensitate_max_pct!=null?a.intensitate_max_pct+"%":"… [DE VERIFICAT]")+"\nTip ajutor (minimis/GBER): "+v(a.tip_ajutor)+"\nCheltuieli eligibile (sumar): … [din ghid]\nCondiții-cheie de eligibilitate (top 5-8): … [din ghid]\nCriterii de punctaj decisive (din grilă): "+v(a.criterii_cheie)+"\nDocumente necesare la depunere: … [din ghid]\nDurabilitate: … [din ghid]\nPlatformă depunere: "+v(a.platforma_depunere)+"\nLinkuri (anunț, ghid + versiune): "+v(a.url_sursa)+(a.url_ghid?" · ghid: "+a.url_ghid:"")+"\nPentru cine din portofoliu: "+(tops.length?tops.join("; "):"… (nicio potrivire în CRM)")+"\nNote radar: "+(a.note||"—")+"\nExtras la: "+String((DB.apeluri||{}).extras_la||"").slice(0,10)+(a.incredere_extractie!=null&&a.incredere_extractie<0.8?" · [DE VERIFICAT] încredere extracție "+a.incredere_extractie:"");
+  copyTxt(t,"Fișa L1 copiată — câmpurile «…» se completează din ghid"); }
+function vBiblioteca(){ const ghid=A.filter(a=>a.url_ghid); const ord={activ:0,planificat:1,consultare:2,in_evaluare:3,inchis:4}; ghid.sort((x,y)=>(ord[x.stare]??9)-(ord[y.stare]??9)||(x.data_inchidere||"9").localeCompare(y.data_inchidere||"9"));
+  const fara=A.filter(a=>!a.url_ghid&&a.stare!=="inchis"); const corr=A.filter(a=>a.corrigendum);
+  let h='<div class="viewtitle"><h1>📚 Bibliotecă ghiduri & șabloane</h1><span class="sub">ghiduri per apel · corrigende · șabloane L1–L7</span><div class="viewactions"><button class="btn small" onclick="document.getElementById(\'bibCorr\').scrollIntoView({behavior:\'smooth\'})">Corrigende ('+corr.length+')</button><button class="btn small" onclick="document.getElementById(\'bibGhid\').scrollIntoView({behavior:\'smooth\'})">Ghiduri ('+ghid.length+')</button><button class="btn small" onclick="document.getElementById(\'bibSab\').scrollIntoView({behavior:\'smooth\'})">Șabloane</button></div></div>';
+  h+='<div class="section" id="bibCorr"><h2>Corrigende detectate</h2>';
+  h+= corr.length? corr.map(a=>{ const aff=PR.filter(p=>p.apel_id===a.id_apel).length; const tops=topForApel(a.id_apel,3).map(m=>m.client.denumire); return '<div class="calit" style="cursor:pointer" onclick="openApel(\''+esc(a.id_apel)+'\')"><span class="dt" title="corrigendum semnalat în radar"><span class="cd cd-warn">⚠ corr.</span></span><div style="flex:1"><span class="tp">'+esc(a.program||"")+'</span><br><b>'+esc(a.titlu)+'</b><br><small class="clamp" style="color:var(--ink2)">'+esc(a.note||"")+'</small>'+(aff||tops.length?'<div style="margin-top:4px;font-size:12px">'+(aff?'<span class="chip hl">'+aff+' proiect(e) în pipeline</span>':'')+tops.map(t=>'<span class="chip">'+esc(t)+'</span>').join('')+'</div>':'')+'</div>'+stB(a.stare)+'</div>'; }).join("") : '<div class="empty">Niciun corrigendum activ.</div>';
   h+='</div>';
-  h+='<div class="section"><h2>Ghiduri disponibile (din radar)</h2><div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr><th>Apel</th><th>Ghid</th><th>Stare</th></tr></thead><tbody>'+ghid.map(a=>'<tr><td><b>'+esc(a.titlu)+'</b><br><small style="color:var(--muted)">'+esc(a.program)+'</small></td><td><a href="'+esc(a.url_ghid)+'" target="_blank">deschide ghidul ↗</a></td><td>'+stB(a.stare)+'</td></tr>').join("")+'</tbody></table></div><div class="callout" style="margin-top:8px">Pentru apelurile pe care lucrează firma: descarcă PDF-ul ghidului, atașează-l în conversația Claude și cere „Q&A pe ghid" — răspunsurile vor cita pagina/secțiunea, niciodată din memorie.</div></div>';
-  h+='<div class="section"><h2>Șabloane L1–L7 (formate obligatorii)</h2>'+Object.keys(SABLOANE).map(k=>'<details class="acc2"><summary>'+esc(k)+'</summary><div class="inner"><div class="copybox">'+esc(SABLOANE[k])+'</div><button class="btn small" style="margin-top:8px" onclick="copyTxt(SABLOANE[\''+k.replace(/'/g,"\\'")+'\'],\'Șablon copiat\')">📋 copiază</button></div></details>').join("")+'</div>';
+  h+='<div class="section" id="bibGhid"><h2>Ghiduri disponibile din radar ('+ghid.length+')</h2><div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr><th>Apel</th><th>Ghid</th><th>Termen</th><th>Stare</th><th></th></tr></thead><tbody>'+ghid.map(a=>{ let host=""; try{ host=new URL(a.url_ghid).hostname.replace(/^www\./,""); }catch(e){} return '<tr onclick="openApel(\''+esc(a.id_apel)+'\')"><td><b>'+esc(a.titlu)+'</b><br><small style="color:var(--muted)">'+esc(a.program)+'</small></td><td><a href="'+esc(a.url_ghid)+'" target="_blank" onclick="event.stopPropagation()">deschide ghidul ↗</a><br><small style="color:var(--muted)">'+esc(host)+'</small></td><td>'+cdBadge(a.data_inchidere,{cont:/continuu/.test(a.tip_depunere||"")})+'</td><td>'+stB(a.stare)+'</td><td><button class="btn small ghost" onclick="event.stopPropagation();genL1(\''+esc(a.id_apel)+'\')" title="generează fișa L1 din datele apelului">📋 L1</button></td></tr>'; }).join("")+'</tbody></table></div>';
+  h+='<details class="acc2" style="margin-top:8px"><summary>Apeluri fără ghid indexat ('+fara.length+') <span class="evsrc">— link-ul ghidului nu a fost extras; verifică la sursă</span></summary><div class="inner"><ul class="list">'+fara.slice(0,60).map(a=>'<li style="cursor:pointer" onclick="openApel(\''+esc(a.id_apel)+'\')"><span style="flex:1"><b>'+esc(a.titlu)+'</b> <small style="color:var(--muted)">'+esc(a.program||"")+'</small></span>'+(a.url_sursa?'<a href="'+esc(a.url_sursa)+'" target="_blank" onclick="event.stopPropagation()" style="font-size:12px">sursă ↗</a>':'')+'</li>').join("")+(fara.length>60?'<li style="color:var(--muted)">+ încă '+(fara.length-60)+' în Radar</li>':'')+'</ul></div></details>';
+  h+='<div class="callout" style="margin-top:8px">Pentru apelurile pe care lucrează firma: descarcă PDF-ul ghidului, atașează-l în conversația Claude și cere „Q&A pe ghid" — răspunsurile vor cita pagina/secțiunea, niciodată din memorie.</div></div>';
+  h+='<div class="section" id="bibSab"><h2>Șabloane L1–L7 (formate obligatorii)</h2><div class="card" style="margin-bottom:10px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:13px">Generează fișa L1 pentru un apel:</b><select id="bibL1" style="flex:1;min-width:220px">'+A.filter(a=>a.stare!=="inchis").map(a=>'<option value="'+esc(a.id_apel)+'">'+esc((a.titlu||"").slice(0,70))+' · '+esc(a.program||"")+'</option>').join("")+'</select><button class="btn small primary" onclick="genL1(document.getElementById(\'bibL1\').value)">📋 Generează & copiază</button></div><div class="evsrc" style="margin-top:6px">Completează automat câmpurile cunoscute din radar; ce lipsește rămâne marcat „… [DE VERIFICAT]” — nimic inventat.</div></div>'
+    +Object.keys(SABLOANE).map(k=>{ const kk=k.replace(/'/g,"\\'"); const first=SABLOANE[k].split("\n")[1]||""; return '<details class="acc2"><summary style="display:flex;gap:8px;align-items:center"><span style="flex:1">'+esc(k)+' <small style="color:var(--muted);font-weight:400">'+esc(first.slice(0,60))+'</small></span><button class="btn small ghost" onclick="event.preventDefault();event.stopPropagation();copyTxt(SABLOANE[\''+kk+'\'],\'Șablon copiat\')">📋</button></summary><div class="inner"><div class="copybox">'+esc(SABLOANE[k])+'</div><div style="display:flex;gap:6px;margin-top:8px"><button class="btn small" onclick="copyTxt(SABLOANE[\''+kk+'\'],\'Șablon copiat\')">📋 copiază</button><button class="btn small ghost" onclick="dl(\''+esc(k.replace(/[^\w]+/g,"_"))+'.txt\',SABLOANE[\''+kk+'\'])">⬇ .txt</button></div></div></details>'; }).join("")+'</div>';
   return h; }
 
 /* ---------- Rapoarte ---------- */
-function vRapoarte(){ const rc=S.repClient;
-  let h='<div class="viewtitle"><h1>📊 Centru de rapoarte</h1><span class="sub">generate din datele la zi — de validat uman înainte de trimitere</span></div>';
-  h+='<div class="grid2"><div class="card"><h2 style="font-size:14px;margin-bottom:8px">Raport săptămânal intern (L4)</h2><div class="copybox" id="repL4">'+esc(raportL4())+'</div><button class="btn small primary" style="margin-top:8px" onclick="copyTxt(raportL4(),\'Raport L4 copiat\')">📋 copiază</button></div>';
-  h+='<div class="card"><h2 style="font-size:14px;margin-bottom:8px">Raport per client (L5)</h2><select style="width:100%;padding:7px;border:1px solid var(--grid);border-radius:8px;background:var(--page);color:var(--ink)" onchange="S.repClient=this.value;render()">'+CL.map(c=>'<option value="'+c.id+'" '+(c.id===rc?"selected":"")+'>'+esc(c.denumire)+'</option>').join("")+'</select><div class="copybox" style="margin-top:8px">'+esc(raportL5(rc))+'</div><button class="btn small primary" style="margin-top:8px" onclick="copyTxt(raportL5(S.repClient),\'Raport client copiat\')">📋 copiază</button></div></div>';
-  h+='<div class="section card"><h2 style="font-size:14px;margin-bottom:10px">KPI de operare (K2) — luna curentă</h2><table class="tbl"><thead><tr><th>Indicator</th><th>Valoare</th><th>Țintă</th></tr></thead><tbody>'+
-  [["Timp detectare apel nou → alertă","prima scanare: aceeași zi","aceeași zi lucrătoare"],
-   ["Surse monitorizate funcționale",SURSE.filter(s=>s.stare==="ok").length+" / "+SURSE.length+" (multe gov.ro blocate din datacenter)","100% acoperite (direct sau prin proxy)"],
-   ["Corrigende urmărite de radar",A.filter(a=>a.corrigendum).length+" active"+(A.filter(a=>a.corrigendum).length?" (ex: "+(A.find(a=>a.corrigendum)||{}).titlu+")":""),"100% detectate"],
-   ["Clarificări în derulare (pipeline real)",(PR.filter(p=>!p.demo&&p.faza==="P5").length||"—")+"","răspuns în termen"],
-   ["Proiecte reale în implementare/rambursare",PR.filter(p=>!p.demo&&["P7","P8","P9"].includes(p.faza)).length+"",">95% fără tăieri"],
-   ["Corecții financiare suferite","0 lei","0 lei"],
-   ["Termene ratate","0","0"],
-   ["Valoare pipeline (grant)",money(PR.reduce((s,p)=>s+(p.grant_lei||0),0),"lei"),"↑"]].map(r=>'<tr><td>'+r[0]+'</td><td><b>'+r[1]+'</b></td><td style="color:var(--muted)">'+r[2]+'</td></tr>').join("")+'</tbody></table></div>';
+function vRapoarte(){ if(!clientById(S.repClient)) S.repClient=CL[0]?CL[0].id:null; const rc=S.repClient;
+  const l4=raportL4(); window._repL4=l4; const l5=rc?raportL5(rc):""; window._repL5=l5; const rcl=rc?clientById(rc):null;
+  const mail=(subj,body,to)=>'mailto:'+(to||'')+'?subject='+encodeURIComponent(subj)+'&body='+encodeURIComponent(body);
+  let h='<div class="viewtitle"><h1>📊 Centru de rapoarte</h1><span class="sub">generate din datele la zi ('+new Date().toLocaleDateString("ro-RO")+') — de validat uman înainte de trimitere</span></div>';
+  h+='<div class="grid2"><div class="card"><h2>Raport săptămânal intern (L4)</h2><div class="rep-actions"><button class="btn small primary" onclick="copyTxt(window._repL4,\'Raport L4 copiat\')">📋 copiază</button><button class="btn small" onclick="dl(\'Raport_L4_\'+evTodayIsoSafe()+\'.txt\',window._repL4)">⬇ .txt</button><a class="btn small" href="'+mail("Raport săptămânal intern — "+new Date().toLocaleDateString("ro-RO"),l4)+'">✉ e-mail</a><button class="btn small ghost" onclick="this.closest(\'.card\').querySelector(\'.copybox\').classList.toggle(\'full\')">⤢ extinde</button></div><div class="copybox" id="repL4">'+esc(l4)+'</div></div>';
+  h+='<div class="card"><h2>Raport per client (L5)</h2>'+(CL.length?'<select style="width:100%" onchange="S.repClient=this.value;render(true)">'+CL.map(c=>'<option value="'+c.id+'" '+(c.id===rc?"selected":"")+'>'+esc(c.denumire)+(c.demo?' · DEMO':'')+'</option>').join("")+'</select><div class="rep-actions" style="margin-top:8px"><button class="btn small primary" onclick="copyTxt(window._repL5,\'Raport client copiat\')">📋 copiază</button><button class="btn small" onclick="dl(\'Raport_client_\'+evTodayIsoSafe()+\'.txt\',window._repL5)">⬇ .txt</button><a class="btn small" href="'+mail("Stadiu proiecte — "+(rcl?rcl.denumire:""),l5,rcl?(rcl.email||(rcl.contact||{}).email||""):"")+'">✉ e-mail'+(rcl&&(rcl.email||(rcl.contact||{}).email)?' către client':'')+'</a><button class="btn small ghost" onclick="this.closest(\'.card\').querySelector(\'.copybox\').classList.toggle(\'full\')">⤢ extinde</button></div>'+(rcl&&rcl.demo?'<div class="callout warn" style="margin-top:8px">Client <b>demo</b> — textul e marcat [DEMO] și nu trebuie trimis nimănui.</div>':'')+'<div class="copybox" style="margin-top:8px">'+esc(l5)+'</div>':emptyState('👥','Niciun client în CRM','Rapoartele per client se generează din proiectele clienților tăi.','<button class="btn primary" onclick="S.view=\'clienti\';render()">→ Clienți</button>'))+'</div></div>';
+  const ratate=PR.filter(p=>!p.demo&&p.next_action&&p.next_action.termen&&days(p.next_action.termen)<0).length; const reale=PR.filter(p=>!p.demo);
+  h+='<div class="section card"><h2>KPI de operare (K2) — din datele reale</h2><table class="tbl"><thead><tr><th>Indicator</th><th>Valoare</th><th>Țintă</th></tr></thead><tbody>'+
+  [["Prospețimea radarului",(()=>{const a=radarAge();return a?'<span class="cd '+(a.cls==="good"?"cd-good":a.cls==="warn"?"cd-warn":"cd-crit")+'">scanat acum '+a.zile+' zile</span>':"—";})(),"≤ 2 zile"],
+   ["Surse monitorizate funcționale",(()=>{const ok=SURSE.filter(s=>s.stare==="ok"||s.stare==="acoperit").length;return '<span class="cd '+(ok===SURSE.length?"cd-good":"cd-warn")+'">'+ok+" / "+SURSE.length+'</span>';})(),"100% acoperite (direct sau prin oglindă)"],
+   ["Corrigende urmărite de radar",A.filter(a=>a.corrigendum).length+" active"+(A.filter(a=>a.corrigendum).length?" (ex: "+esc((A.find(a=>a.corrigendum)||{}).titlu||"")+")":""),"100% detectate"],
+   ["Clarificări în derulare (proiecte reale)",reale.filter(p=>p.faza==="P5").length,"răspuns în termen (3–10 zile)"],
+   ["Proiecte reale în implementare/rambursare",reale.filter(p=>["P7","P8","P9"].includes(p.faza)).length,">95% fără tăieri"],
+   ["Termene interne ratate (acțiuni restante)",ratate?'<span class="cd cd-crit">'+ratate+'</span>':(reale.length?'<span class="cd cd-good">0</span>':'<span style="color:var(--muted)">— (fără proiecte reale)</span>'),"0"],
+   ["Corecții financiare suferite",'<span style="color:var(--muted)" title="nu se urmărește automat — se completează manual din deciziile AM">— de completat manual</span>',"0 lei"],
+   ["Valoare pipeline real (grant)",reale.length?money(reale.reduce((s,p)=>s+(p.grant_lei||0),0),"lei"):'<span style="color:var(--muted)">— (doar demo)</span>',"↑"]].map(r=>'<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td style="color:var(--muted)">'+r[2]+'</td></tr>').join("")+'</tbody></table></div>';
   return h; }
 function raportL4(){ const d=new Date().toLocaleDateString("ro-RO"); const cl7=A.filter(a=>{const x=days(a.data_inchidere);return x!=null&&x>=0&&x<=7;});
   const items=calItems(7);
   const cor=A.filter(a=>a.corrigendum);
   let t="RAPORT SĂPTĂMÂNAL INTERN — "+d+"\n\n1) NOUTĂȚI RADAR\n• Registru: "+A.length+" apeluri ("+A.filter(a=>a.stare==="activ").length+" active, "+A.filter(a=>a.stare==="planificat").length+" planificate, "+A.filter(a=>a.stare==="consultare").length+" în consultare)\n• Corrigende active: "+(cor.length?cor.map(a=>a.titlu).join("; "):"niciuna")+"\n• Închideri ≤7 zile: "+(cl7.map(a=>a.titlu+" ("+fmtDs(a.data_inchidere)+")").join("; ")||"—")+"\n\n2) PIPELINE\n";
-  Object.keys(FAZE).forEach(f=>{ const ps=PR.filter(p=>p.faza===f); if(ps.length) t+="• "+f+" "+FAZE[f]+": "+ps.length+" proiect(e), grant "+money(ps.reduce((s,p)=>s+(p.grant_lei||0),0),"lei")+"\n"; });
-  t+="\n3) TERMENELE SĂPTĂMÂNII\n"+(items.map(i=>"• "+fmtDs(i.data)+" — ["+i.tip+"] "+i.titlu).join("\n")||"—");
+  const hasReal=PR.some(p=>!p.demo); const PRx=hasReal?PR.filter(p=>!p.demo):PR; if(!hasReal) t+="[pipeline DEMO — nu există proiecte reale]\n";
+  Object.keys(FAZE).forEach(f=>{ const ps=PRx.filter(p=>p.faza===f); if(ps.length) t+="• "+f+" "+FAZE[f]+": "+ps.length+" proiect(e), grant "+money(ps.reduce((s,p)=>s+(p.grant_lei||0),0),"lei")+"\n"; });
+  t+="\n3) TERMENELE SĂPTĂMÂNII\n"+(items.map(i=>"• "+fmtDs(i.data)+" — ["+i.tip+"] "+i.titlu+(i.sub?" — "+i.sub:"")).join("\n")||"—");
   const rr=riskRegister(); t+="\n\n4) RISCURI DESCHISE (top)"+(rr.isDemo?" [demo — adaugă proiecte reale pentru riscuri proprii]":"")+"\n"+(rr.rows.length?rr.rows.slice(0,5).map(r=>"• ["+r.sev+"] "+r.risc+" → expunere: "+r.expunere).join("\n"):"• niciun risc detectat automat");
   // Decizii GO/NO-GO derivate: proiecte reale în P0/P1 cu apel care se închide în ≤30 zile
   const dec=PR.filter(p=>!p.demo&&["P0","P1"].includes(p.faza)).map(p=>{ const ap=apelById(p.apel_id); const az=ap&&ap.data_inchidere?days(ap.data_inchidere):null; return {p,ap,az}; }).filter(x=>x.az==null||x.az<=30).sort((a,b)=>((a.az==null?999:a.az)-(b.az==null?999:b.az)));
@@ -1359,9 +1407,11 @@ function raportL4(){ const d=new Date().toLocaleDateString("ro-RO"); const cl7=A
   return t; }
 function raportL5(cid){ const c=clientById(cid); if(!c) return "";
   const ps=PR.filter(p=>p.client_id===cid);
-  let t="RAPORT DE STADIU — "+c.denumire+" — "+new Date().toLocaleDateString("ro-RO")+"\n\n";
+  let t=(c.demo?"[DEMO — client fictiv, nu se trimite]\n":"")+"RAPORT DE STADIU — "+c.denumire+" — "+new Date().toLocaleDateString("ro-RO")+"\n\n";
   if(!ps.length){ t+="Nu există proiecte active. Oportunități identificate:\n"+topForClient(cid,3).map(m=>"• "+m.apel.titlu+" ("+m.apel.program+") — termen "+(m.apel.data_inchidere?fmtD(m.apel.data_inchidere):"nelansat încă")).join("\n"); }
-  ps.forEach(p=>{ t+="▶ "+p.titlu+"\nUnde suntem: faza "+p.faza+" — "+FAZE[p.faza]+".\nGrant: "+money(p.grant_lei,"lei")+" (contribuția dvs.: "+money(p.cofinantare_lei,"lei")+").\nCe urmează: "+(p.next_action?p.next_action.descriere+" — până la "+fmtD(p.next_action.termen):"—")+".\n\n"; });
+  const d30=new Date(TODAY); d30.setDate(d30.getDate()-30);
+  ps.forEach(p=>{ const rec=(p.istoric||[]).filter(e=>pd(e.data)&&pd(e.data)>=d30).map(e=>"  · "+fmtDs(e.data)+" "+e.eveniment); const ev=(p.evaluari||[])[0];
+    t+="▶ "+p.titlu+"\nUnde suntem: faza "+p.faza+" — "+FAZE[p.faza]+".\nCe am făcut în ultimele 30 zile: "+(rec.length?"\n"+rec.join("\n"):"… [de completat]")+"\nGrant: "+money(p.grant_lei,"lei")+" (contribuția dvs.: "+money(p.cofinantare_lei,"lei")+")."+(ev?"\nVerificare pre-depunere ("+String(ev.data).slice(0,10)+"): "+ev.verdict:"")+"\nCe urmează: "+(p.next_action?p.next_action.descriere+" — până la "+fmtD(p.next_action.termen):"—")+".\n\n"; });
   t+="CE AVEM NEVOIE DE LA DVS.:\n"+(ps.some(p=>p.next_action)? ps.filter(p=>p.next_action).map(p=>"• ["+fmtDs(p.next_action.termen)+"] "+p.next_action.descriere).join("\n") : "• nimic momentan")+"\n\nCu stimă,\n[Consultant] — draft generat automat, DE VALIDAT înainte de trimitere.";
   return t; }
 
@@ -1388,20 +1438,24 @@ function riskRegister(){
       else if(t!=null&&t>=0&&t<=5) rows.push({proiect:p.id,sev:"MINOR",cat:"termene",risc:"Termen apropiat: "+(p.next_action.descriere||"—")+" (până "+fmtD(p.next_action.termen)+")",expunere:"întârziere dacă alunecă",masura:"confirmă azi disponibilitatea documentelor",resp}); }
     if(p.faza==="P5") rows.push({proiect:p.id,sev:"MAJOR",cat:"termene",risc:"Clarificări CAE/ETF în derulare — termen tipic de răspuns 3–5 zile",expunere:"respingere administrativă la nerăspuns",masura:"monitorizare zilnică MySMIS + backup consultant desemnat",resp});
     const c=clientById(p.client_id); if(c){ const mu=(c.ajutoare_minimis||[]).reduce((a,x)=>a+(x.suma_eur||0),0);
-      if(mu>250000) rows.push({proiect:p.id,sev:"MAJOR",cat:"eligibilitate",risc:"Plafon minimis aproape epuizat pentru "+(c.denumire||c.id)+" ("+nf.format(mu)+" din 300.000 EUR)",expunere:"respingere la CAE / recuperare ajutor",masura:"interogare RegAS + verificare întreprindere unică pe tot grupul",resp}); } });
+      if(mu>250000) rows.push({proiect:p.id,sev:"MAJOR",cat:"eligibilitate",risc:"Plafon minimis aproape epuizat pentru "+(c.denumire||c.id)+" ("+nf.format(mu)+" din 300.000 EUR)",expunere:"respingere la CAE / recuperare ajutor",masura:"interogare RegAS + verificare întreprindere unică pe tot grupul",resp});
+      const cp=(c.date_financiare||{}).capitaluri_proprii_lei; if(pre&&cp!=null&&cp<0) rows.push({proiect:p.id,sev:"MAJOR",cat:"eligibilitate",risc:"Capitaluri proprii negative la "+(c.denumire||c.id)+" ("+nf.format(cp)+" lei) — „întreprindere în dificultate”",expunere:"criteriu eliminatoriu la CAE",masura:"majorare de capital / conversie creanțe înainte de depunere",resp});
+      if(pre&&c.datorii_fiscale) rows.push({proiect:p.id,sev:"MINOR",cat:"eligibilitate",risc:"Datorii fiscale / eșalonare la "+(c.denumire||c.id),expunere:"certificat fiscal neconform la depunere",masura:"achitare sau eșalonare + certificate de atestare fiscală curate",resp}); }
+    TS.filter(t=>t.proiect_id===p.id&&t.data&&days(t.data)<0&&["P7","P8","P9"].includes(p.faza)).slice(0,2).forEach(t=>rows.push({proiect:p.id,sev:"MAJOR",cat:"implementare",risc:"Obligație restantă: "+(t.descriere||t.tip)+" ("+fmtD(t.data)+")",expunere:"corecție / suspendare plăți",masura:"execută și notifică AM/OI",resp})); });
   const ord={MAJOR:0,MINOR:1}; rows.sort((a,b)=>((ord[a.sev]||9)-(ord[b.sev]||9)));
   return {rows, isDemo:false};
 }
-function vConformitate(){ const r=REF;
-  let h='<div class="viewtitle"><h1>🛡️ Conformitate & audit</h1><span class="sub">referențial D5 · valori la 30.07.2026 · elementele ⏳ se reverifică periodic</span></div>';
-  const _rr=riskRegister();
-  h+='<div class="section"><h2>Registru de riscuri (proiecte active)</h2>';
+function vConformitate(){ const r=REF; const RF=S.riskFilter||"";
+  let h='<div class="viewtitle"><h1>🛡️ Conformitate & audit</h1><span class="sub">'+esc(r.nota||"referențial D5")+' · elementele ⏳ se reverifică periodic</span></div>';
+  const _rr=riskRegister(); const rows=_rr.rows.filter(x=>!RF||x.sev===RF); const nMaj=_rr.rows.filter(x=>x.sev==="MAJOR").length;
+  h+='<div class="section"><div class="evsech"><h2>Registru de riscuri (proiecte active) — '+_rr.rows.length+'</h2><div class="evsub" style="margin:0">'+[["","toate"],["MAJOR","MAJOR ("+nMaj+")"],["MINOR","MINOR ("+(_rr.rows.length-nMaj)+")"]].map(([k,l])=>'<button class="fchip'+(RF===k?" on":"")+'" onclick="S.riskFilter=\''+k+'\';render(true)">'+l+'</button>').join("")+'</div></div>';
   if(_rr.isDemo) h+='<div class="callout warn" style="margin-bottom:8px">Riscuri <b>demo</b> — se generează automat din proiectele tale reale imediat ce adaugi proiecte în Pipeline.</div>';
-  if(!_rr.rows.length) h+='<div class="card"><div class="empty">Niciun risc detectat automat pe proiectele reale. 🎉 Continuă monitorizarea termenelor și a plafonului de minimis.</div></div>';
-  else h+='<div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr><th>Proiect</th><th>Sev.</th><th>Risc</th><th>Expunere potențială</th><th>Măsură</th></tr></thead><tbody>'+_rr.rows.map(x=>'<tr onclick="openProiect(\''+esc(x.proiect)+'\')"><td>'+esc(x.proiect)+'</td><td><span class="cd '+(x.sev==="MAJOR"?"cd-crit":"cd-warn")+'">'+esc(x.sev)+'</span></td><td>'+esc(x.risc)+'</td><td><b>'+esc(x.expunere)+'</b></td><td style="font-size:12px">'+esc(x.masura)+'</td></tr>').join("")+'</tbody></table></div>';
+  if(!rows.length) h+='<div class="card"><div class="empty">'+(_rr.rows.length?'Niciun risc pentru filtrul curent.':'Niciun risc detectat automat pe proiectele reale. 🎉 Continuă monitorizarea termenelor și a plafonului de minimis.')+'</div></div>';
+  else h+='<div class="card riskcard" style="padding:4px 10px"><table class="tbl stack"><thead><tr><th>Proiect</th><th>Sev.</th><th>Risc</th><th>Expunere potențială</th><th>Măsură</th></tr></thead><tbody>'+rows.map(x=>{ const real=PR.some(p=>p.id===x.proiect); return '<tr'+(real?' onclick="openProiect(\''+esc(x.proiect)+'\')"':' style="cursor:default" title="risc demo — fără proiect real"')+'><td data-l="Proiect">'+esc(x.proiect)+(x.demo?' <span class="tag-demo">DEMO</span>':'')+'</td><td data-l="Sev."><span class="cd '+(x.sev==="MAJOR"?"cd-crit":"cd-warn")+'">'+esc(x.sev)+'</span></td><td data-l="Risc">'+esc(x.risc)+'</td><td data-l="Expunere"><b>'+esc(x.expunere)+'</b></td><td data-l="Măsură" style="font-size:12px">'+esc(x.masura)+'</td></tr>'; }).join("")+'</tbody></table></div>';
   h+='</div>';
-  h+='<div class="grid2 section"><div class="card"><h2 style="font-size:14px;margin-bottom:8px">Simulator minimis (întreprindere unică)</h2><select id="msClient" style="width:100%;padding:7px;border:1px solid var(--grid);border-radius:8px;background:var(--page);color:var(--ink)" onchange="msRender()">'+CL.filter(c=>c.tip!=="UAT").map(c=>'<option value="'+c.id+'">'+esc(c.denumire)+'</option>').join("")+'</select><div id="msBox" style="margin-top:10px"></div><div class="callout warn" style="margin-top:8px">Plafon 300.000 EUR / orice 3 ani (glisant) / <b>întreprindere unică</b> — tot grupul legat. Verificarea finală: RegAS + declarații. Interzis: minimis pentru vehicule de transport marfă.</div></div>';
-  h+='<div class="card"><h2 style="font-size:14px;margin-bottom:8px">Intensități GBER pe județ (harta 2022-2027)</h2><select id="gberJud" style="width:100%;padding:7px;border:1px solid var(--grid);border-radius:8px;background:var(--page);color:var(--ink)" onchange="gberRender()"><option value="">— alege județul —</option>'+gberAllJud().map(j=>'<option>'+j+'</option>').join("")+'</select><div id="gberBox" style="margin-top:10px" class="empty">Alege județul pentru intensitatea maximă.</div><div style="font-size:11.5px;color:var(--muted);margin-top:8px">Bonus IMM: +20pp micro/mici, +10pp mijlocii (≤50 mil EUR) · +10pp în teritorii de tranziție justă · Efect stimulativ: depunere ÎNAINTE de începerea lucrărilor.</div></div></div>';
+  const priv=CL.filter(c=>c.tip!=="UAT"); if(!S.msClient||!priv.some(c=>c.id===S.msClient)) S.msClient=priv[0]?priv[0].id:"";
+  h+='<div class="grid2 section"><div class="card" id="msCard"><h2>Simulator minimis (întreprindere unică)</h2>'+(priv.length?'<select id="msClient" style="width:100%" onchange="S.msClient=this.value;msRender()">'+priv.map(c=>'<option value="'+c.id+'"'+(c.id===S.msClient?" selected":"")+'>'+esc(c.denumire)+(c.demo?' · DEMO':'')+'</option>').join("")+'</select><div id="msBox" style="margin-top:10px"></div>':'<div class="empty">Adaugă un client privat în CRM pentru simulare.</div>')+'<div class="callout warn" style="margin-top:8px">Plafon 300.000 EUR / orice 3 ani (glisant) / <b>întreprindere unică</b> — tot grupul legat. Verificarea finală: RegAS + declarații. Interzis: minimis pentru vehicule de transport marfă.</div></div>';
+  h+='<div class="card"><h2>Intensități GBER pe județ (harta 2022–2027)</h2><select id="gberJud" style="width:100%" onchange="S.gberJud=this.value;gberRender()"><option value="">— alege județul —</option>'+gberAllJud().map(j=>'<option'+(j===S.gberJud?" selected":"")+'>'+j+'</option>').join("")+'</select><div id="gberBox" style="margin-top:10px" class="empty">Alege județul pentru intensitatea maximă.</div><div style="font-size:11.5px;color:var(--muted);margin-top:8px">Bonus IMM: +20pp micro/mici, +10pp mijlocii (≤50 mil EUR) · +10pp în teritorii de tranziție justă · Efect stimulativ: depunere ÎNAINTE de începerea lucrărilor. Plafonul efectiv îl stabilește ghidul apelului.</div></div></div>';
   h+='<div class="section"><h2>Scala corecțiilor financiare (OUG 66/2011 + HG 519/2014)</h2><div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr><th>Abatere</th><th>Corecție</th><th>Normă</th></tr></thead><tbody>'+(r.corectii_oug66||[]).map(c=>'<tr><td>'+esc(c.abatere)+'</td><td><b style="color:var(--critical)">'+esc(c.corectie)+'</b></td><td style="color:var(--muted);font-size:12px">'+esc(c.norma)+'</td></tr>').join("")+'</tbody></table></div></div>';
   const pa=(r.praguri_achizitii_2026||{});
   h+='<div class="grid2 section"><div class="card"><h2 style="font-size:14px;margin-bottom:8px">Praguri achiziții 2026 ⏳</h2><ul class="list">'+
@@ -1412,7 +1466,8 @@ function vConformitate(){ const r=REF;
    '<li style="color:var(--critical)">Sancțiuni: '+esc((pa.privati_ordin_1284_2016||{}).sanctiuni||"")+'</li></ul></div>';
   const ff=r.fluxuri_financiare_oug133||{};
   h+='<div class="card"><h2 style="font-size:14px;margin-bottom:8px">Fluxuri financiare (OUG 133/2021)</h2><ul class="list"><li><b>Prefinanțare:</b> '+esc(ff.prefinantare||"")+'</li><li><b>Cerere de plată:</b> '+esc(ff.cerere_plata||"")+'</li><li><b>Cerere de rambursare:</b> '+esc(ff.cerere_rambursare||"")+'</li><li><b>TVA:</b> '+esc(ff.tva||"")+'</li></ul></div></div>';
-  h+='<div class="grid2 section"><div class="card"><h2 style="font-size:14px;margin-bottom:8px">Checklist pre-depunere (simulare CAE)</h2>'+ckList("cae",r.checklist_pre_depunere_cae||[])+'</div>';
+  const ckp=(key,items)=>{ const st=S.checklists[key]||{}; const d=items.filter((_,i)=>st[i]).length; return '<span class="cd '+(d===items.length&&items.length?"cd-good":"cd-off")+'">'+d+' / '+items.length+'</span>'; };
+  h+='<div class="grid2 section"><div class="card"><div class="evsech"><h2>Checklist pre-depunere (simulare CAE)</h2>'+ckp("cae",r.checklist_pre_depunere_cae||[])+'</div>'+ckList("cae",r.checklist_pre_depunere_cae||[])+'<div style="margin-top:6px"><button class="btn small ghost" onclick="S.checklists.cae={};ckTg(\'cae\',-1)">↺ resetează</button></div></div>';
   h+='<div class="card"><h2 style="font-size:14px;margin-bottom:8px">Checklist cerere de rambursare</h2>'+Object.entries(r.checklist_cerere_rambursare||{}).map(([k,items])=>'<b style="font-size:12px;text-transform:uppercase;color:var(--muted)">'+esc(k)+'</b>'+ckList("cr_"+k,items)).join("")+'</div></div>';
   h+='<div class="grid2 section"><div class="card"><h2 style="font-size:14px;margin-bottom:8px">Durabilitate & arhivare</h2><ul class="list"><li><b>Durabilitate:</b> '+esc((r.durabilitate||{}).regula||"")+'<br><small style="color:var(--critical)">'+esc((r.durabilitate||{}).riscuri||"")+'</small></li><li><b>Arhivare:</b> '+esc((r.arhivare||{}).regula||"")+'</li><li><b>Publicitate:</b> '+((r.publicitate_2021_2027||{}).obligatorii||[]).map(esc).join(" · ")+' — sancțiune: '+esc((r.publicitate_2021_2027||{}).sanctiune||"")+'</li></ul></div>';
   h+='<div class="card"><h2 style="font-size:14px;margin-bottom:8px">Conflict de interese (art. 14-15 OUG 66/2011)</h2><div class="callout crit">Corecție <b>100% + posibilă sesizare penală</b>. Înainte de ORICE atribuire: încrucișează asociații/administratorii clientului (+ rude/afini) cu ofertanții. Suprapunere → STOP + escaladare la om.</div><div style="font-size:12.5px;color:var(--ink2)">Verificare automată: se activează când CRM-ul conține și datele furnizorilor/ofertanților (import dosare achiziții). Până atunci: verificare manuală pe ONRC + declarații.</div></div></div>';
@@ -1420,27 +1475,31 @@ function vConformitate(){ const r=REF;
   return h; }
 function ckList(key,items){ const st=S.checklists[key]=S.checklists[key]||{};
   return '<ul class="list">'+items.map((it,i)=>'<li style="cursor:pointer" onclick="ckTg(\''+key+'\','+i+')"><span>'+(st[i]?"✅":"⬜")+'</span> <span style="'+(st[i]?"color:var(--muted);text-decoration:line-through":"")+'">'+esc(it)+'</span></li>').join("")+'</ul>'; }
-function ckTg(key,i){ const st=S.checklists[key]=S.checklists[key]||{}; st[i]=!st[i]; render(); }
+function ckTg(key,i){ const st=S.checklists[key]=S.checklists[key]||{}; if(i>=0) st[i]=!st[i]; try{ localStorage.setItem("eufcc_checklists",JSON.stringify(S.checklists)); }catch(e){} render(true); }
 function gberAllJud(){ const g=REF.gber_harta_2022_2027||{}; return [].concat(g["60_pct"]||[],g["50_pct"]||[],g["40_pct"]||[],g["30_pct"]||[],["Ilfov","București"]).sort(); }
-function gberRender(){ const j=$("#gberJud").value; const g=REF.gber_harta_2022_2027||{}; const box=$("#gberBox"); if(!j){box.innerHTML="";return;}
-  let base=null; if((g["60_pct"]||[]).includes(j))base=60; else if((g["50_pct"]||[]).includes(j))base=50; else if((g["40_pct"]||[]).includes(j))base=40; else if((g["30_pct"]||[]).includes(j))base=30;
-  let sp=(g.special||{})[j];
-  const ptj=["Gorj","Hunedoara","Dolj","Galați","Prahova","Mureș"].includes(j);
+function gberRender(){ const sel=$("#gberJud"); const j=(sel&&sel.value)||S.gberJud||""; const g=REF.gber_harta_2022_2027||{}; const box=$("#gberBox"); if(!box) return; box.classList.toggle("empty",!j); if(!j){ box.innerHTML="Alege județul pentru intensitatea maximă."; return; }
+  const gb=gberIntensity(j); const sp=(g.special||{})[j];
+  const ptj=[...new Set(A.filter(a=>/PTJ|tranziție justă/i.test((a.program||"")+" "+(a.titlu||""))).flatMap(a=>a.judete_eligibile||[]))].some(x=>onrcNorm(x)===onrcNorm(j));
+  const aps=intelApeluriJud(j).filter(a=>/ajutor de stat|GBER|regional|schem/i.test((a.note||"")+" "+(a.tip_ajutor||"")));
   box.innerHTML='<div class="tiles" style="grid-template-columns:repeat(3,1fr)">'+
-   '<div class="tile"><div class="v">'+(sp?esc(sp):base+"%")+'</div><div class="l">întreprinderi mari</div></div>'+
-   (base?'<div class="tile acc"><div class="v">'+Math.min(75,base+10)+'%</div><div class="l">mijlocii (+10pp)</div></div><div class="tile acc"><div class="v">'+Math.min(75,base+20)+'%</div><div class="l">micro & mici (+20pp)</div></div>':"")+'</div>'+
-   (ptj?'<div class="callout warn" style="margin-top:8px">Județ de <b>tranziție justă</b>: potențial +10pp în teritoriile PTJ desemnate + apeluri PTJ dedicate.</div>':"");
+   '<div class="tile"><div class="v">'+(sp?esc(sp):(gb?gb.mari+"%":"—"))+'</div><div class="l">întreprinderi mari</div></div>'+
+   (gb?'<div class="tile acc"><div class="v">'+Math.min(gb.mari+10,70)+'%</div><div class="l">mijlocii (+10pp)</div></div><div class="tile acc"><div class="v">'+gb.imm+'%</div><div class="l">micro & mici (+20pp)</div></div>':"")+'</div>'+
+   '<div class="evsrc" style="margin-top:6px">Sursă: harta ajutoarelor regionale RO 2022–2027 (REF) · bonus IMM conform GBER art. 14; aceleași valori le folosește și evaluatorul.</div>'+
+   (ptj?'<div class="callout warn" style="margin-top:8px">Județ de <b>tranziție justă</b> (conform apelurilor PTJ din radar): potențial +10pp în teritoriile desemnate + apeluri PTJ dedicate.</div>':"")+
+   (aps.length?'<div style="margin-top:8px"><button class="btn small" onclick="S.radar.regiune=\''+esc(onrcRegOf(j))+'\';S.radar.stari=new Set([\'activ\']);S.radar.q=\'ajutor\';S.view=\'radar\';render()">📡 '+aps.length+' apeluri cu ajutor de stat/GBER în regiune</button></div>':"");
 }
-function msRender(){ const sel=$("#msClient"); if(!sel) return; const c=clientById(sel.value); if(!c) return;
+function msRender(){ const sel=$("#msClient"); if(!sel) return; const c=clientById(sel.value||S.msClient); if(!c) return;
   const used=(c.ajutoare_minimis||[]).reduce((s,x)=>s+(x.suma_eur||0),0);
-  const extra=S.minisim[c.id]||0; const rem=300000-used-extra;
-  $("#msBox").innerHTML='<div class="minibar" style="height:14px"><span style="width:'+Math.min(100,(used)/3000)+'%;background:var(--s2)"></span><span style="left:'+Math.min(100,used/3000)+'%;width:'+Math.min(100-used/3000,extra/3000)+'%;background:var(--s4)"></span></div>'+
+  const extra=S.minisim[c.id]||0; const rem=300000-used-extra; const yMin=TODAY.getFullYear()-2;
+  const old=(c.ajutoare_minimis||[]).filter(x=>/^\d{4}$/.test(String(x.an))&&+x.an<yMin);
+  $("#msBox").innerHTML='<div class="minibar" style="height:14px"><span style="width:'+Math.min(100,(used)/3000)+'%;background:var(--accent)"></span><span style="left:'+Math.min(100,used/3000)+'%;width:'+Math.min(100-used/3000,extra/3000)+'%;background:'+(rem<0?'var(--critical)':'var(--s3)')+'"></span></div>'+
+  (old.length?'<div class="evsrc" style="margin-top:4px">⏳ '+old.length+' ajutor(e) din '+old.map(x=>x.an).join(", ")+' ies din fereastra de 3 ani — verifică data acordării exactă în RegAS (aici sunt însumate conservator).</div>':'')+
   '<div style="display:flex;justify-content:space-between;font-size:12px;margin-top:5px"><span>utilizat: <b>'+money(used,"EUR")+'</b></span><span>simulat: <b>'+money(extra,"EUR")+'</b></span><span>rămas: <b style="color:'+(rem<0?"var(--critical)":"var(--good-text)")+'">'+money(rem,"EUR")+'</b></span></div>'+
-  '<div style="margin-top:8px;display:flex;gap:8px;align-items:center"><input type="number" id="msVal" placeholder="grant nou simulat (EUR)" style="flex:1;padding:6px;border:1px solid var(--grid);border-radius:7px;background:var(--page);color:var(--ink)" value="'+(extra||"")+'"><button class="btn small" onclick="S.minisim[\''+c.id+'\']=parseFloat($(\'#msVal\').value)||0;msRender()">simulează</button></div>'+
+  '<div style="margin-top:8px;display:flex;gap:8px;align-items:center"><input type="number" id="msVal" placeholder="grant nou simulat (EUR)" style="flex:1" value="'+(extra||"")+'" oninput="S.minisim[\''+c.id+'\']=parseFloat(this.value)||0;clearTimeout(window._msT);window._msT=setTimeout(msRender,350)" onkeydown="if(event.key===\'Enter\'){S.minisim[\''+c.id+'\']=parseFloat(this.value)||0;msRender()}"><button class="btn small" onclick="S.minisim[\''+c.id+'\']=parseFloat($(\'#msVal\').value)||0;msRender()">simulează</button></div>'+
   ((c.intreprinderi_legate||[]).length?'<div class="callout warn" style="margin-top:8px">Întreprinderi legate: '+esc(c.intreprinderi_legate.join("; "))+' — plafonul se calculează pe TOT grupul.</div>':"")+
   (rem<0?'<div class="callout crit" style="margin-top:8px">DEPĂȘIRE PLAFON cu '+money(-rem,"EUR")+' — grantul simulat nu încape în minimis. Caută schemă GBER sau reduce valoarea.</div>':"");
 }
-function after_conformitate(){ msRender(); }
+function after_conformitate(){ msRender(); if(S.gberJud) gberRender(); }
 
 /* ---------- Market Intel ---------- */
 /* Market Intel — încrucișare DETERMINISTĂ a datelor reale din platformă:
@@ -1464,75 +1523,107 @@ function intelStats(){ if(_INTEL) return _INTEL;
 function intelApeluriJud(jud){ const reg=onrcRegOf(jud); return A.filter(a=>{ if(a.stare!=="activ")return false; const rs=a.regiuni||[];
   if(rs.includes("Național")||!rs.length) return true; if(reg&&rs.includes(reg)) return true;
   if((a.judete_eligibile||[]).some(x=>onrcNorm(x)===onrcNorm(jud))) return true; return false; }); }
-function vIntel(){ const st=intelStats(); const sel=S.intelJud||"", sort=S.intelSort||"val";
-  let h='<div class="viewtitle"><h1>🔎 Market intelligence</h1><span class="sub">încrucișare pe date reale — '+nf.format(st.totMipe)+' proiecte contractate · '+nf.format((st.judList||[]).reduce((s,j)=>s+st.uatJud[j]||s,0)||((DB.primarii||{}).total||0))+' UAT · SICAP</span></div>';
+function intelApCounts(st){ if(st._ap) return st._ap; const nat=A.filter(a=>a.stare==="activ"&&(!(a.regiuni||[]).length||(a.regiuni||[]).includes("Național"))).length; const m={}; st.judList.forEach(j=>m[j]=intelApeluriJud(j).length); st._ap={m,nat}; return st._ap; }
+function intelSort(k){ if(S.intelSort===k) S.intelDir=-(S.intelDir||1); else { S.intelSort=k; S.intelDir=(k==="jud"?1:-1); } render(true); }
+function intelToBaze(q,sub){ bzState().sub=sub||'proiecte'; if(sub==='entitati'){ enState().q=q; } else { pjState().q=q; pjState().jud=''; pjState().prog=''; } S.view='baze'; render(); }
+function intelToCrm(el){ const nume=el.dataset.nume, jud=el.dataset.jud||'', pg=el.dataset.pg||''; if(CL.some(c=>onrcNorm(c.denumire)===onrcNorm(nume))){ toast('Există deja în CRM'); return; } crmAddClient(crmMakeClient({denumire:nume,judet:jud,regiune:jud?onrcRegOf(jud):'',tip:'privat',interese:pg,sursa:'Market Intel'})); toast('Adăugat ca prospect: '+nume); }
+function intelCsv(kind){ const st=intelStats(); const ap=intelApCounts(st); let head,rows,name;
+  if(kind==='jud'){ head=['Judet','Firme_contractate','Valoare_lei','GBER_IMM_pct','GBER_mari_pct','Apeluri_active','Apeluri_regionale','Primarii']; rows=st.judList.map(j=>{const g=gberIntensity(j);return [j,st.byJud[j].n,Math.round(st.byJud[j].val),g?g.imm:'',g?g.mari:'',ap.m[j],Math.max(0,ap.m[j]-ap.nat),st.uatJud[j]||0];}); name='Harta_pietei_judete.csv'; }
+  else { head=['Beneficiar','Nr_proiecte','Valoare_lei','Programe','Judete']; rows=st.warm.slice(0,500).map(w=>[w.nume,w.n,Math.round(w.val),w.pg.join(' / '),w.jud.join(' / ')]); name='Leaduri_calde_MIPE.csv'; }
+  const csv=[head].concat(rows).map(r=>r.map(c=>{const x=(c==null?'':String(c));return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x;}).join(',')).join('\n'); dl(name,'\ufeff'+csv,'text/csv;charset=utf-8'); toast('Export generat'); }
+function vIntel(){ const st=intelStats(); const ap=intelApCounts(st);
+  if(!S.intelJud){ const c=CL.find(x=>!x.demo&&x.judet)||CL.find(x=>x.judet); if(c&&st.byJud[c.judet]) S.intelJud=c.judet; }
+  const sel=S.intelJud||"", sort=S.intelSort||"val", dir=S.intelDir||-1;
+  const cliJud=[...new Set(CL.map(c=>c.judet).filter(j=>j&&st.byJud[j]))];
+  let h='<div class="viewtitle"><h1>🔎 Market intelligence</h1><span class="sub">încrucișare pe date reale — '+nf.format(st.totMipe)+' proiecte contractate · '+nf.format((DB.primarii||{}).total||Object.values(st.uatJud).reduce((a,b)=>a+b,0))+' UAT · SICAP</span><div class="viewactions"><button class="btn small" onclick="intelCsv(\'jud\')">⬇ CSV județe</button><button class="btn small" onclick="intelCsv(\'warm\')">⬇ CSV leaduri</button></div></div>';
   // selector județ + radiografie
-  h+='<div class="card"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:14px">Radiografie județ:</b><select style="padding:7px;border:1px solid var(--grid);border-radius:8px;background:var(--page);color:var(--ink);min-width:180px" onchange="S.intelJud=this.value;render()"><option value="">— alege un județ —</option>'+st.judList.map(j=>'<option '+(j===sel?"selected":"")+'>'+esc(j)+'</option>').join("")+'</select>'+(sel?'<button class="btn small" onclick="S.intelJud=\'\';render()">✕</button>':"")+'</div>';
-  if(sel){ const b=st.byJud[sel]||{n:0,val:0}; const gb=gberIntensity(sel); const aps=intelApeluriJud(sel); const uatn=st.uatJud[sel]||0;
-    const warmJ=st.warm.filter(w=>w.jud.includes(sel)).slice(0,8);
+  h+='<div class="card"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:14px">Radiografie județ:</b><select style="min-width:180px" onchange="S.intelJud=this.value;render(true)"><option value="">— alege un județ —</option>'+st.judList.slice().sort((a,b)=>a.localeCompare(b,"ro")).map(j=>'<option '+(j===sel?"selected":"")+'>'+esc(j)+'</option>').join("")+'</select>'+(sel?'<button class="btn small ghost" onclick="S.intelJud=\'\';render(true)">✕</button>':"")+(cliJud.length?'<span class="evsrc">județele clienților:</span>'+cliJud.map(j=>'<button class="fchip'+(j===sel?' on':'')+'" onclick="S.intelJud=\''+esc(j)+'\';render(true)">'+esc(j)+'</button>').join(''):'')+'</div>';
+  if(sel){ const b=st.byJud[sel]||{n:0,val:0}; const gb=gberIntensity(sel); const aps=intelApeluriJud(sel); const uatn=st.uatJud[sel]||0; const reg=onrcRegOf(sel);
+    const warmJ=st.warm.filter(w=>w.jud.includes(sel)).slice(0,8); const regionale=aps.filter(a=>!(a.regiuni||[]).includes("Național")&&(a.regiuni||[]).length);
     h+='<div class="tiles" style="margin-top:10px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">'+
-      '<div class="tile"><div class="v">'+nf.format(b.n)+'</div><div class="l">firme cu proiecte contractate (istoric absorbție)</div></div>'+
-      '<div class="tile"><div class="v">'+money(b.val,"lei")+'</div><div class="l">valoare contractată cumulată</div></div>'+
-      '<div class="tile"><div class="v">'+(gb?gb.imm+"%":"—")+'</div><div class="l">intensitate GBER max (IMM micro/mici)</div></div>'+
-      '<div class="tile"><div class="v">'+aps.length+'</div><div class="l">apeluri deschise ACUM pe județ</div></div>'+
-      '<div class="tile"><div class="v">'+nf.format(uatn)+'</div><div class="l">primării (prospecți publici)</div></div>'+
+      '<div class="tile"><div class="v">'+nf.format(b.n)+'</div><div class="l">firme cu proiecte contractate</div><div class="d">istoric absorbție 2014–2020</div></div>'+
+      '<div class="tile long"><div class="v">'+money(b.val,"lei")+'</div><div class="l">valoare contractată</div><div class="d">cumulat</div></div>'+
+      '<div class="tile"><div class="v">'+(gb?gb.imm+"%":"—")+'</div><div class="l">intensitate GBER max</div><div class="d">micro/mici'+(gb?' · mari '+gb.mari+'%':'')+'</div></div>'+
+      '<div class="tile acc"><div class="v">'+aps.length+'</div><div class="l">apeluri deschise acum</div><div class="d">'+regionale.length+' regionale/județene + '+(aps.length-regionale.length)+' naționale</div></div>'+
+      '<div class="tile"><div class="v">'+nf.format(uatn)+'</div><div class="l">primării</div><div class="d">prospecți publici</div></div>'+
       '</div>';
-    if(aps.length) h+='<div style="margin-top:10px"><b style="font-size:13px">Apeluri active care acoperă '+esc(sel)+':</b><ul class="list" style="margin-top:6px">'+aps.slice(0,6).map(a=>'<li style="cursor:pointer" onclick="openApel(\''+esc(a.id_apel)+'\')">📡 '+esc(a.titlu)+' <span class="chip">'+esc(a.program||"")+'</span>'+(a.data_inchidere?' <span class="chip hl">'+fmtDs(a.data_inchidere)+'</span>':"")+'</li>').join("")+(aps.length>6?'<li style="color:var(--muted)">+ încă '+(aps.length-6)+' — vezi Radar</li>':"")+'</ul></div>';
-    if(warmJ.length) h+='<div style="margin-top:10px"><b style="font-size:13px">Beneficiari recurenți din '+esc(sel)+' (leaduri calde — au mai accesat):</b><ul class="list" style="margin-top:6px">'+warmJ.map(w=>'<li>🏢 <b>'+esc(w.nume)+'</b> — '+w.n+' proiecte · '+money(w.val,"lei")+' <span class="chip">'+w.pg.join(", ")+'</span></li>').join("")+'</ul></div>';
+    const showAps=regionale.length?regionale:aps;
+    if(showAps.length) h+='<div style="margin-top:10px"><b style="font-size:13px">Apeluri active '+(regionale.length?'dedicate regiunii '+esc(reg):'care acoperă '+esc(sel))+':</b><ul class="list" style="margin-top:6px">'+showAps.slice(0,6).map(a=>'<li style="cursor:pointer" onclick="openApel(\''+esc(a.id_apel)+'\')">📡 '+esc(a.titlu)+' <span class="chip">'+esc(a.program||"")+'</span>'+(a.data_inchidere?' <span class="chip hl">'+fmtDs(a.data_inchidere)+'</span>':"")+'</li>').join("")+'</ul><button class="btn small" onclick="S.radar.regiune=\''+esc(reg)+'\';S.radar.stari=new Set([\'activ\']);S.radar.q=\'\';S.view=\'radar\';render()">📡 Toate cele '+aps.length+' apeluri în Radar →</button></div>';
+    if(warmJ.length) h+='<div style="margin-top:12px"><b style="font-size:13px">Beneficiari recurenți din '+esc(sel)+' (leaduri calde):</b><ul class="list" style="margin-top:6px">'+warmJ.map(w=>'<li><span style="flex:1;cursor:pointer" title="vezi toate proiectele" onclick="intelToBaze(\''+esc(w.nume).replace(/'/g,"\\'")+'\')">🏢 <b>'+esc(w.nume)+'</b> — '+w.n+' proiecte · '+money(w.val,"lei")+' <span class="chip">'+w.pg.join(", ")+'</span></span><button class="btn small ghost" onclick="intelToCrm(this)" data-nume="'+esc(w.nume)+'" data-jud="'+esc(sel)+'" data-pg="'+esc(w.pg.join(" / "))+'">→ CRM</button></li>').join("")+'</ul></div>';
     h+='<div class="callout" style="margin-top:10px">Firmele cu istoric de absorbție cunosc procesul → cost de conversie mic. Verifică minimis (RegAS) și status TVA (ANAF) înainte de contact.</div>';
   }
   h+='</div>';
-  // top 10 județe — două perspective (istoric vs. oportunitate curentă)
+  // top 10 județe
   const top10=st.judList.slice(0,10);
   h+='<div class="grid2 section"><div class="card"><h2>Top 10 județe · valoare contractată (istoric)</h2>'+chartHBars(top10.map(j=>({l:j,v:st.byJud[j].val})),{fmt:v=>money(v,"lei")})+'</div>';
-  const byAp=st.judList.map(j=>({l:j,v:intelApeluriJud(j).length})).sort((a,b)=>b.v-a.v).slice(0,10);
-  h+='<div class="card"><h2>Top 10 județe · apeluri deschise acum</h2>'+chartHBars(byAp)+'</div></div>';
+  const byAp=st.judList.map(j=>({l:j,v:Math.max(0,ap.m[j]-ap.nat)})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v).slice(0,10);
+  h+='<div class="card"><h2>Top 10 județe · apeluri regionale/județene deschise <span class="evsrc" style="text-transform:none;letter-spacing:0">+ '+ap.nat+' naționale valabile peste tot</span></h2>'+(byAp.length?chartHBars(byAp):'<div class="empty">Toate apelurile active sunt naționale.</div>')+'</div></div>';
   // harta pieței (toate județele) — tabel sortabil
-  const hdr=(k,l)=>'<th style="cursor:pointer" onclick="S.intelSort=\''+k+'\';render()">'+l+(sort===k?" ▾":"")+'</th>';
-  const rows=st.judList.slice().sort((a,b)=>{ if(sort==="uat")return (st.uatJud[b]||0)-(st.uatJud[a]||0); if(sort==="n")return st.byJud[b].n-st.byJud[a].n; if(sort==="apeluri")return intelApeluriJud(b).length-intelApeluriJud(a).length; if(sort==="gber"){const ga=gberIntensity(a),gb=gberIntensity(b);return (gb?gb.imm:0)-(ga?ga.imm:0);} return st.byJud[b].val-st.byJud[a].val; });
-  h+='<div class="section"><h2>Harta pieței pe județ (istoric absorbție + oportunitate curentă)</h2><div class="card" style="padding:4px 10px;max-height:520px;overflow:auto"><table class="tbl"><thead><tr>'+hdr("jud","Județ")+hdr("n","Firme contractate")+hdr("val","Valoare contractată")+hdr("gber","GBER IMM")+hdr("apeluri","Apeluri active")+hdr("uat","Primării")+'</tr></thead><tbody>'+
-    rows.map(j=>{ const b=st.byJud[j]; const gb=gberIntensity(j); const na=intelApeluriJud(j).length; return '<tr style="cursor:pointer" onclick="S.intelJud=\''+esc(j)+'\';render()"><td><b>'+esc(j)+'</b></td><td>'+nf.format(b.n)+'</td><td>'+money(b.val,"lei")+'</td><td>'+(gb?gb.imm+"%":"—")+'</td><td>'+(na?'<span class="cd cd-good">'+na+'</span>':'<span style="color:var(--muted)">0</span>')+'</td><td>'+nf.format(st.uatJud[j]||0)+'</td></tr>'; }).join("")+'</tbody></table></div><div style="font-size:11.5px;color:var(--muted);margin-top:6px">Click pe rând → radiografia județului. „Firme contractate" = istoric absorbție (proiecte MIPE), semnal de piață educată.</div></div>';
+  const hdr=(k,l,cls)=>'<th class="sortable'+(cls?' '+cls:'')+(sort===k?' on':'')+'" onclick="intelSort(\''+k+'\')" title="sortează">'+l+(sort===k?(dir<0?" ▾":" ▴"):"")+'</th>';
+  const val=j=>{ if(sort==="jud") return 0; if(sort==="uat") return st.uatJud[j]||0; if(sort==="n") return st.byJud[j].n; if(sort==="apeluri") return ap.m[j]; if(sort==="gber"){ const g=gberIntensity(j); return g?g.imm:0; } return st.byJud[j].val; };
+  const rows=st.judList.slice().sort((a,b)=> sort==="jud" ? a.localeCompare(b,"ro")*dir : (val(a)-val(b))*(-dir));
+  h+='<div class="section"><h2>Harta pieței pe județ (istoric absorbție + oportunitate curentă)</h2><div class="card" style="padding:4px 10px" id="intelTbl"><table class="tbl"><thead><tr>'+hdr("jud","Județ")+hdr("n","Firme contractate","num")+hdr("val","Valoare contractată","num")+hdr("gber","GBER IMM / mari","num")+hdr("apeluri","Apeluri active","num")+hdr("uat","Primării","num")+'</tr></thead><tbody>'+
+    rows.map(j=>{ const b=st.byJud[j]; const gb=gberIntensity(j); const na=ap.m[j]; const nr=Math.max(0,na-ap.nat); return '<tr class="'+(j===sel?"on":"")+'" style="cursor:pointer" onclick="S.intelJud=\''+esc(j)+'\';render()"><td><b class="lnk">'+esc(j)+'</b></td><td class="num">'+nf.format(b.n)+'</td><td class="num">'+money(b.val,"lei")+'</td><td class="num">'+(gb?gb.imm+"% / "+gb.mari+"%":"—")+'</td><td class="num">'+(na?'<span class="cd '+(nr?"cd-good":"cd-off")+'" title="'+nr+' regionale + '+ap.nat+' naționale">'+na+'</span>':'<span class="cd cd-off">0</span>')+'</td><td class="num">'+nf.format(st.uatJud[j]||0)+'</td></tr>'; }).join("")+'</tbody></table></div><div style="font-size:11.5px;color:var(--muted);margin-top:6px">Click pe județ → radiografia. „Firme contractate” = istoric absorbție (proiecte MIPE 2014–2020), semnal de piață educată. Apelurile „active” includ cele '+ap.nat+' naționale.</div></div>';
   // leaduri calde naționale
-  h+='<div class="grid2 section"><div class="card"><h2 style="font-size:14px;margin-bottom:8px">Beneficiari recurenți — top leaduri calde (≥2 proiecte)</h2><div style="max-height:360px;overflow:auto"><table class="tbl"><thead><tr><th>Firmă</th><th>Proiecte</th><th>Valoare</th><th>Județe</th></tr></thead><tbody>'+
-    st.warm.slice(0,25).map(w=>'<tr><td><b>'+esc(w.nume)+'</b><br><span style="font-size:11px;color:var(--muted)">'+w.pg.join(", ")+'</span></td><td><b>'+w.n+'</b></td><td>'+money(w.val,"lei")+'</td><td style="font-size:11px">'+w.jud.slice(0,3).join(", ")+(w.jud.length>3?"…":"")+'</td></tr>').join("")+'</tbody></table></div><div style="font-size:11.5px;color:var(--muted);margin-top:6px">'+nf.format(st.warm.length)+' firme cu ≥2 proiecte contractate în total.</div></div>';
+  h+='<div class="grid2 section"><div class="card"><h2>Beneficiari recurenți · top 25 din '+nf.format(st.warm.length)+' <span class="evsrc" style="text-transform:none;letter-spacing:0">≥2 proiecte contractate</span></h2><div style="max-height:380px;overflow:auto"><table class="tbl"><thead><tr><th>Firmă</th><th class="num">Proiecte</th><th class="num">Valoare</th><th>Județe</th><th></th></tr></thead><tbody>'+
+    st.warm.slice(0,25).map(w=>'<tr><td style="cursor:pointer" title="vezi toate proiectele" onclick="intelToBaze(\''+esc(w.nume).replace(/'/g,"\\'")+'\')"><b class="lnk">'+esc(w.nume)+'</b><br><span style="font-size:11px;color:var(--muted)">'+w.pg.join(", ")+'</span></td><td class="num"><b>'+w.n+'</b></td><td class="num">'+money(w.val,"lei")+'</td><td style="font-size:11px">'+w.jud.slice(0,3).join(", ")+(w.jud.length>3?"…":"")+'</td><td><button class="btn small ghost" onclick="intelToCrm(this)" data-nume="'+esc(w.nume)+'" data-jud="'+esc(w.jud[0]||"")+'" data-pg="'+esc(w.pg.join(" / "))+'">→ CRM</button></td></tr>').join("")+'</tbody></table></div></div>';
   // prospecți SICAP
-  h+='<div class="card"><h2 style="font-size:14px;margin-bottom:8px">Prospecți SICAP — capacitate & cash-flow (furnizori câștigători)</h2><div style="max-height:360px;overflow:auto"><table class="tbl"><thead><tr><th>Furnizor</th><th>Contracte</th><th>Valoare</th><th>Domenii</th></tr></thead><tbody>'+
-    st.supl.slice(0,25).map(s=>'<tr><td><b>'+esc(s.nume)+'</b></td><td><b>'+s.n+'</b></td><td>'+money(s.val,"lei")+'</td><td style="font-size:11px">'+s.dom.slice(0,2).join(", ")+'</td></tr>').join("")+'</tbody></table></div><div style="font-size:11.5px;color:var(--muted);margin-top:6px">Firme care câștigă contracte publice → au capacitate de execuție și flux de numerar pentru cofinanțare.</div></div></div>';
+  h+='<div class="card"><h2>Prospecți SICAP · top 25 din '+nf.format(st.supl.length)+' <span class="evsrc" style="text-transform:none;letter-spacing:0">furnizori câștigători = capacitate + cash-flow</span></h2><div style="max-height:380px;overflow:auto"><table class="tbl"><thead><tr><th>Furnizor</th><th class="num">Contracte</th><th class="num">Valoare</th><th>Domenii</th></tr></thead><tbody>'+
+    st.supl.slice(0,25).map(x=>'<tr style="cursor:pointer" title="vezi în Instituții & entități" onclick="intelToBaze(\''+esc(x.nume).replace(/'/g,"\\'")+'\',\'entitati\')"><td><b class="lnk">'+esc(x.nume)+'</b></td><td class="num"><b>'+x.n+'</b></td><td class="num">'+money(x.val,"lei")+'</td><td style="font-size:11px">'+x.dom.slice(0,2).join(", ")+'</td></tr>').join("")+'</tbody></table></div></div></div>';
   // surse deschise (referință)
-  h+='<div class="section card"><h2 style="font-size:14px;margin-bottom:8px">Surse deschise pentru îmbogățire (ruleaza în Claude)</h2><ul class="list">'+
+  h+='<details class="acc2 section"><summary>Surse deschise pentru îmbogățire (rulează în Claude)</summary><div class="inner"><ul class="list">'+
   '<li>📊 <b>data.gov.ro «Proiecte contractate»</b> — refresh istoric absorbție. <a href="https://data.europa.eu/data/datasets?catalog=data-gov-ro&query=proiecte%20contractate" target="_blank">data.europa.eu ↗</a></li>'+
   '<li>🗺 <b>Kohesio</b> — operațiuni coeziune pe localitate. <a href="https://kohesio.ec.europa.eu/ro/" target="_blank">kohesio ↗</a></li>'+
   '<li>🏛 <b>RegAS</b> — verificare minimis pe firmă. <a href="https://regas.consiliulconcurentei.ro/transparenta/" target="_blank">regas ↗</a> · 🧾 <b>ANAF API</b> — status TVA/inactivitate.</li></ul>'+
-  '<div class="callout" style="margin-top:8px">Pentru refresh: cere în Claude «rulează W10 market intelligence» — se descarcă seturile noi și se reinjectează în platformă.</div></div>';
+  '<div class="callout" style="margin-top:8px">Pentru refresh: cere în Claude «rulează W10 market intelligence» — se descarcă seturile noi și se reinjectează în platformă.</div></div></details>';
   return h; }
 
 /* ---------- Administrare ---------- */
-function vAdmin(){ const stMap={ok:["cd-good","OK"],acoperit:["cd-good","ACOPERIT ↔"],partial:["cd-warn","PARȚIAL"],problema:["cd-crit","PROBLEMĂ"],blocat_ip:["cd-crit","BLOCAT IP"],indisponibil_metoda:["cd-warn","POST-only"],nu_se_acceseaza:["cd-off","NU SE ACCESEAZĂ"],neverificat_azi:["cd-off","NEVERIFICAT"]};
-  let h='<div class="viewtitle"><h1>⚙️ Administrare</h1><span class="sub">surse · date · actualizare</span></div>';
-  h+='<div class="callout good"><b>Cum se actualizează dashboard-ul:</b> cere în conversația Claude «<b>scanare radar</b>» (sau așteaptă scanarea zilnică programată) → datele noi se injectează și artefactul se republică. Poți importa/exporta manual stratul de date mai jos.</div>';
-  if((DB.surse||{}).nota) h+='<div class="callout warn">'+esc(DB.surse.nota)+'</div>';
-  /* acoperire efectivă: OK direct + acoperite prin oglindă care funcționează */
-  const cov=SURSE.reduce((a,s)=>{ if(s.stare==="ok")a.ok++; else if(s.stare==="acoperit")a.cov++; else if(s.stare==="partial")a.part++; else a.gap++; return a; },{ok:0,cov:0,part:0,gap:0});
-  const efectiv=cov.ok+cov.cov; const pct=Math.round(efectiv/SURSE.length*100);
+const ADM_ST={ok:["cd-good","OK"],acoperit:["cd-good","ACOPERIT ↔"],partial:["cd-warn","PARȚIAL"],problema:["cd-crit","PROBLEMĂ"],blocat_ip:["cd-crit","BLOCAT IP"],indisponibil_metoda:["cd-warn","POST-only"],nu_se_acceseaza:["cd-off","NU SE ACCESEAZĂ"],neverificat_azi:["cd-off","NEVERIFICAT"]};
+function admGrp(st){ return st==="ok"?"ok":st==="acoperit"?"acoperit":st==="partial"?"partial":"blocat"; }
+function admFresh(label,iso,note){ if(!iso) return ''; const d=new Date(String(iso).slice(0,10)); if(isNaN(d)) return ''; const zile=Math.floor((TODAY-new Date(d.getFullYear(),d.getMonth(),d.getDate()))/86400000); const cls=zile<=2?"cd-good":zile<=30?"cd-warn":"cd-off"; return '<dt>'+label+'</dt><dd>'+esc(String(iso).slice(0,10))+' <span class="cd '+cls+'">'+(zile===0?"azi":zile+" zile")+'</span>'+(note?' <span class="evsrc">'+esc(note)+'</span>':'')+'</dd>'; }
+function admStorage(){ try{ let n=0; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); n+=(k.length+(localStorage.getItem(k)||"").length)*2; } return n; }catch(e){ return 0; } }
+function vAdmin(){ const F=S.adminFilter||"", Q=(S.adminQ||"").toLowerCase();
+  let h='<div class="viewtitle"><h1>⚙️ Administrare</h1><span class="sub">surse · date · backup local</span></div>';
+  const cov=SURSE.reduce((a,s)=>{ a[admGrp(s.stare)]++; return a; },{ok:0,acoperit:0,partial:0,blocat:0});
+  const efectiv=cov.ok+cov.acoperit; const pct=Math.round(efectiv/Math.max(1,SURSE.length)*100);
   h+='<div class="tiles">'
-    +tile(cov.ok,"OK direct","surse accesibile în sesiune","acc","admin",null)
-    +tile(cov.cov,"Acoperite ↔","primar blocat, date via oglindă OK","acc","admin",null)
-    +tile(efectiv+"/"+SURSE.length,"Acoperire efectivă",pct+"% din surse","",  "admin",null)
-    +tile(cov.part,"Parțiale","semnal limitat — de verificat","warnv","admin",null)
-    +tile(cov.gap,"Blocate / goluri","doar via browser propriu / VPS RO",cov.gap?"crit":"","admin",null)
+    +tile(efectiv+"/"+SURSE.length,"Acoperire efectivă",pct+"% din surse","acc","admin",()=>{S.adminFilter="";})
+    +tile(cov.ok,"OK direct","accesibile din sesiune","","admin",()=>{S.adminFilter="ok";})
+    +tile(cov.acoperit,"Acoperite ↔","primar blocat, oglindă OK","","admin",()=>{S.adminFilter="acoperit";})
+    +tile(cov.partial,"Parțiale","semnal limitat",cov.partial?"warnv":"","admin",()=>{S.adminFilter="partial";})
+    +tile(cov.blocat,"Blocate / goluri","doar browser propriu / VPS RO",cov.blocat?"crit":"","admin",()=>{S.adminFilter="blocat";})
     +'</div>';
-  h+='<div class="section"><h2>Registrul surselor monitorizate ('+SURSE.length+')</h2><div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr><th>Sursă</th><th>Mecanism</th><th>Stare</th><th>Observații</th></tr></thead><tbody>'+SURSE.map(s=>{const m=stMap[s.stare]||["cd-off",s.stare];
-   const ap=s.acoperit_prin?'<br><span style="color:var(--good-text)">↳ acoperit prin: '+esc(s.acoperit_prin)+'</span>':"";
-   return '<tr><td><b>'+esc(s.nume)+'</b><br><a href="'+esc(s.url)+'" target="_blank" style="font-size:11px">'+esc(s.url.slice(0,58))+'…</a></td><td style="font-size:12px">'+esc(s.mecanism)+'</td><td><span class="cd '+m[0]+'">'+m[1]+'</span></td><td style="font-size:12px;color:var(--ink2)">'+esc(s.observatii||"")+ap+'</td></tr>';}).join("")+'</tbody></table></div></div>';
-  h+='<div class="grid2 section"><div class="card"><h2 style="font-size:14px;margin-bottom:8px">Export date (JSON)</h2><p style="font-size:12.5px;color:var(--ink2);margin-bottom:8px">Descarcă stratul de date complet (apeluri, clienți, proiecte, surse) — backup sau editare externă.</p><button class="btn primary" onclick="dl(\'command-center-data.json\',JSON.stringify(DB,null,2),\'application/json\');toast(\'Export generat\')">⬇ Exportă datele</button></div>';
-  h+='<div class="card"><h2 style="font-size:14px;margin-bottom:8px">Import date (JSON)</h2><p style="font-size:12.5px;color:var(--ink2);margin-bottom:8px">Lipește un JSON cu aceeași structură (sau doar {"apeluri":{...}}) și aplică — interfața se reconstruiește pe noile date (în memorie; pentru persistență, cere republicarea artefactului în Claude).</p><textarea class="jsonio" id="ioTxt" placeholder=\'{"apeluri":{"apeluri":[...]}}\'></textarea><div style="margin-top:8px"><button class="btn primary" onclick="ioImport()">⬆ Aplică importul</button></div></div></div>';
-  h+='<div class="section card"><h2 style="font-size:14px;margin-bottom:8px">Jurnal & praguri</h2><dl class="kv"><dt>Versiune dashboard</dt><dd>'+esc(META.versiune||"1.0")+'</dd><dt>Generat la</dt><dd>'+esc(META.generat_la||"")+'</dd><dt>Radar extras la</dt><dd>'+esc((DB.apeluri||{}).extras_la||"")+'</dd><dt>Praguri countdown</dt><dd>&gt;30 zile verde · 8-30 portocaliu · ≤7 roșu</dd><dt>Alerte T</dt><dd>T-30 / T-14 / T-7 / T-2 / T-0</dd><dt>Prag intern depunere</dt><dd>'+esc((META.praguri_alerte||{}).prag_depunere_intern||"")+'</dd><dt>Segmente configurate</dt><dd>'+((META.firma||{}).segmente||[]).map(s=>'<span class="chip hl">'+esc(s)+'</span>').join("")+' · '+esc((META.firma||{}).acoperire||"")+'</dd></dl></div>';
+  h+='<div class="callout good" style="margin-top:12px"><b>Cum se actualizează:</b> cere în conversația Claude «<b>scanare radar</b>» <button class="btn small" onclick="copyTxt(\'scanare radar\',\'Comanda copiată — lipește-o în conversația Claude\')">📋 copiază comanda</button> · datele noi ajung în <code>data.js</code> și platforma se reîncarcă singură. Ultima scanare: <b>'+esc(String((DB.apeluri||{}).extras_la||"").slice(0,10))+'</b>.</div>';
+  // registrul surselor
+  const list=SURSE.filter(s=>(!F||admGrp(s.stare)===F)&&(!Q||((s.nume||"")+" "+(s.url||"")+" "+(s.observatii||"")+" "+(s.mecanism||"")).toLowerCase().includes(Q)));
+  h+='<div class="section"><h2>Registrul surselor monitorizate ('+list.length+' / '+SURSE.length+')</h2>';
+  h+='<div class="filters"><input type="text" placeholder="caută sursă, URL, observație…" value="'+esc(S.adminQ||"")+'" oninput="S.adminQ=this.value;admRefresh()" style="flex:1;min-width:200px">'+[["","Toate"],["ok","OK"],["acoperit","Acoperite"],["partial","Parțiale"],["blocat","Blocate"]].map(([k,l])=>'<button class="fchip'+(F===k?" on":"")+'" onclick="S.adminFilter=\''+k+'\';render(true)">'+l+'</button>').join("")+'</div>';
+  h+='<details class="acc2"><summary>Cum se citește registrul</summary><div class="inner">'+(((DB.surse||{}).nota)?'<p style="font-size:12.5px;color:var(--ink2);margin-bottom:8px">'+esc(DB.surse.nota)+'</p>':'')+'<div class="admleg"><span><span class="cd cd-good">OK</span> accesibilă direct</span><span><span class="cd cd-good">ACOPERIT ↔</span> sursa primară e blocată, dar datele vin dintr-o oglindă funcțională</span><span><span class="cd cd-warn">PARȚIAL</span> semnal limitat — de verificat manual</span><span><span class="cd cd-crit">BLOCAT</span> accesibilă doar din browserul tău / IP RO</span></div></div></details>';
+  h+='<div id="admList">'+admListHtml(list)+'</div></div>';
+  // export / import / backup
+  const kb=Math.round(admStorage()/1024); const pctS=Math.min(100,Math.round(kb/5120*100));
+  h+='<div class="grid2 section"><div class="card"><h2>Backup local (datele tale)</h2><p style="font-size:12.5px;color:var(--ink2);margin-bottom:8px">Clienți & proiecte, regulile evaluatorului, fișa financiară, checklist-urile și setările — tot ce ai introdus tu, într-un singur fișier. <b>Nu</b> include cheia API.</p><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" onclick="admBackup()">⬇ Backup local</button><button class="btn" onclick="admRestore()">⬆ Restaurare din backup</button></div><div class="evsrc" style="margin-top:10px">Spațiu folosit pe dispozitiv: <b>'+nf.format(kb)+' KB</b> din ~5 MB<div class="minibar" style="margin-top:4px"><span style="width:'+pctS+'%;background:'+(pctS>80?'var(--critical)':'var(--accent)')+'"></span></div></div></div>';
+  h+='<div class="card"><h2>Stratul public de date (JSON)</h2><p style="font-size:12.5px;color:var(--ink2);margin-bottom:8px">Apeluri, surse, referințe, registre — exportă pentru backup/editare externă sau încarcă o versiune nouă (în memorie, până la reload).</p><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="dl(\'command-center-data.json\',JSON.stringify(DB,null,2),\'application/json\');toast(\'Export generat\')">⬇ Exportă datele</button><button class="btn" onclick="ioFile()">⬆ Încarcă fișier JSON</button></div><details class="acc2" style="margin-top:10px"><summary>Lipește JSON manual</summary><div class="inner"><textarea class="jsonio" id="ioTxt" placeholder=\'{"apeluri":{"apeluri":[...]}}\'></textarea><div style="margin-top:8px;display:flex;gap:8px"><button class="btn small" onclick="ioPreview()">🔍 Verifică JSON</button><button class="btn small" onclick="ioImport()">⬆ Aplică importul</button></div><div id="ioPrev" class="evsrc" style="margin-top:6px"></div></div></details></div></div>';
+  // jurnal & prospețime
+  h+='<div class="section card"><h2>Prospețimea datelor & praguri</h2><dl class="kv">'+admFresh("Radar apeluri",(DB.apeluri||{}).extras_la,"versiune "+(META.versiune||"1"))+admFresh("Primării",(DB.primarii||{}).generat)+admFresh("Achiziții SICAP",(DB.sicap||{}).generat)+admFresh("Proiecte MIPE",(DB.proiecte_mipe||{}).generat)+admFresh("Registre atestate",(DB.registre||{}).actualizat)+admFresh("Verificări / curs",(DB.verificari||{}).generat)+'<dt>Praguri countdown</dt><dd>&gt;30 zile verde · 8-30 portocaliu · ≤7 roșu</dd><dt>Alerte T</dt><dd>T-30 / T-14 / T-7 / T-2 / T-0</dd><dt>Prag intern depunere</dt><dd>'+esc((META.praguri_alerte||{}).prag_depunere_intern||"")+'</dd><dt>Segmente configurate</dt><dd>'+((META.firma||{}).segmente||[]).map(s=>'<span class="chip hl">'+esc(s)+'</span>').join("")+' · '+esc((META.firma||{}).acoperire||"")+'</dd></dl></div>';
   h+='<div class="callout" style="margin-top:12px">Reguli de operare: adevărul are URL · datele au timestamp · HITL obligatoriu la depuneri/trimiteri · separarea puterilor (A9 auditează separat) · nu se ocolesc protecțiile anti-bot (MySMIS).</div>';
   return h; }
-function ioImport(){ try{ const t=$("#ioTxt").value.trim(); if(!t){toast("Nimic de importat");return;}
-  const obj=JSON.parse(t); Object.keys(obj).forEach(k=>{ DB[k]=obj[k]; }); MATCH=null;
-  location.hash="#imported"; toast("Date aplicate — reconstruiesc interfața"); setTimeout(()=>{ window.__reboot(); },300);
- }catch(e){ toast("JSON invalid: "+e.message); } }
+function admListHtml(list){ if(!list.length) return '<div class="empty">Nicio sursă pentru filtrul curent.</div>';
+  return '<div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr><th>Sursă</th><th>Mecanism</th><th>Stare</th><th>Observații</th></tr></thead><tbody>'+list.map(s=>{ const m=ADM_ST[s.stare]||["cd-off",s.stare]; const host=(()=>{ try{ return new URL(s.url).hostname.replace(/^www\./,""); }catch(e){ return s.url||""; } })(); const nA=A.filter(a=>(a.url_sursa||"").includes(host)).length;
+   const ap=s.acoperit_prin?'<br><span style="color:var(--good-text)">↳ acoperit prin: '+esc(s.acoperit_prin)+'</span>':"";
+   return '<tr><td><b>'+esc(s.nume)+'</b><br><a href="'+esc(s.url)+'" target="_blank" title="'+esc(s.url)+'" style="font-size:11px">'+esc(host)+' ↗</a>'+(nA?' <button class="btn small ghost" style="font-size:11px;padding:1px 6px" title="apeluri din această sursă" onclick="S.radar.q=\''+esc(host)+'\';S.radar.stari=new Set();S.view=\'radar\';render()">'+nA+' apeluri</button>':'')+'</td><td style="font-size:12px">'+esc(s.mecanism)+'</td><td><span class="cd '+m[0]+'">'+m[1]+'</span></td><td style="font-size:12px;color:var(--ink2)">'+esc(s.observatii||"")+ap+'</td></tr>';}).join("")+'</tbody></table></div>'; }
+function admRefresh(){ const F=S.adminFilter||"", Q=(S.adminQ||"").toLowerCase(); const list=SURSE.filter(s=>(!F||admGrp(s.stare)===F)&&(!Q||((s.nume||"")+" "+(s.url||"")+" "+(s.observatii||"")+" "+(s.mecanism||"")).toLowerCase().includes(Q))); const el=document.getElementById("admList"); if(el){ el.innerHTML=admListHtml(list); wrapTables(el); } }
+const ADM_KEYS=["eufcc_crm","eufcc_rulebooks","eufcc_fin","eufcc_checklists","eufcc_evui","eufcc_theme"];
+function admBackup(){ const o={_tip:"eufcc-backup",_data:new Date().toISOString(),_versiune:META.versiune||""}; ADM_KEYS.forEach(k=>{ try{ const v=localStorage.getItem(k); if(v!=null) o[k]=v; }catch(e){} }); dl("eufcc-backup-"+evTodayIsoSafe()+".json",JSON.stringify(o,null,1),"application/json"); toast("Backup generat"); }
+function evTodayIsoSafe(){ const d=TODAY; return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function admRestore(){ const i=document.createElement("input"); i.type="file"; i.accept=".json,application/json"; i.onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const o=JSON.parse(r.result); if(o._tip!=="eufcc-backup") throw new Error("nu e un backup EU Funds CC"); const keys=ADM_KEYS.filter(k=>o[k]!=null); if(!confirm("Restaurez "+keys.length+" seturi ("+keys.map(k=>k.replace("eufcc_","")).join(", ")+") din "+String(o._data||"").slice(0,10)+"? Datele locale actuale vor fi înlocuite.")) return; keys.forEach(k=>localStorage.setItem(k,o[k])); crmLoadStore(); crmApply(); S.fin=null; try{ S.checklists=JSON.parse(localStorage.getItem("eufcc_checklists")||"{}"); }catch(e){} if(typeof evLoad==="function") evLoad(); render(); toast("Backup restaurat"); }catch(err){ toast("Fișier invalid: "+err.message); } }; r.readAsText(f); }; i.click(); }
+function ioFile(){ const i=document.createElement("input"); i.type="file"; i.accept=".json,application/json"; i.onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ const ta=$("#ioTxt"); if(ta){ ta.value=r.result; ta.closest("details").open=true; } ioPreview(); }; r.readAsText(f); }; i.click(); }
+function ioParse(){ const t=($("#ioTxt")||{}).value||""; if(!t.trim()) throw new Error("nimic de importat"); const obj=JSON.parse(t); const out=[]; if(obj.apeluri){ if(!Array.isArray(obj.apeluri.apeluri)) throw new Error("«apeluri» trebuie să fie {\"apeluri\":{\"apeluri\":[...]}}"); out.push(["apeluri",A.length,obj.apeluri.apeluri.length]); } if(obj.clienti&&Array.isArray(obj.clienti.clienti)) out.push(["clienți",CL.length,obj.clienti.clienti.length]); if(obj.proiecte&&Array.isArray(obj.proiecte.proiecte)) out.push(["proiecte",PR.length,obj.proiecte.proiecte.length]); if(obj.surse&&Array.isArray(obj.surse.surse)) out.push(["surse",SURSE.length,obj.surse.surse.length]); return {obj,out}; }
+function ioPreview(){ const el=$("#ioPrev"); try{ const {out}=ioParse(); el.innerHTML=out.length?('Va înlocui: '+out.map(o=>'<b>'+o[0]+'</b> '+o[1]+' → '+o[2]).join(' · ')):'<span style="color:var(--critical)">JSON valid, dar fără chei recunoscute (apeluri / clienti / proiecte / surse).</span>'; }catch(e){ if(el) el.innerHTML='<span style="color:var(--critical)">'+esc(e.message)+'</span>'; } }
+function ioImport(){ try{ const {obj,out}=ioParse(); if(!out.length){ toast("Nicio cheie recunoscută"); return; } if(!confirm("Aplici importul? "+out.map(o=>o[0]+": "+o[1]+" → "+o[2]).join(", ")+" (în memorie, până la reload)")) return;
+  if(obj.apeluri){ A.length=0; obj.apeluri.apeluri.forEach(x=>A.push(x)); Object.assign(DB.apeluri,obj.apeluri); } if(obj.clienti&&obj.clienti.clienti){ CL.length=0; obj.clienti.clienti.forEach(x=>CL.push(x)); } if(obj.proiecte&&obj.proiecte.proiecte){ PR.length=0; obj.proiecte.proiecte.forEach(x=>PR.push(x)); } if(obj.surse&&obj.surse.surse){ SURSE.length=0; obj.surse.surse.forEach(x=>SURSE.push(x)); } if(obj.meta) Object.assign(META,obj.meta);
+  MATCH=null; IX=null; _INTEL=null; toast("Date aplicate"); render(); }catch(e){ toast("JSON invalid: "+e.message); } }
 
 /* ---------- global search ---------- */
 /* Paleta de comenzi (Ctrl+K): caută apeluri/clienți/proiecte, sare la secțiuni, rulează acțiuni. Navigare cu ↑↓ Enter. */
@@ -1574,6 +1665,7 @@ function applyTheme(t){ S.theme=t; document.documentElement.setAttribute("data-t
 window.__reboot=function(){ MATCH=null; IX=null; render(); };
 (function init(){
   let saved=null; try{ saved=localStorage.getItem("eufcc_theme"); }catch(e){}
+  sessLoad(); try{ S.checklists=JSON.parse(localStorage.getItem("eufcc_checklists")||"{}")||{}; }catch(e){}
   applyTheme(saved||(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));
   $("#btnTheme").onclick=()=>applyTheme(S.theme==="dark"?"light":"dark");
   $("#btnPrint").onclick=()=>window.print();
@@ -1895,7 +1987,7 @@ function onrcSearch(flt){ const CAP=300; const rows=[]; let total=0;
       if(forma && F[ONRC_FIELDS.forma]!==forma) continue;
       if(flt.telOnly && !F[ONRC_FIELDS.tel]) continue;
       if(q){ const hay=onrcNorm(F[ONRC_FIELDS.den])+" "+String(F[ONRC_FIELDS.cui]||""); if(!hay.includes(q)) continue; }
-      if(caen){ if(!onrcCaenList(F).some(c=>c.indexOf(caen)===0)) continue; }
+      if(caen){ if(/^\d+$/.test(caen)){ if(!onrcCaenList(F).some(c=>c.indexOf(caen)===0)) continue; } else { const cq=onrcNorm(caen); if(!onrcCaenList(F).some(c=>onrcNorm((d.caen_den&&d.caen_den[c])||"").includes(cq))) continue; } }
       if(locq){ const ln=onrcNorm(loc[F[ONRC_FIELDS.loc]]||""); if(!ln.includes(locq)) continue; }
       total++; if(rows.length<CAP) rows.push({cty,i}); }
   }
@@ -1910,12 +2002,9 @@ function onrcStats(){ const per={}; let g={n:0,a:0,r:0,in:0};
 function vProspect(){
   const loaded=Object.keys(ONRC.c);
   let h='<div class="viewtitle"><h1>🏢 Prospect ONRC</h1><span class="sub">bază locală de firme · Registrul Comerțului</span></div>';
-  h+='<div class="callout warn">🔒 <b>Datele rămân la tine.</b> Fișierele ONRC (inclusiv datele personale ale reprezentanților) se încarcă și se prelucrează <b>doar în acest browser</b> — nu se trimit spre niciun server, nu ajung în cod sau pe GitHub. Se salvează local pe acest dispozitiv (le poți șterge oricând cu butonul de mai jos).</div>';
-  h+='<div class="card section"><h2 style="font-size:14px;margin-bottom:8px">1) Încarcă fișierele județene (.json.gz)</h2>'
-    +'<p style="font-size:12.5px;color:var(--ink2);margin-bottom:8px">Alege unul sau mai multe fișiere (CLUJ / IASI / ILFOV). Recomandat pe desktop — fișierele au zeci de MB; pe telefon încarcă un singur județ pe rând.</p>'
-    +'<input type="file" id="onrcFiles" multiple>'
-    +'<div id="onrcLoadStatus" class="onrcmeta"></div></div>';
-  if(!loaded.length){ h+='<div class="empty">Niciun județ încărcat încă.</div>'; return h; }
+  h+='<div class="callout good">🔒 <b>Datele rămân la tine.</b> Fișierele ONRC (inclusiv datele personale ale reprezentanților) se încarcă și se prelucrează <b>doar în acest browser</b> — nu se trimit spre niciun server, nu ajung în cod sau pe GitHub. Se salvează local pe acest dispozitiv, în IndexedDB (le poți șterge oricând).</div>';
+  h+='<div class="card section dropzone" id="onrcDrop" ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="event.preventDefault();this.classList.remove(\'over\');onrcLoadFiles(event.dataTransfer.files)"><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><label class="btn primary" for="onrcFiles">⬆ Alege fișiere județene (.json.gz)</label><input type="file" id="onrcFiles" multiple accept=".gz,.json,application/gzip,application/json" hidden><span class="evsrc">sau trage fișierele aici · unul sau mai multe județe · pe telefon câte unul pe rând</span></div><div id="onrcLoadStatus" class="onrcmeta"></div></div>';
+  if(!loaded.length){ h+=emptyState('🏢','Niciun județ încărcat încă','1 · Încarcă fișierul județean → 2 · Filtrează după CAEN, localitate, stare → 3 · Adaugă firmele ca prospecți în CRM sau exportă lista de apeluri telefonice.'); return h; }
   const stx=onrcStats();
   h+='<div class="tiles">'
     +tile(stx.g.n.toLocaleString("ro-RO"),"Firme încărcate",loaded.join(" · "),"","prospect",null)
@@ -1923,16 +2012,17 @@ function vProspect(){
     +tile(stx.g.r.toLocaleString("ro-RO"),"Risc","întrerupere/suspendare/sediu","warnv","prospect",null)
     +tile(stx.g.in.toLocaleString("ro-RO"),"Inactive","radiate → în dificultate","crit","prospect",null)
     +'</div>';
-  h+='<div class="onrcmeta">Județe salvate local: <b>'+esc(loaded.join(", "))+'</b> · <a href="javascript:void(0)" onclick="onrcClearLocal()" style="color:var(--critical)">🗑 șterge datele locale</a></div>';
+  const per=stx.per; h+='<div class="onrcmeta">Județe salvate local: '+loaded.map(c=>'<span class="chip hl" title="'+per[c].a.toLocaleString("ro-RO")+' active · '+per[c].r+' risc · '+per[c].in+' inactive">'+esc(c)+' · '+per[c].n.toLocaleString("ro-RO")+'</span>').join(" ")+' · <a href="javascript:void(0)" onclick="onrcClearLocal()" style="color:var(--critical)">🗑 șterge datele locale</a></div>';
+  const F=S.onrc||(S.onrc={q:"",county:"",stare:"activ",caen:"",loc:"",forma:"",telOnly:false});
   h+='<div class="onrcbar">'
-    +'<input type="text" id="onrcQ" placeholder="Denumire sau CUI…">'
-    +'<select id="onrcCounty"><option value="">Toate județele</option>'+loaded.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join("")+'</select>'
-    +'<select id="onrcStare"><option value="activ">Doar active</option><option value="activrisc">Active + risc</option><option value="risc">Doar risc</option><option value="inactiv">Doar inactive</option><option value="toate">Toate stările</option></select>'
-    +'<input type="text" id="onrcCaen" placeholder="CAEN (ex. 6201)" style="max-width:130px">'
-    +'<input type="text" id="onrcLoc" placeholder="Localitate…" style="max-width:150px">'
-    +'<select id="onrcForma"><option value="">Orice formă</option>'+["SRL","PFA","PF","II","SA","IF","SNC","SCS"].map(f=>'<option value="'+f+'">'+f+'</option>').join("")+'</select>'
-    +'<label style="font-size:12.5px;color:var(--ink2);display:inline-flex;align-items:center;gap:5px"><input type="checkbox" id="onrcTel"> doar cu telefon</label>'
-    +'<button class="btn small primary" id="onrcGo">Caută</button>'
+    +'<input type="search" id="onrcQ" placeholder="Denumire sau CUI…" value="'+esc(F.q)+'">'
+    +'<select id="onrcCounty"><option value="">Toate județele</option>'+loaded.map(c=>'<option value="'+esc(c)+'"'+(F.county===c?" selected":"")+'>'+esc(c)+'</option>').join("")+'</select>'
+    +'<select id="onrcStare">'+[["activ","Doar active"],["activrisc","Active + risc"],["risc","Doar risc"],["inactiv","Doar inactive"],["toate","Toate stările"]].map(([k,l])=>'<option value="'+k+'"'+(F.stare===k?" selected":"")+'>'+l+'</option>').join("")+'</select>'
+    +'<input type="text" id="onrcCaen" placeholder="CAEN (ex. 6201 sau «mobilă»)" style="max-width:190px" value="'+esc(F.caen)+'">'
+    +'<input type="text" id="onrcLoc" placeholder="Localitate…" style="max-width:150px" value="'+esc(F.loc)+'">'
+    +'<select id="onrcForma"><option value="">Orice formă</option>'+["SRL","PFA","PF","II","SA","IF","SNC","SCS"].map(f=>'<option value="'+f+'"'+(F.forma===f?" selected":"")+'>'+f+'</option>').join("")+'</select>'
+    +'<label style="font-size:12.5px;color:var(--ink2);display:inline-flex;align-items:center;gap:5px"><input type="checkbox" id="onrcTel"'+(F.telOnly?" checked":"")+'> doar cu telefon</label>'
+    +'<button class="btn small primary" id="onrcGo">Caută</button><button class="btn small" onclick="onrcExportCSV()" title="lista filtrată (fără date personale ale reprezentanților)">⬇ CSV</button>'
     +'</div>';
   h+='<div id="onrcResults"></div>';
   return h;
@@ -1940,7 +2030,7 @@ function vProspect(){
 window.after_prospect=function(){
   const fi=document.getElementById("onrcFiles"); if(fi) fi.onchange=e=>onrcLoadFiles(e.target.files);
   const go=document.getElementById("onrcGo"); if(go) go.onclick=onrcRenderResults;
-  ["onrcQ","onrcCaen","onrcLoc"].forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener("keydown",e=>{ if(e.key==="Enter") onrcRenderResults(); }); });
+  ["onrcQ","onrcCaen","onrcLoc"].forEach(id=>{ const el=document.getElementById(id); if(el){ el.addEventListener("keydown",e=>{ if(e.key==="Enter") onrcRenderResults(); }); el.addEventListener("input",()=>{ clearTimeout(window._onrcT); window._onrcT=setTimeout(onrcRenderResults,300); }); } });
   ["onrcCounty","onrcStare","onrcForma","onrcTel"].forEach(id=>{ const el=document.getElementById(id); if(el) el.onchange=onrcRenderResults; });
   if(Object.keys(ONRC.c).length) onrcRenderResults();
 };
@@ -1949,8 +2039,10 @@ function onrcRenderResults(){
   const val=id=>{ const el=document.getElementById(id); return el?el.value:""; };
   const telEl=document.getElementById("onrcTel");
   const flt={ q:val("onrcQ"), county:val("onrcCounty"), stare:val("onrcStare")||"activ", caen:val("onrcCaen"), loc:val("onrcLoc"), forma:val("onrcForma"), telOnly:telEl?telEl.checked:false };
+  S.onrc=Object.assign(S.onrc||{},flt); window._onrcLast=flt;
   const res=onrcSearch(flt);
   if(!res.total){ box.innerHTML='<div class="empty">Niciun rezultat pentru filtrele curente.</div>'; return; }
+  const inCrm=new Set(CL.map(c=>String(c.cui||"").replace(/\D/g,"")).filter(Boolean));
   let h='<div class="onrcmeta">'+res.total.toLocaleString("ro-RO")+' firme găsite'+(res.capped?' — afișez primele '+res.cap:'')+'. Click pe un rând pentru fișă completă.</div>';
   h+='<div class="card" style="padding:4px 10px"><table class="tbl"><thead><tr><th>Denumire</th><th>CUI</th><th>Formă</th><th>Localitate</th><th>Stare</th><th>CAEN principal</th><th>Administrator</th><th>Telefon</th></tr></thead><tbody>';
   h+=res.rows.map(r=>{ const d=ONRC.c[r.cty]; const F=d.f[r.i]; const st=ONRC_STLBL[F[ONRC_FIELDS.stare]||0];
@@ -1959,7 +2051,8 @@ function onrcRenderResults(){
     const web=F[ONRC_FIELDS.web]; const weburl=web?(/^https?:/.test(web)?web:"http://"+web):"";
     const weblink=web?' <a href="'+esc(weburl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="'+esc(web)+'">🌐</a>':"";
     const tel=F[ONRC_FIELDS.tel]; const telcell=tel?'<a href="tel:'+esc(tel)+'" onclick="event.stopPropagation()">'+esc(tel)+'</a>':'<span style="color:var(--muted)">—</span>';
-    return '<tr onclick="openFirm(\''+esc(r.cty)+'\','+r.i+')"><td><b>'+esc(F[ONRC_FIELDS.den])+'</b>'+weblink+'</td><td class="num">'+esc(F[ONRC_FIELDS.cui])+'</td><td>'+esc(F[ONRC_FIELDS.forma]||"—")+'</td><td>'+esc((d.loc||[])[F[ONRC_FIELDS.loc]]||"—")+'</td><td><span class="onrcbadge '+st[0]+'">'+st[1]+'</span></td><td style="font-size:12px">'+esc(cpc)+' '+esc(cpd.slice(0,34))+'</td><td style="font-size:12px">'+admn+'</td><td style="font-size:12px">'+telcell+'</td></tr>';
+    const crm=inCrm.has(String(F[ONRC_FIELDS.cui]||"").replace(/\D/g,""))?' <span class="chip hl" title="există în CRM">în CRM</span>':"";
+    return '<tr onclick="openFirm(\''+esc(r.cty)+'\','+r.i+')"><td><b>'+esc(F[ONRC_FIELDS.den])+'</b>'+weblink+crm+'</td><td class="num">'+esc(F[ONRC_FIELDS.cui])+'</td><td>'+esc(F[ONRC_FIELDS.forma]||"—")+'</td><td>'+esc((d.loc||[])[F[ONRC_FIELDS.loc]]||"—")+'</td><td><span class="onrcbadge '+st[0]+'">'+st[1]+'</span></td><td style="font-size:12px">'+esc(cpc)+' '+esc(cpd.slice(0,34))+'</td><td style="font-size:12px">'+admn+'</td><td style="font-size:12px">'+telcell+'</td></tr>';
   }).join("");
   h+='</tbody></table></div>';
   box.innerHTML=h;
@@ -1969,6 +2062,8 @@ function openFirm(cty,i){ const d=ONRC.c[cty]; if(!d) return; const F=d.f[i]; if
   let h=drawerHead(esc(F[ONRC_FIELDS.den]), esc((F[ONRC_FIELDS.forma]||"")+" · CUI "+F[ONRC_FIELDS.cui]+" · "+cty))+'<div class="db">';
   h+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px"><span class="onrcbadge '+stl[0]+'">'+stl[1]+'</span>'
     +(F[ONRC_FIELDS.web]?'<a href="'+esc(/^https?:/.test(F[ONRC_FIELDS.web])?F[ONRC_FIELDS.web]:"http://"+F[ONRC_FIELDS.web])+'" target="_blank" rel="noopener">🌐 site</a>':"")+'</div>';
+  const inC=CL.some(c=>String(c.cui||"").replace(/\D/g,"")===String(F[ONRC_FIELDS.cui]||"").replace(/\D/g,""));
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'+(st!==3?(inC?'<span class="cd cd-good">✓ în CRM</span> <button class="btn small" onclick="closeDrawer();openClient(\'onrc_\'+'+JSON.stringify(String(F[ONRC_FIELDS.cui]||""))+')">👥 deschide clientul</button>':'<button class="btn small primary" onclick="onrcAddProspect(\''+esc(cty)+'\','+i+')">➕ Adaugă ca prospect (CRM)</button>'):'')+(F[ONRC_FIELDS.tel]?'<button class="btn small" onclick="copyTxt(\''+esc(F[ONRC_FIELDS.tel])+'\',\'Telefon copiat\')">📋 copiază telefonul</button>':'')+'</div>';
   if(st===3) h+='<div class="callout crit"><b>Firmă inactivă/radiată</b> — probabil «întreprindere în dificultate» (art. 2 pct. 18, Reg. 651/2014): <b>neeligibilă</b> la finanțare. Verifică starea reală înainte de orice abordare.</div>';
   else if(st===2) h+='<div class="callout warn">Stare de <b>risc</b> (întrerupere temporară / suspendare / sediu expirat) — de clarificat înainte de depunere.</div>';
   const row=(k,v)=>v?'<dt>'+k+'</dt><dd>'+v+'</dd>':"";
@@ -2003,8 +2098,8 @@ function openFirm(cty,i){ const d=ONRC.c[cty]; if(!d) return; const F=d.f[i]; if
     const sub=[]; if(bd||bloc) sub.push("n. "+bd+(bloc?" · "+esc(bloc):"")); if(dom) sub.push("domiciliu: "+esc(dom));
     return '<li><b>'+nm+'</b>'+cal+(sub.length?'<br><small style="color:var(--muted)">'+sub.join(" · ")+'</small>':"")+'</li>'; };
   const reps=(F[ONRC_FIELDS.rep]||[]);
-  if(reps.length){ h+='<div class="section"><h2>Administratori / reprezentanți legali ('+reps.length+')</h2><div class="callout">Date personale ONRC — utile pentru testul de «întreprindere unică» la minimis (firme legate prin control comun). A se folosi doar intern.</div><ul class="list">'
-    +reps.map(repFmt).join("")+'</ul></div>'; }
+  if(reps.length){ const pii=!!S.onrcPII; h+='<div class="section"><div class="evsech"><h2>Administratori / reprezentanți legali ('+reps.length+')</h2><button class="btn small ghost" onclick="S.onrcPII=!S.onrcPII;openFirm(\''+esc(cty)+'\','+i+')">'+(pii?'🙈 ascunde detaliile personale':'👁 arată detaliile personale (uz intern)')+'</button></div><div class="callout">Date personale ONRC — utile pentru testul de «întreprindere unică» la minimis (firme legate prin control comun). A se folosi doar intern; nu părăsesc acest dispozitiv.</div><ul class="list">'
+    +reps.map(r=>pii?repFmt(r):'<li><b>'+esc(r[0]||"")+'</b>'+(r[1]?' — '+esc(r[1]):"")+'</li>').join("")+'</ul></div>'; }
   const ifr=(F[16]||[]);
   if(ifr.length){ h+='<div class="section"><h2>Reprezentanți întreprindere familială ('+ifr.length+')</h2><ul class="list">'
     +ifr.map(r=>{ const bd=r[1]?esc(String(r[1]).split(" ")[0]):""; const bloc=[r[2],r[3],r[4]].filter(Boolean).join(", ");
@@ -2019,15 +2114,18 @@ function openFirm(cty,i){ const d=ONRC.c[cty]; if(!d) return; const F=d.f[i]; if
   if(reg) h+='<button class="btn" onclick="onrcToRadar(\''+esc(reg)+'\')">📡 Apeluri active în '+esc(reg)+'</button>';
   if(st!==3) h+='<button class="btn primary" onclick="onrcAddProspect(\''+esc(cty)+'\','+i+')">➕ Adaugă ca prospect (CRM)</button>';
   h+='</div>';
-  h+='<div class="callout" style="margin-top:12px">Datele ONRC sunt un instantaneu (08.07.2026). Eligibilitatea reală depinde de dimensiune (cifră afaceri/angajați — neincluse aici), situația financiară și ghidul apelului. AI pregătește; omul decide.</div></div>';
+  h+='<div class="callout" style="margin-top:12px">Datele ONRC sunt un instantaneu (data fișierului: '+esc(d.snapshot||d.data||d.generat||"necunoscută — vezi numele fișierului")+'). Eligibilitatea reală depinde de dimensiune (cifră afaceri/angajați — neincluse aici), situația financiară și ghidul apelului. AI pregătește; omul decide.</div></div>';
   openDrawer(h);
 }
+function onrcExportCSV(){ const flt=window._onrcLast||S.onrc; if(!flt){ toast("Rulează o căutare întâi"); return; } const res=onrcSearch(Object.assign({},flt)); if(!res.total){ toast("Nimic de exportat"); return; }
+  const head=["Denumire","CUI","Forma","Judet","Localitate","Stare","CAEN_principal","CAEN_denumire","Telefon","Website"]; const rows=res.rows.map(r=>{ const d=ONRC.c[r.cty]; const F=d.f[r.i]; const cp=(F[ONRC_FIELDS.caen]||[])[0]; const cpc=cp?String(cp[0]):""; return [F[ONRC_FIELDS.den],F[ONRC_FIELDS.cui],F[ONRC_FIELDS.forma]||"",judLabel(r.cty),(d.loc||[])[F[ONRC_FIELDS.loc]]||"",ONRC_STLBL[F[ONRC_FIELDS.stare]||0][1],cpc,cpc?(d.caen_den&&d.caen_den[cpc]||""):"",F[ONRC_FIELDS.tel]||"",F[ONRC_FIELDS.web]||""]; });
+  const csv=[head].concat(rows).map(r=>r.map(c=>{const x=(c==null?'':String(c));return /[";\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x;}).join(';')).join('\n'); dl('Prospecti_ONRC'+(flt.county?'_'+flt.county:'')+'.csv','\ufeff'+csv,'text/csv;charset=utf-8'); toast('Export generat — '+rows.length+' firme (fără date personale)'+(res.capped?' · primele '+res.cap:'')); }
 function onrcToRadar(reg){ closeDrawer(); S.radar.regiune=reg; S.radar.stari=new Set(["activ"]); S.view="radar"; render(); }
 function onrcAddProspect(cty,i){ const d=ONRC.c[cty]; if(!d) return; const F=d.f[i]; if(!F) return; const id="onrc_"+F[ONRC_FIELDS.cui];
   if(CL.some(c=>c.id===id)){ toast("Deja în CRM"); return; }
   const cp=(F[ONRC_FIELDS.caen]||[])[0];
   crmAddClient({ id, denumire:F[ONRC_FIELDS.den], tip:"privat", dimensiune:"", forma_juridica:F[ONRC_FIELDS.forma]||"",
-    judet:cty, regiune:onrcRegOf(cty), localitate:(d.loc||[])[F[ONRC_FIELDS.loc]]||"", cui:String(F[ONRC_FIELDS.cui]||""),
+    judet:judLabel(cty), regiune:onrcRegOf(cty), localitate:(d.loc||[])[F[ONRC_FIELDS.loc]]||"", cui:String(F[ONRC_FIELDS.cui]||""),
     telefon:F[ONRC_FIELDS.tel]||"", caen_principal:cp?String(cp[0]):"", interese:[], date_financiare:{}, sursa:"ONRC", nota:"Prospect importat din ONRC — de completat dimensiune și date financiare." });
   toast("Adăugat ca prospect: "+F[ONRC_FIELDS.den]);
 }
@@ -2179,9 +2277,10 @@ function crmAddProject(p){ if(!p.id) p.id="pr_u"+(window.CRM.projects.length+1)+
 function crmDeleteProject(id){ if(!confirm("Ștergi acest proiect din pipeline-ul tău local?")) return; window.CRM.projects=window.CRM.projects.filter(x=>x.id!==id); crmSave(); crmApply(); if(typeof closeDrawer==="function")closeDrawer(); render(); }
 function crmSetFaza(id,faza){ const p=window.CRM.projects.find(x=>x.id===id); if(!p) return; p.faza=faza; crmSave(); crmApply(); render(); }
 function crmProjCounts(){ return {reali:PR.filter(p=>!p.demo).length, demo:PR.filter(p=>p.demo).length}; }
-function crmProjForm(id){ const ex=id?PR.find(p=>p.id===id):null; const na=(ex&&ex.next_action)||{}; const com=(ex&&ex.comision)||{};
+function crmProjForm(id,presetClient){ const ex=id?PR.find(p=>p.id===id):null; const na=(ex&&ex.next_action)||{}; const com=(ex&&ex.comision)||{};
   const v=k=>esc(ex&&ex[k]!=null?ex[k]:"");
-  const clientOpts='<option value="">— alege client —</option>'+CL.map(c=>'<option value="'+esc(c.id)+'"'+(ex&&ex.client_id===c.id?" selected":"")+'>'+esc(c.denumire)+'</option>').join("");
+  const selC=ex?ex.client_id:(presetClient||"");
+  const clientOpts='<option value="">— alege client —</option>'+CL.map(c=>'<option value="'+esc(c.id)+'"'+(selC===c.id?" selected":"")+'>'+esc(c.denumire)+'</option>').join("");
   const apelOpts='<option value="">— fără apel —</option>'+A.map(a=>'<option value="'+esc(a.id_apel)+'"'+(ex&&ex.apel_id===a.id_apel?" selected":"")+'>'+esc((a.titlu||"apel").slice(0,50))+'</option>').join("");
   const fazaOpts=Object.keys(FAZE).map(f=>'<option value="'+f+'"'+((ex?ex.faza:"P0")===f?" selected":"")+'>'+f+' · '+esc(FAZE[f])+'</option>').join("");
   let h=drawerHead(id?"Editează proiect":"Proiect nou","se salvează local pe dispozitiv")+'<div class="db"><div class="evform">';

@@ -442,6 +442,55 @@ html[data-theme="dark"] .evbadge-un{color:var(--serious)}
 @media(max-width:900px){.qrow{flex-direction:column;align-items:flex-start;gap:8px}.semafor{top:-16px}}
 @media print{ body.printrep .main>*:not(#evReport){display:none!important} body.printrep #evReport .evrep-actions,body.printrep #evReport button{display:none!important} body.printrep details.acc2{break-inside:avoid} body.printrep details.acc2:not([open])>.inner{display:block} }
 
+/* ===== Lot 1: utilitare & rafinări ===== */
+.hide-m{display:inline}
+.card.click{cursor:pointer;transition:transform .12s,box-shadow .12s}
+.card.click:hover{transform:translateY(-1px);box-shadow:var(--shadow-lg)}
+.tbl th.sortable{cursor:pointer;user-select:none}
+.tbl th.sortable:hover,.tbl th.sortable.on{color:var(--ink)}
+.tbl tbody tr.on{background:var(--accent-soft)}
+.lnk{color:var(--accent-ink);cursor:pointer}
+.lnk:hover{text-decoration:underline}
+.tri.unanswered{border-color:rgba(250,178,25,.7)}
+.evrow.no{border-left:3px solid var(--critical);padding-left:9px;margin-left:-3px}
+.evtiles4{grid-template-columns:repeat(4,1fr)}
+html[data-theme="dark"] .evdoc.on{background:rgba(12,163,12,.16)}
+.evplan li.n{border-color:var(--muted)}
+.fintools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:-6px 0 12px;font-size:12.5px;color:var(--ink2)}
+.fintools label{display:inline-flex;align-items:center;gap:6px}
+.finin{width:100%;padding:5px 7px;border:1px solid var(--grid);border-radius:6px;background:var(--surface2);color:var(--ink);font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums}
+.finin::placeholder{color:var(--axis)}
+.admleg{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:6px 14px;font-size:12px;color:var(--ink2)}
+.admleg span{display:flex;gap:8px;align-items:center}
+@media(max-width:900px){
+  .hide-m{display:none!important}
+  .subnav{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .subnav::-webkit-scrollbar{display:none}
+  .subnav button{white-space:nowrap;flex-shrink:0}
+  .evtiles4{grid-template-columns:1fr 1fr}
+  .evsec{scroll-margin-top:110px}
+  #intelTbl{max-height:none!important}
+}
+
+/* ===== Lot 2 ===== */
+.copybox.full{max-height:none}
+.rep-actions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.dropzone{border:1px dashed var(--grid);transition:border-color .12s,background .12s}
+.dropzone.over{border-color:var(--accent);background:var(--accent-soft)}
+.list li:hover{background:var(--surface2)}
+@media(pointer:coarse){.list li{min-height:44px;align-items:center}}
+@media(max-width:900px){
+  .tbl.stack thead{display:none}
+  .tbl.stack tr{display:block;border-bottom:1px solid var(--grid);padding:8px 0}
+  .tbl.stack td{display:block;border:0;padding:3px 0}
+  .tbl.stack td::before{content:attr(data-l);display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .riskcard{padding:6px 12px!important}
+  .rep-actions .btn{flex:1 1 auto;justify-content:center}
+  .viewactions .btn{flex:1 1 auto;justify-content:center}
+  #msCard{order:-1}
+}
+
 /* ===== Print ===== */
 @media print{
   .side,.topbar,.tabbar,.viewactions,.filters,.presets,.drawer,.overlay,.chatfab,.chatpanel{display:none!important}
