@@ -381,6 +381,58 @@ html[data-theme="dark"] .evbadge-un{color:var(--serious)}
 }
 @media(max-width:420px){.tiles{grid-template-columns:1fr 1fr}.tile .v{font-size:20px}}
 
+/* ===== Verificare proiect v2 ===== */
+.evsteps{display:flex;gap:8px;margin:0 0 14px;flex-wrap:wrap}
+.evstepbtn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--grid);background:var(--surface);color:var(--ink2);border-radius:99px;padding:6px 14px 6px 6px;font-size:13px;font-weight:500;cursor:pointer}
+.evstepbtn .n{width:24px;height:24px;border-radius:50%;background:var(--surface2);display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--ink2)}
+.evstepbtn.on{border-color:var(--accent);color:var(--accent-ink);background:var(--accent-soft)}
+.evstepbtn.on .n{background:var(--accent);color:#fff}
+.evstepbtn.done .n{background:rgba(12,163,12,.15);color:var(--good-text)}
+.evstepbtn:disabled{opacity:.5;cursor:default}
+.semafor{position:sticky;top:-22px;z-index:6;display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:12px;padding:9px 12px;box-shadow:var(--shadow);margin-bottom:14px;min-height:44px}
+.evverdict-mini{font-weight:700;font-size:13px;padding:4px 10px;border-radius:8px}
+.evverdict-mini.go{background:rgba(12,163,12,.12);color:var(--good-text)}
+.evverdict-mini.warn{background:rgba(250,178,25,.16);color:var(--warn-text)}
+.evverdict-mini.no{background:rgba(208,59,59,.12);color:var(--critical)}
+.r3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:900px){.r3{grid-template-columns:1fr}}
+.evsec{margin-top:14px;scroll-margin-top:70px;transition:box-shadow .3s}
+.evsec.evflash{box-shadow:0 0 0 3px var(--accent-soft),var(--shadow-lg)}
+.evsech{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
+.evsech h2{margin-bottom:2px}
+.evrules{list-style:none;margin-top:6px}
+.evrules li{display:grid;grid-template-columns:14px 1fr auto;gap:10px;align-items:start;padding:7px 0;border-bottom:1px solid var(--grid);font-size:13px}
+.evrules li:last-child{border-bottom:0}
+.evrules .evsrc{text-align:right;max-width:220px}
+.evdot{width:8px;height:8px;border-radius:50%;background:var(--good);margin-top:6px;display:inline-block}
+.evdot.nv{background:var(--axis)}
+.qrow{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--grid);font-size:13px}
+.qrow:last-child{border-bottom:0}
+.tri{display:inline-flex;border:1px solid var(--grid);border-radius:9px;overflow:hidden;flex-shrink:0}
+.tri button{border:0;border-right:1px solid var(--grid);background:var(--surface2);padding:6px 11px;font-size:12px;cursor:pointer;color:var(--ink2);font-weight:500}
+.tri button:last-child{border-right:0}
+.tri button.on.da{background:rgba(12,163,12,.16);color:var(--good-text);font-weight:700}
+.tri button.on.nu{background:rgba(208,59,59,.14);color:var(--critical);font-weight:700}
+.tri button.on.na{background:var(--surface3);color:var(--ink);font-weight:700}
+.tri button.on.ns{background:var(--surface3);color:var(--muted);font-weight:700}
+.evchips{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0}
+.evdocs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+@media(max-width:900px){.evdocs{grid-template-columns:1fr}}
+.evdoc{display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--grid);border-radius:9px;font-size:12.5px;cursor:pointer;background:var(--surface2)}
+.evdoc.on{background:rgba(12,163,12,.08);border-color:rgba(12,163,12,.35)}
+.evdoc span:nth-child(2){flex:1}
+.evrep-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px}
+.evplan{list-style:none;counter-reset:pl}
+.evplan li{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-left:3px solid var(--axis);background:var(--surface2);border-radius:0 10px 10px 0;margin-bottom:6px;font-size:13px;counter-increment:pl}
+.evplan li::before{content:counter(pl);font-weight:700;color:var(--muted);min-width:18px}
+.evplan li>div{flex:1}
+.evplan li.b{border-color:var(--critical)}
+.evplan li.w{border-color:var(--warn)}
+.evplan li.n{border-color:var(--axis)}
+.evrep-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--grid)}
+@media(max-width:900px){.qrow{flex-direction:column;align-items:flex-start;gap:8px}.semafor{top:-16px}}
+@media print{ body.printrep .main>*:not(#evReport){display:none!important} body.printrep #evReport .evrep-actions,body.printrep #evReport button{display:none!important} body.printrep details.acc2{break-inside:avoid} body.printrep details.acc2:not([open])>.inner{display:block} }
+
 /* ===== Print ===== */
 @media print{
   .side,.topbar,.tabbar,.viewactions,.filters,.presets,.drawer,.overlay,.chatfab,.chatpanel{display:none!important}
