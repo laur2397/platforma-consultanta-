@@ -7,8 +7,8 @@
 <meta name="description" content="Dashboard operațional pentru consultanță în fonduri europene: radar de apeluri, matching client×apel, pipeline proiecte, calendar de termene și memo-uri GO/NO-GO. Funcționează offline, pe orice dispozitiv.">
 <meta name="author" content="Platformă consultanță fonduri europene">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#2a78d6" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#0e1726" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)">
 
 <!-- PWA / instalare pe dispozitiv -->
 <link rel="manifest" href="manifest.webmanifest">
@@ -30,26 +30,35 @@
 <!-- Setează tema devreme pentru a evita flash-ul (app.js o re-aplică consistent) -->
 <script>
   try {
-    var t = matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    var t = localStorage.getItem("eufcc_theme") || (matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     document.documentElement.setAttribute("data-theme", t);
   } catch (e) {}
 </script>
 
+<!-- Tipografie (Inter) — fallback pe fontul de sistem dacă e offline -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="assets/styles.css">
 </head>
 <body>
 <div class="app">
   <header class="topbar">
-    <div class="logo"><span class="dot"></span><span>EU Funds Command Center<small id="firmName"></small></span></div>
+    <div class="logo">
+      <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.6" fill="#fff" stroke="none"/><path d="M12 6a6 6 0 0 1 6 6" stroke-width="3" opacity=".55"/></svg></span>
+      <span><span>EU Funds Command Center</span><small id="firmName"></small></span>
+    </div>
     <div class="searchwrap">
-      <input id="globalSearch" class="search" type="text" placeholder="Caută apeluri, clienți, proiecte…  (Ctrl+K)" autocomplete="off">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="globalSearch" class="search" type="text" placeholder="Caută apeluri, clienți, proiecte…" autocomplete="off">
+      <span class="kbd">Ctrl K</span>
       <div id="searchHits" class="searchhits"></div>
     </div>
     <div class="topbtns">
       <div class="tstamp" id="stampBox"></div>
-      <button class="btn small" id="btnTheme" title="Comută dark/light">◐</button>
-      <button class="btn small" id="btnPrint" title="Printează vederea curentă">🖨</button>
-      <button class="btn small primary" id="btnRescan" title="Cum actualizezi datele">⟳ Actualizare</button>
+      <button class="btn ib" id="btnTheme" title="Comută dark/light" aria-label="Comută tema"><svg class="i" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c-4.97 0-9-4.03-9-9Z"/></svg></button>
+      <button class="btn ib" id="btnPrint" title="Printează vederea curentă" aria-label="Printează"><svg class="i" viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-2"/><rect x="6" y="14" width="12" height="7"/></svg></button>
+      <button class="btn primary" id="btnRescan" title="Cum actualizezi datele"><svg class="i" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg><span class="lbl">Actualizare</span></button>
     </div>
   </header>
   <aside class="side">
@@ -58,6 +67,8 @@
   </aside>
   <main class="main" id="main"></main>
 </div>
+<nav class="tabbar" id="tabbar" aria-label="Navigare"></nav>
+<div class="sheet" id="moreSheet"><div class="bg" onclick="sheetClose()"></div><div class="pane"><div class="grab"></div><div class="sg" id="sheetGrid"></div></div></div>
 <div class="overlay" id="overlay"></div>
 <div class="drawer" id="drawer"></div>
 <div class="toast" id="toast"></div>

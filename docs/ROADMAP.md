@@ -42,6 +42,8 @@ Snapshot-ul apelurilor e din 1 august 2026 — ~2 săptămâni vechime, fără r
 | 🗄️ Baze de date | funcțional | 7 registre publice + export CSV |
 | ⚙️ Administrare | funcțional | surse, export/import JSON, jurnal |
 
+**Design v2 (sept. 2026):** sistem vizual nou — Inter, sidebar navy cu iconițe SVG, KPI cu accent de stare, grafice SVG native (donut / coloane / bare) cu paletă validată CVD, dark mode selectat, tab-bar mobil + foaie „Mai mult”, tabele derulabile pe telefon (bug: meniul nu apărea deloc sub 900px — reparat).
+
 Extra (nu în meniu): asistent AI Gemini (cheia ta), scanare web live, PWA offline, service worker. În auditul de azi: **8 bug-uri reparate** (inclusiv o eroare care marca greșit o microîntreprindere eligibilă drept „neconform").
 
 ## 3. Ce lipsește pentru „platformă completă"

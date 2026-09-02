@@ -131,12 +131,48 @@ function calItems(hor){ hor=hor||120; const out=[];
 /* ---------- navigation ---------- */
 const NAV=[["buletin","🏠","Buletin"],["radar","📡","Radar apeluri"],["matching","🎯","Matching"],["pipeline","📋","Pipeline"],["calendar","📅","Calendar"],["clienti","👥","Clienți"],["prospect","🏢","Prospect ONRC"],["biblioteca","📚","Bibliotecă"],["rapoarte","📊","Rapoarte"],["conformitate","🛡️","Conformitate"],["verif","🧪","Verificare proiect"],["intel","🔎","Market Intel"],["financiar","🧮","Financiar"],["baze","🗄️","Baze de date"],["admin","⚙️","Administrare"]];
 function navCounts(id){ if(id==="radar") return A.filter(a=>a.stare==="activ").length; if(id==="pipeline") return PR.length; if(id==="clienti") return CL.length; if(id==="calendar") return calItems(30).length; if(id==="baze") return (DB.primarii&&DB.primarii.uat?DB.primarii.uat.length:null); if(id==="prospect"){ const n=onrcTotal(); return n||null; } return null; }
-function renderNav(){ $("#nav").innerHTML = NAV.map(([id,ic,l])=>{ const c=navCounts(id);
-  return '<li><button class="'+(S.view===id?"on":"")+'" data-v="'+id+'"><span class="ic">'+ic+'</span>'+l+(c!=null?'<span class="ct">'+c+'</span>':"")+'</button></li>'; }).join("");
-  document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{ S.view=b.dataset.v; render(); }); }
+/* Iconițe SVG (stroke, 24×24) — înlocuiesc emoji-urile din navigare și titluri */
+const ICONS={
+  buletin:'<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
+  radar:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12l6-6"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',
+  matching:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/>',
+  pipeline:'<rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="9.5" y="4" width="5" height="11" rx="1.5"/><rect x="16" y="4" width="5" height="7" rx="1.5"/>',
+  calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  clienti:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.5a5 5 0 0 1 6 4.5"/>',
+  prospect:'<path d="M4 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16M14 10h5a1 1 0 0 1 1 1v10M3 21h18M8 8h2M8 12h2M8 16h2"/>',
+  biblioteca:'<path d="M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z"/>',
+  rapoarte:'<path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>',
+  conformitate:'<path d="M12 3 4 6v6c0 4.5 3.4 7.8 8 9 4.6-1.2 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/>',
+  verif:'<path d="M9 3h6M10 3v6L4.5 18.5A2 2 0 0 0 6.3 21h11.4a2 2 0 0 0 1.8-2.5L14 9V3"/><path d="M7 15h10"/>',
+  intel:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M8 11h6M11 8v6"/>',
+  financiar:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 12h8M8 16h5"/>',
+  baze:'<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  admin:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
+  more:'<circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/>'
+};
+function ico(id){ return '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">'+(ICONS[id]||ICONS.more)+'</svg>'; }
+const NAV_GROUPS=[["Operațional",["buletin","radar","matching","pipeline","calendar"]],["Clienți & piață",["clienti","prospect","intel"]],["Instrumente",["verif","financiar","conformitate","rapoarte","biblioteca"]],["Sistem",["baze","admin"]]];
+const TAB_MAIN=["buletin","radar","pipeline","clienti"];
+function navBtn(id){ const it=NAV.find(n=>n[0]===id); if(!it) return ""; const c=navCounts(id);
+  return '<li><button class="'+(S.view===id?"on":"")+'" data-v="'+id+'">'+ico(id)+it[2]+(c!=null?'<span class="ct">'+c+'</span>':"")+'</button></li>'; }
+function renderNav(){ $("#nav").innerHTML=NAV_GROUPS.map(([g,ids])=>'<li class="grp">'+g+'</li>'+ids.map(navBtn).join("")).join("");
+  document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{ S.view=b.dataset.v; render(); });
+  // bara de tab-uri pe mobil (4 secțiuni principale + „Mai mult”)
+  const tb=$("#tabbar"); if(tb){ const inMain=TAB_MAIN.includes(S.view);
+    tb.innerHTML=TAB_MAIN.map(id=>{ const it=NAV.find(n=>n[0]===id); return '<button class="'+(S.view===id?"on":"")+'" data-v="'+id+'">'+ico(id)+it[2].split(" ")[0]+'</button>'; }).join("")+'<button class="'+(inMain?"":"on")+'" data-v="__more">'+ico("more")+'Mai mult</button>';
+    tb.querySelectorAll("button").forEach(b=>b.onclick=()=>{ if(b.dataset.v==="__more") sheetOpen(); else { S.view=b.dataset.v; render(); } }); } }
+function sheetOpen(){ $("#sheetGrid").innerHTML=NAV.map(([id,ic,l])=>'<button class="'+(S.view===id?"on":"")+'" onclick="S.view=\''+id+'\';sheetClose();render()">'+ico(id)+l+'</button>').join(""); $("#moreSheet").classList.add("open"); }
+function sheetClose(){ const s=$("#moreSheet"); if(s) s.classList.remove("open"); }
 function render(){ renderNav(); const v=S.view; const M=$("#main"); M.scrollTop=0;
+  // pe ecrane înguste radarul se deschide în modul „carduri” până când utilizatorul alege altfel
+  if(v==="radar"&&!S.radar._touched) S.radar.mode = window.innerWidth<720 ? "carduri" : "tabel";
   const f={buletin:vBuletin,radar:vRadar,matching:vMatching,pipeline:vPipeline,calendar:vCalendar,clienti:vClienti,prospect:vProspect,biblioteca:vBiblioteca,rapoarte:vRapoarte,conformitate:vConformitate,verif:vVerif,intel:vIntel,financiar:vFinanciar,baze:vBaze,admin:vAdmin}[v];
-  M.innerHTML = f? f() : "<div class='empty'>…</div>"; if(window["after_"+v]) window["after_"+v](); }
+  M.innerHTML = f? f() : "<div class='empty'>…</div>";
+  // titlu: emoji → iconiță SVG a secțiunii
+  const h1=M.querySelector(".viewtitle h1"); if(h1&&!h1.querySelector(".vi")) h1.innerHTML='<span class="vi">'+ico(v)+'</span>'+esc(h1.textContent.replace(/^[^\p{L}\p{N}\[]+/u,"").trim());
+  // tabelele derulează orizontal pe ecrane mici, fără să rupă pagina
+  M.querySelectorAll("table.tbl").forEach(t=>{ if(!t.parentElement.classList.contains("tw")){ const w=document.createElement("div"); w.className="tw"; t.parentNode.insertBefore(w,t); w.appendChild(t); } });
+  if(window["after_"+v]) window["after_"+v](); }
 
 /* ---------- drawer ---------- */
 function openDrawer(html){ $("#drawer").innerHTML=html; $("#drawer").classList.add("open"); $("#overlay").classList.add("open"); }
@@ -264,6 +300,11 @@ function vBuletin(){ const b=(META.buletin)||{}; const act=A.filter(a=>a.stare==
   h+=tile(t7,"Termene în 7 zile","calendar",t7>3?"warnv":"","calendar",null);
   h+=tile(dv,"[DE VERIFICAT]","câmpuri de confirmat la sursă","","admin",null);
   h+='</div>';
+  // tablou grafic: stare apeluri · închideri pe săptămâni · programe active
+  const stareCnt=[["activ","Active"],["planificat","Planificate"],["consultare","În consultare"]].map(([s,l])=>({l,v:A.filter(a=>a.stare===s).length})); const alt=A.length-stareCnt.reduce((s,x)=>s+x.v,0); if(alt>0) stareCnt.push({l:"Altele",v:alt,c:"var(--axis)"});
+  const wk=[]; for(let i=0;i<8;i++){ const st=new Date(TODAY); st.setDate(TODAY.getDate()+i*7); const en=new Date(st); en.setDate(st.getDate()+6); wk.push({l:st.toLocaleDateString("ro-RO",{day:"numeric",month:"short"}),v:A.filter(a=>{const d=pd(a.data_inchidere);return d&&d>=st&&d<=en;}).length}); }
+  const pgc={}; A.filter(a=>a.stare==="activ").forEach(a=>{ const k=a.program||"—"; pgc[k]=(pgc[k]||0)+1; }); const pgTop=Object.keys(pgc).sort((a,b)=>pgc[b]-pgc[a]).slice(0,6).map(k=>({l:k,v:pgc[k]}));
+  h+='<div class="grid3 section"><div class="card"><h2>Apeluri după stare</h2>'+chartDonut(stareCnt,{center:A.length,centerL:"apeluri"})+'</div><div class="card"><h2>Închideri pe săptămâni · 8 săpt.</h2>'+chartCols(wk)+'</div><div class="card"><h2>Apeluri active pe program · top 6</h2>'+chartHBars(pgTop)+'</div></div>';
   h+='<div class="grid2 section"><div class="card"><h2 style="margin-bottom:8px;font-size:14px">🔴 Urgențe azi</h2><ul class="list">'+(b.urgente||[]).map(u=>'<li>❗ '+esc(u)+'</li>').join("")+'</ul></div>';
   h+='<div class="card"><h2 style="margin-bottom:8px;font-size:14px">💡 Oportunități-cheie</h2><ul class="list">'+(b.oportunitati_cheie||[]).map(u=>'<li>▸ '+esc(u)+'</li>').join("")+'</ul></div></div>';
   h+='<div class="section card"><h2 style="margin-bottom:8px;font-size:14px">📅 Termenele următoarelor 14 zile</h2>'+miniCal(14)+'</div>';
@@ -274,8 +315,30 @@ function vBuletin(){ const b=(META.buletin)||{}; const act=A.filter(a=>a.stare==
   return h; }
 let tileActions=[];
 function tile(v,l,d,cls,view,pre){ const i=tileActions.length; tileActions.push({view,pre});
-  return '<div class="tile '+(cls||"")+'" onclick="tileGo('+i+')"><div class="v">'+v+'</div><div class="l">'+l+'</div><div class="d">'+d+'</div></div>'; }
+  return '<div class="tile '+(cls||"")+(String(v).length>7?" long":"")+'" onclick="tileGo('+i+')"><div class="v">'+v+'</div><div class="l">'+l+'</div><div class="d">'+d+'</div></div>'; }
 function tileGo(i){ const t=tileActions[i]; if(!t) return; if(t.pre)t.pre(); S.view=t.view; render(); }
+/* ---------- Grafice SVG native (fără librării; culorile doar pe marcaje, textul pe tokenuri) ---------- */
+function niceTicks(mx,n){ const raw=mx/(n||3), p=Math.pow(10,Math.floor(Math.log10(raw||1))); const m=raw/p; const st=(m<=1?1:m<=2?2:m<=5?5:10)*p; const out=[]; for(let t=0;t<=mx+1e-9;t+=st) out.push(Math.round(t*1e6)/1e6); return out; }
+function chartDonut(items,opts){ opts=opts||{}; const tot=items.reduce((s,x)=>s+x.v,0)||1; const R=46,r=31,cx=52,cy=52; let a=-Math.PI/2; const C=["var(--s1)","var(--s2)","var(--s3)","var(--axis)"];
+  const p=(ang,rr)=>[(cx+rr*Math.cos(ang)).toFixed(2),(cy+rr*Math.sin(ang)).toFixed(2)];
+  const segs=items.map((x,i)=>{ if(!x.v) return ""; const f=x.v/tot; const a2=a+f*2*Math.PI; const big=f>.5?1:0; let d;
+    if(f>=.999) d='M'+(cx+R)+' '+cy+' A'+R+' '+R+' 0 1 1 '+(cx-R)+' '+cy+' A'+R+' '+R+' 0 1 1 '+(cx+R)+' '+cy+' M'+(cx+r)+' '+cy+' A'+r+' '+r+' 0 1 0 '+(cx-r)+' '+cy+' A'+r+' '+r+' 0 1 0 '+(cx+r)+' '+cy;
+    else { const [x1,y1]=p(a,R),[x2,y2]=p(a2,R),[x3,y3]=p(a2,r),[x4,y4]=p(a,r); d='M'+x1+' '+y1+' A'+R+' '+R+' 0 '+big+' 1 '+x2+' '+y2+' L'+x3+' '+y3+' A'+r+' '+r+' 0 '+big+' 0 '+x4+' '+y4+' Z'; }
+    a=a2; return '<path class="mk" d="'+d+'" fill="'+(x.c||C[i%C.length])+'" stroke="var(--surface)" stroke-width="2" fill-rule="evenodd"><title>'+esc(x.l)+': '+x.v+'</title></path>'; }).join("");
+  return '<div class="donutwrap"><svg class="viz" viewBox="0 0 104 104" style="width:108px;height:108px;flex-shrink:0">'+segs+'<text x="52" y="50" text-anchor="middle" class="lab" style="font-size:21px">'+(opts.center!=null?opts.center:tot)+'</text><text x="52" y="63" text-anchor="middle" style="font-size:9px;fill:var(--muted)">'+esc(opts.centerL||"total")+'</text></svg><div class="legend">'+items.map((x,i)=>'<span><i style="background:'+(x.c||C[i%C.length])+'"></i>'+esc(x.l)+' <b>'+x.v+'</b></span>').join("")+'</div></div>'; }
+function chartCols(items,opts){ opts=opts||{}; const W=440,H=opts.h||160,pl=30,pb=22,pt=16; const mx=Math.max(1,...items.map(x=>x.v)); const n=items.length||1; const step=(W-pl)/n; const bw=Math.min(24,step*.6); const y=v=>pt+(H-pt-pb)*(1-v/mx);
+  let s='<svg class="viz" viewBox="0 0 '+W+' '+H+'">';
+  niceTicks(mx,3).forEach(t=>{ s+='<line class="gl" x1="'+pl+'" x2="'+W+'" y1="'+y(t).toFixed(1)+'" y2="'+y(t).toFixed(1)+'"/><text class="ax" x="'+(pl-6)+'" y="'+(y(t)+3.5).toFixed(1)+'" text-anchor="end">'+nf.format(t)+'</text>'; });
+  s+='<line class="bl" x1="'+pl+'" x2="'+W+'" y1="'+y(0).toFixed(1)+'" y2="'+y(0).toFixed(1)+'"/>';
+  const imax=items.reduce((b,x,i)=>x.v>items[b].v?i:b,0);
+  items.forEach((x,i)=>{ const cx=pl+step*i+step/2, top=y(x.v), base=y(0), hgt=base-top; const c=x.c||"var(--s1)";
+    if(x.v>0) s+= hgt<5? '<rect class="mk" fill="'+c+'" x="'+(cx-bw/2).toFixed(1)+'" y="'+top.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+hgt.toFixed(1)+'"><title>'+esc(x.l)+': '+x.v+'</title></rect>'
+      : '<path class="mk" fill="'+c+'" d="M'+(cx-bw/2).toFixed(1)+' '+base.toFixed(1)+' V'+(top+4).toFixed(1)+' a4 4 0 0 1 4 -4 H'+(cx+bw/2-4).toFixed(1)+' a4 4 0 0 1 4 4 V'+base.toFixed(1)+' Z"><title>'+esc(x.l)+': '+x.v+'</title></path>';
+    if(i===imax&&x.v>0) s+='<text class="lab" x="'+cx.toFixed(1)+'" y="'+(top-5).toFixed(1)+'" text-anchor="middle">'+x.v+'</text>';
+    s+='<text class="ax" x="'+cx.toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle">'+esc(x.l)+'</text>'; });
+  return s+'</svg>'; }
+function chartHBars(items,opts){ opts=opts||{}; if(!items.length) return '<div class="empty">Nimic de afișat.</div>'; const mx=Math.max(1,...items.map(x=>x.v)); const fmt=opts.fmt||(v=>nf.format(v));
+  return '<div class="hbars">'+items.map(x=>'<div class="hbar"><span title="'+esc(x.l)+'" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(x.l)+'</span><div class="trk"><div class="fil mk" style="width:'+Math.max(1,x.v/mx*100).toFixed(1)+'%'+(x.c?';background:'+x.c:"")+'" title="'+esc(x.l)+': '+fmt(x.v)+'"></div></div><span class="vv">'+fmt(x.v)+'</span></div>').join("")+'</div>'; }
 function miniCal(hor){ const items=calItems(hor).slice(0,10);
   if(!items.length) return '<div class="empty">Nimic scadent în fereastră.</div>';
   return '<table class="tbl"><tbody>'+items.map(it=>'<tr onclick="'+(it.kind==="apel"?"openApel('"+esc(it.id)+"')":"openProiect('"+esc(it.id)+"')")+'"><td style="width:105px">'+cdBadge(it.data)+'</td><td><span class="tp">'+esc(it.tip)+'</span><br><b>'+esc(it.titlu)+'</b>'+(it.sub?' <small style="color:var(--muted)">— '+esc(it.sub)+'</small>':"")+'</td></tr>').join("")+'</tbody></table>'; }
@@ -296,7 +359,7 @@ function radarFiltered(){ const f=S.radar; let list=A.slice();
   return list; }
 function vRadar(){ const f=S.radar; const list=radarFiltered();
   const programs=[...new Set(A.map(a=>a.program))].sort();
-  let h='<div class="viewtitle"><h1>📡 Radar apeluri</h1><span class="sub">'+list.length+' / '+A.length+' apeluri · extras la '+fmtD((DB.apeluri||{}).extras_la?String(DB.apeluri.extras_la).slice(0,10):null)+'</span><div class="viewactions"><button class="btn small '+(f.mode==="tabel"?"primary":"")+'" onclick="S.radar.mode=\'tabel\';render()">tabel</button><button class="btn small '+(f.mode==="carduri"?"primary":"")+'" onclick="S.radar.mode=\'carduri\';render()">carduri</button></div></div>';
+  let h='<div class="viewtitle"><h1>📡 Radar apeluri</h1><span class="sub">'+list.length+' / '+A.length+' apeluri · extras la '+fmtD((DB.apeluri||{}).extras_la?String(DB.apeluri.extras_la).slice(0,10):null)+'</span><div class="viewactions"><button class="btn small '+(f.mode==="tabel"?"primary":"")+'" onclick="S.radar._touched=1;S.radar.mode=\'tabel\';render()">tabel</button><button class="btn small '+(f.mode==="carduri"?"primary":"")+'" onclick="S.radar._touched=1;S.radar.mode=\'carduri\';render()">carduri</button></div></div>';
   h+='<div class="presets">'+[
     ["Toate",()=>{S.radar={...S.radar,stari:new Set(),benef:new Set(),regiune:"",program:"",verificat:false}}],
     ["🏛 UAT & public",()=>{S.radar.benef=new Set(["UAT","institutie_publica"]);S.radar.stari=new Set()}],
@@ -1195,9 +1258,8 @@ function vPipeline(){ const cols=Object.keys(FAZE);
   h+='<div class="kanban">'+cols.map(f=>{ const ps=PR.filter(p=>p.faza===f);
     return '<div class="kcol"><h3>'+f+' · '+esc(FAZE[f])+'<span>'+(ps.length||"")+'</span></h3>'+ps.map(p=>{const c=clientById(p.client_id);
       return '<div class="kcard" onclick="openProiect(\''+p.id+'\')"><div class="t"><span>'+esc(p.titlu)+'</span><span class="hdot '+health(p)+'"></span></div><div class="m">'+esc(c?c.denumire:"")+'</div><div class="m">grant <b>'+money(p.grant_lei,"lei")+'</b> · '+esc(p.consultant||"")+'</div>'+(p.next_action?'<div class="na">▸ '+esc(p.next_action.descriere.slice(0,80))+(p.next_action.descriere.length>80?"…":"")+'<br>'+cdBadge(p.next_action.termen)+'</div>':"")+(!p.demo?'<div class="na" style="display:flex;gap:5px;align-items:center" onclick="event.stopPropagation()"><select style="font-size:11px;padding:2px;flex:1;border:1px solid var(--grid);border-radius:5px;background:var(--page);color:var(--ink)" onchange="crmSetFaza(\''+p.id+'\',this.value)">'+Object.keys(FAZE).map(ff=>'<option value="'+ff+'"'+(p.faza===ff?" selected":"")+'>'+ff+' · '+esc(FAZE[ff].slice(0,14))+'</option>').join("")+'</select><span class="chip" style="cursor:pointer" onclick="crmProjForm(\''+p.id+'\')">✎</span></div>':"")+'</div>';}).join("")+'</div>';}).join("")+'</div>';
-  const mx=Math.max(...Object.keys(FAZE).map(f=>PR.filter(p=>p.faza===f).reduce((s,p)=>s+(p.grant_lei||0),0)),1);
-  h+='<div class="card section"><h2 style="font-size:14px;margin-bottom:10px">Valoare grant pe fază</h2>'+Object.keys(FAZE).map(f=>{const v=PR.filter(p=>p.faza===f).reduce((s,p)=>s+(p.grant_lei||0),0); if(!v) return "";
-    return '<div class="hbar"><span>'+f+' · '+esc(FAZE[f])+'</span><div class="trk"><div class="fil" style="width:'+Math.max(2,v/mx*100)+'%"></div></div><span class="vv">'+money(v,"lei")+'</span></div>';}).join("")+'<div style="font-size:11px;color:var(--muted);margin-top:6px">Reguli sănătate: 🔴 termen depășit sau apel se închide ≤7 zile în faza de pregătire · 🟡 next action ≤3 zile · SLA clarificări (P5): prioritate absolută, 3-5 zile.</div></div>';
+  const fazeVal=Object.keys(FAZE).map(f=>({l:f+" · "+FAZE[f],v:PR.filter(p=>p.faza===f).reduce((s,p)=>s+(p.grant_lei||0),0)})).filter(x=>x.v>0);
+  h+='<div class="card section"><h2>Valoare grant pe fază</h2>'+chartHBars(fazeVal,{fmt:v=>money(v,"lei")})+'<div style="font-size:11px;color:var(--muted);margin-top:6px">Reguli sănătate: 🔴 termen depășit sau apel se închide ≤7 zile în faza de pregătire · 🟡 next action ≤3 zile · SLA clarificări (P5): prioritate absolută, 3-5 zile.</div></div>';
   return h; }
 
 /* ---------- Calendar ---------- */
@@ -1418,6 +1480,11 @@ function vIntel(){ const st=intelStats(); const sel=S.intelJud||"", sort=S.intel
     h+='<div class="callout" style="margin-top:10px">Firmele cu istoric de absorbție cunosc procesul → cost de conversie mic. Verifică minimis (RegAS) și status TVA (ANAF) înainte de contact.</div>';
   }
   h+='</div>';
+  // top 10 județe — două perspective (istoric vs. oportunitate curentă)
+  const top10=st.judList.slice(0,10);
+  h+='<div class="grid2 section"><div class="card"><h2>Top 10 județe · valoare contractată (istoric)</h2>'+chartHBars(top10.map(j=>({l:j,v:st.byJud[j].val})),{fmt:v=>money(v,"lei")})+'</div>';
+  const byAp=st.judList.map(j=>({l:j,v:intelApeluriJud(j).length})).sort((a,b)=>b.v-a.v).slice(0,10);
+  h+='<div class="card"><h2>Top 10 județe · apeluri deschise acum</h2>'+chartHBars(byAp)+'</div></div>';
   // harta pieței (toate județele) — tabel sortabil
   const hdr=(k,l)=>'<th style="cursor:pointer" onclick="S.intelSort=\''+k+'\';render()">'+l+(sort===k?" ▾":"")+'</th>';
   const rows=st.judList.slice().sort((a,b)=>{ if(sort==="uat")return (st.uatJud[b]||0)-(st.uatJud[a]||0); if(sort==="n")return st.byJud[b].n-st.byJud[a].n; if(sort==="apeluri")return intelApeluriJud(b).length-intelApeluriJud(a).length; if(sort==="gber"){const ga=gberIntensity(a),gb=gberIntensity(b);return (gb?gb.imm:0)-(ga?ga.imm:0);} return st.byJud[b].val-st.byJud[a].val; });
@@ -1484,10 +1551,11 @@ function hookSearch(){ const inp=$("#globalSearch"), box=$("#searchHits");
   document.addEventListener("keydown",e=>{ if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){ e.preventDefault(); inp.focus(); } if(e.key==="Escape"){ closeDrawer(); box.classList.remove("open"); } }); }
 
 /* ---------- boot ---------- */
-function applyTheme(t){ S.theme=t; document.documentElement.setAttribute("data-theme",t); }
+function applyTheme(t){ S.theme=t; document.documentElement.setAttribute("data-theme",t); try{ localStorage.setItem("eufcc_theme",t); }catch(e){} }
 window.__reboot=function(){ MATCH=null; IX=null; render(); };
 (function init(){
-  applyTheme(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
+  let saved=null; try{ saved=localStorage.getItem("eufcc_theme"); }catch(e){}
+  applyTheme(saved||(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));
   $("#btnTheme").onclick=()=>applyTheme(S.theme==="dark"?"light":"dark");
   $("#btnPrint").onclick=()=>window.print();
   $("#btnRescan").onclick=()=>{ openDrawer(drawerHead("Actualizarea datelor","radar & pipeline")+'<div class="db"><ul class="list">'+
