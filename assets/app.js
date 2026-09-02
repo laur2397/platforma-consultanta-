@@ -1535,22 +1535,39 @@ function ioImport(){ try{ const t=$("#ioTxt").value.trim(); if(!t){toast("Nimic 
  }catch(e){ toast("JSON invalid: "+e.message); } }
 
 /* ---------- global search ---------- */
+/* Paleta de comenzi (Ctrl+K): caută apeluri/clienți/proiecte, sare la secțiuni, rulează acțiuni. Navigare cu ↑↓ Enter. */
+const CMD_ACTIONS=[
+  {id:"client_nou",l:"Client nou",s:"adaugă un client în CRM",run:()=>{ S.view="clienti"; render(); crmNewForm(); }},
+  {id:"proiect_nou",l:"Proiect nou",s:"adaugă un proiect în pipeline",run:()=>{ S.view="pipeline"; render(); crmProjForm(); }},
+  {id:"verifica",l:"Verifică un proiect",s:"evaluator pre-depunere",run:()=>{ S.view="verif"; render(); }},
+  {id:"ics",l:"Export calendar .ics",s:"termenele în Google/Outlook",run:()=>exportICS()},
+  {id:"tema",l:"Comută tema (dark / light)",s:"aspect",run:()=>applyTheme(S.theme==="dark"?"light":"dark")},
+  {id:"import",l:"Import clienți (CSV / JSON)",s:"CRM",run:()=>{ S.view="clienti"; render(); crmImportOpen(); }},
+  {id:"actualizare",l:"Cum actualizez datele",s:"scanare radar",run:()=>$("#btnRescan").click()}];
 function buildIndex(){ const ix=[];
-  A.forEach(a=>ix.push({k:"apel",id:a.id_apel,l:a.titlu,s:a.program}));
+  NAV.forEach(([id,ic,l])=>ix.push({k:"secțiune",id,l,s:"deschide secțiunea"}));
+  CMD_ACTIONS.forEach(a=>ix.push({k:"acțiune",id:a.id,l:a.l,s:a.s}));
+  A.forEach(a=>ix.push({k:"apel",id:a.id_apel,l:a.titlu,s:(a.program||"")+(a.data_inchidere?" · "+fmtDs(a.data_inchidere):"")}));
   CL.forEach(c=>ix.push({k:"client",id:c.id,l:c.denumire,s:(c.judet||"")+" · "+(c.dimensiune||c.tip||"")}));
-  PR.forEach(p=>ix.push({k:"proiect",id:p.id,l:p.titlu,s:p.faza}));
+  PR.forEach(p=>ix.push({k:"proiect",id:p.id,l:p.titlu,s:p.faza+" · "+(FAZE[p.faza]||"")}));
   return ix; }
 let IX=null;
-function doSearch(q){ IX=IX||buildIndex(); q=q.toLowerCase();
-  return IX.filter(x=>(x.l+" "+x.s).toLowerCase().includes(q)).slice(0,10); }
-function hookSearch(){ const inp=$("#globalSearch"), box=$("#searchHits");
-  inp.addEventListener("input",()=>{ const q=inp.value.trim(); if(q.length<2){box.classList.remove("open");return;}
-    const hits=doSearch(q); box.innerHTML=hits.map(h=>'<div class="hit" data-k="'+h.k+'" data-id="'+esc(h.id)+'"><span class="k">'+h.k+'</span> · <b>'+esc(h.l)+'</b> <small style="color:var(--muted)">'+esc(h.s)+'</small></div>').join("")||'<div class="hit">niciun rezultat</div>';
-    box.classList.add("open");
-    box.querySelectorAll(".hit").forEach(el=>el.onclick=()=>{ const k=el.dataset.k,id=el.dataset.id; box.classList.remove("open"); inp.value="";
-      if(k==="apel")openApel(id); else if(k==="client")openClient(id); else if(k==="proiect")openProiect(id); }); });
+function doSearch(q){ IX=IX||buildIndex(); q=q.toLowerCase().trim(); if(!q) return IX.filter(x=>x.k==="secțiune"||x.k==="acțiune").slice(0,12);
+  const toks=q.split(/\s+/); const score=x=>{ const t=(x.l+" "+x.s).toLowerCase(); if(!toks.every(tk=>t.includes(tk))) return -1; let s=0; if(x.l.toLowerCase().startsWith(q)) s+=3; if(x.k==="secțiune"||x.k==="acțiune") s+=1; return s; };
+  return IX.map(x=>({x,s:score(x)})).filter(o=>o.s>=0).sort((a,b)=>b.s-a.s).slice(0,12).map(o=>o.x); }
+function cmdRun(k,id){ if(k==="apel") openApel(id); else if(k==="client") openClient(id); else if(k==="proiect") openProiect(id); else if(k==="secțiune"){ S.view=id; render(); } else if(k==="acțiune"){ const a=CMD_ACTIONS.find(x=>x.id===id); if(a) a.run(); } }
+function hookSearch(){ const inp=$("#globalSearch"), box=$("#searchHits"); let cur=-1;
+  const paint=()=>{ box.querySelectorAll(".hit").forEach((el,i)=>el.classList.toggle("sel",i===cur)); };
+  const show=()=>{ const hits=doSearch(inp.value); cur=hits.length?0:-1;
+    box.innerHTML=(inp.value.trim()?'':'<div class="hint">Scrie pentru a căuta apeluri, clienți, proiecte — sau alege o secțiune / acțiune:</div>')+hits.map(h=>'<div class="hit" data-k="'+h.k+'" data-id="'+esc(h.id)+'"><span class="k">'+h.k+'</span><b>'+esc(h.l)+'</b><small>'+esc(h.s)+'</small></div>').join("")||'<div class="hit" style="cursor:default">Niciun rezultat pentru «'+esc(inp.value)+'»</div>';
+    box.classList.add("open"); paint();
+    box.querySelectorAll(".hit[data-k]").forEach(el=>el.onclick=()=>{ box.classList.remove("open"); inp.value=""; inp.blur(); cmdRun(el.dataset.k,el.dataset.id); }); };
+  inp.addEventListener("input",show); inp.addEventListener("focus",show);
+  inp.addEventListener("keydown",e=>{ const hits=box.querySelectorAll(".hit[data-k]"); if(e.key==="ArrowDown"){ e.preventDefault(); cur=Math.min(hits.length-1,cur+1); paint(); } else if(e.key==="ArrowUp"){ e.preventDefault(); cur=Math.max(0,cur-1); paint(); } else if(e.key==="Enter"){ if(hits[cur]){ e.preventDefault(); hits[cur].click(); } } else if(e.key==="Escape"){ box.classList.remove("open"); inp.blur(); } });
   document.addEventListener("click",e=>{ if(!e.target.closest(".searchwrap")) box.classList.remove("open"); });
-  document.addEventListener("keydown",e=>{ if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){ e.preventDefault(); inp.focus(); } if(e.key==="Escape"){ closeDrawer(); box.classList.remove("open"); } }); }
+  document.addEventListener("keydown",e=>{ if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){ e.preventDefault(); inp.focus(); inp.select(); } if(e.key==="Escape"&&document.activeElement!==inp){ closeDrawer(); sheetClose(); box.classList.remove("open"); } }); }
+/* Stare goală reutilizabilă: iconiță + titlu + explicație + acțiune */
+function emptyState(icon,title,text,actionHtml){ return '<div class="emptybig">'+(icon?'<div class="ei">'+icon+'</div>':"")+'<div class="et">'+title+'</div>'+(text?'<div class="ex">'+text+'</div>':"")+(actionHtml?'<div class="ea">'+actionHtml+'</div>':"")+'</div>'; }
 
 /* ---------- boot ---------- */
 function applyTheme(t){ S.theme=t; document.documentElement.setAttribute("data-theme",t); try{ localStorage.setItem("eufcc_theme",t); }catch(e){} }
