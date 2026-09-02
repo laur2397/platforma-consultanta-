@@ -162,8 +162,9 @@ html[data-theme="dark"] .flag{color:var(--serious)}
 
 /* ===== Filters ===== */
 .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;box-shadow:var(--shadow)}
-.filters select,.filters input[type=text],select,input[type=text],input[type=number],input[type=date],textarea{padding:7px 10px;border:1px solid var(--grid);border-radius:8px;background:var(--surface2);color:var(--ink);font-size:12.5px}
-.filters select,.filters input[type=text]{max-width:200px}
+.filters select,.filters input[type=text],.filters input[type=search],select,input[type=text],input[type=search],input[type=number],input[type=date],textarea{padding:7px 10px;border:1px solid var(--grid);border-radius:8px;background:var(--surface2);color:var(--ink);font-size:12.5px}
+.filters select,.filters input[type=text],.filters input[type=search]{max-width:200px}
+.filters input[type=search]{max-width:none}
 select:focus,input:focus,textarea:focus{outline:0;box-shadow:0 0 0 3px var(--accent-soft);border-color:var(--accent)}
 .fchip{border:1px solid var(--grid);background:var(--surface);color:var(--ink2);padding:5px 12px;border-radius:99px;font-size:12px;cursor:pointer;font-weight:500;transition:all .12s}
 .fchip:hover{border-color:var(--axis);color:var(--ink)}
@@ -525,6 +526,7 @@ html[data-theme="dark"] .evdoc.on{background:rgba(12,163,12,.16)}
 .kdot.k-deschidere,.tp.k-deschidere{color:var(--accent-ink)} .kdot.k-deschidere{background:var(--accent)}
 .kdot.k-proiect,.tp.k-proiect{color:var(--s7)} .kdot.k-proiect{background:var(--s7)}
 .calit{border-left:3px solid var(--axis)}
+.calit .body{flex:1;min-width:0}
 .calit.k-inchidere{border-left-color:var(--critical)} .calit.k-deschidere{border-left-color:var(--accent)} .calit.k-proiect{border-left-color:var(--s7)}
 .mcell .ev.k-deschidere{background:var(--accent-soft);color:var(--accent-ink)} .mcell .ev.k-proiect{background:rgba(74,58,167,.12);color:var(--s7)} .mcell .ev.more{background:transparent;color:var(--muted);font-weight:600}
 #mcList table.tbl{min-width:520px}
@@ -535,7 +537,7 @@ html[data-theme="dark"] .evdoc.on{background:rgba(12,163,12,.16)}
   .tiles.compact .tile .l{font-size:10.5px}
   .tiles.compact .tile .d{display:none}
   .calit{flex-wrap:wrap}
-  .calit .dt{order:1} .calit .cd{order:2;margin-left:auto} .calit>div{order:3;flex-basis:100%} .calit .btn{order:4}
+  .calit .dt{order:1} .calit .cd{order:2;margin-left:auto} .calit .body{order:3;flex:1 1 100%;min-width:0} .calit .btn{order:4}
   .kcol{min-width:82vw;max-width:82vw}
   .kcol.empty{min-width:120px;max-width:120px}
   .hbar{grid-template-columns:110px 1fr 84px}
