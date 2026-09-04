@@ -132,3 +132,8 @@ details.in-ref+details.in-ref{margin-top:0}
 /* text în .list li (flex): un singur bloc, nu fragmente */
 .in-lt{flex:1;min-width:0}
 .in-deviz-side .tiles{grid-template-columns:1fr 1fr}
+
+/* Financiar: legarea fișei de un client */
+.in-fincli{margin:0 0 10px}
+.in-fincli select{max-width:260px}
+.in-fincli .evsrc{margin-left:0}

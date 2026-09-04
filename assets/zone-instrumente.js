@@ -427,8 +427,21 @@ function rgExport(){ const s=rgState(), r=rgFilter(), tl=(RG_TIP.find(x=>x[0]===
    Reg. UE 651/2014 (Anexa I – IMM, art. 2 pct.18 – întreprindere în dificultate),
    HG 873/2022 art. 9 (TVA nedeductibilă = eligibilă), OUG 133/2021 (fluxuri financiare). */
 
-function finSave(){ try{ localStorage.setItem("eufcc_fin",JSON.stringify(S.fin)); }catch(e){} }
-function finState(){ if(!S.fin){ let sv=null; try{ sv=JSON.parse(localStorage.getItem("eufcc_fin")||"null"); }catch(e){} S.fin=Object.assign(finDefaults(),sv||{}); const o=window.__sess&&window.__sess.fin; if(o&&o.sub) S.fin.sub=o.sub; }
+/* Fișa financiară poate fi legată de un client din CRM: fișele pe client stau în eufcc_finc (hartă id→fișă), fișa generică în eufcc_fin. */
+const FINC_LS="eufcc_finc";
+function fincLoad(){ try{ return JSON.parse(localStorage.getItem(FINC_LS)||"{}")||{}; }catch(e){ return {}; } }
+function finSave(){ try{ const f=S.fin; if(!f) return; if(f.clientId){ const m=fincLoad(); m[f.clientId]=f; localStorage.setItem(FINC_LS,JSON.stringify(m)); } else localStorage.setItem("eufcc_fin",JSON.stringify(f)); }catch(e){} }
+function finPrefill(f,c){ if(!c) return f; const df=c.date_financiare||{}; const ca=df.cifra_afaceri_3ani_lei; let last=null;
+  if(ca&&typeof ca==="object"){ if(ca.ultim!=null) last=ca.ultim; else { const ks=Object.keys(ca).sort(); if(ks.length) last=ca[ks[ks.length-1]]; } }
+  if(last!=null&&!isNaN(+last)){ f.p.ca[2]=+last; f.imm.ca=+last; }
+  if(df.nr_angajati!=null&&!isNaN(+df.nr_angajati)){ f.p.angajati[2]=+df.nr_angajati; f.imm.ang=+df.nr_angajati; }
+  f._prefill=true; return f; }
+function finBindClient(id){ const cur=finState(); finSave(); const sub=cur.sub; let nf2;
+  if(!id){ let sv=null; try{ sv=JSON.parse(localStorage.getItem("eufcc_fin")||"null"); }catch(e){} nf2=Object.assign(finDefaults(),sv||{}); delete nf2.clientId; }
+  else { const m=fincLoad(); const c=typeof clientById==="function"?clientById(id):null; nf2=m[id]?Object.assign(finDefaults(),m[id]):finPrefill(finDefaults(),c); nf2.clientId=id; }
+  nf2.sub=sub; S.fin=nf2; finSave(); render(true); }
+function finOpenFor(cid){ if(typeof closeDrawer==="function") closeDrawer(); S.view="financiar"; finState(); if((S.fin.clientId||"")!==cid){ finBindClient(cid); } else render(); }
+function finState(){ if(!S.fin){ let sv=null; try{ sv=JSON.parse(localStorage.getItem("eufcc_fin")||"null"); }catch(e){} S.fin=Object.assign(finDefaults(),sv||{}); delete S.fin.clientId; const o=window.__sess&&window.__sess.fin; if(o&&o.clientId){ const m=fincLoad(); if(m[o.clientId]){ S.fin=Object.assign(finDefaults(),m[o.clientId]); S.fin.clientId=o.clientId; } } if(o&&o.sub) S.fin.sub=o.sub; }
   const f=S.fin; const y=f.anN||(TODAY.getFullYear()-1); f.anN=y; f.ani=[String(y-2),String(y-1),String(y)]; if(!f.bugCfg) f.bugCfg={intensitate:70,tvaDeductibil:false,minimisDisp:300000}; return f; }
 function finDefaults(){ return {
   sub:'bilant', anN:TODAY.getFullYear()-1, ani:['N-2','N-1','N'],
@@ -484,15 +497,18 @@ const FIN_TABS=[['bilant','Bilanț',null,'Bilanț prescurtat — formularul F10'
   ['buget','Buget',null,'Bugetul proiectului — Anexa 5, sheet 4'],['deviz','Deviz',null,'Deviz general — HG 907/2016'],['cashflow','Cash-flow',null,'Fluxuri financiare — OUG 133/2021'],['mapari','Mapări',null,'Mapări conturi → rânduri machetă (referință)']];
 function vFinanciar(){ const f=finState();
   let h='<div class="viewtitle"><h1>Financiar</h1><span class="sub">Anexa 5 · indicatori ETF · deviz HG 907/2016 · OUG 133/2021 · salvare automată locală</span><div class="viewactions"><button class="btn small" onclick="finExportJSON()" title="salvează toată fișa (bilanț, P&P, IMM, buget, deviz, cash-flow) ca fișier JSON">⬇ Export JSON</button><button class="btn small" onclick="finImportJSON()" title="încarcă o fișă salvată anterior (JSON)">⬆ Import JSON</button>'+moreMenu([['⬇ Export CSV buget proiect','bugExport()'],['↺ Golește fișa de pe acest dispozitiv','finReset()']])+'</div></div>';
+  const fc=f.clientId?clientById(f.clientId):null; const cliOpts=CL.slice().sort((a,b)=>a.denumire.localeCompare(b.denumire,"ro"));
+  h+='<div class="in-fintools in-fincli"><label>Fișa pentru <select onchange="finBindClient(this.value)" aria-label="clientul fișei financiare"><option value="">— fișă generică (fără client) —</option>'+cliOpts.map(c=>'<option value="'+esc(c.id)+'"'+(f.clientId===c.id?" selected":"")+'>'+esc(c.denumire)+(c.demo?" (demo)":"")+'</option>').join("")+'</select></label>'
+    +(fc?'<span class="chip hl" title="fișa acestui client se salvează separat pe dispozitiv">'+esc(fc.denumire)+(f._prefill?' · precompletată din CRM':'')+'</span><button class="btn small ghost" onclick="openClient(\''+esc(fc.id)+'\')">👥 fișa clientului</button>':'<span class="evsrc">alege un client ca fișa să se salveze pe el și să pornească din datele CRM</span>')+'</div>';
   h+=inSub(FIN_TABS,f.sub,k=>"finSub('"+k+"')");
   // rândul „Anul N · coloanele …” are sens doar pe sub-tab-urile cu coloane pe ani
   if(['bilant','pp','indicatori','imm'].includes(f.sub)) h+='<div class="in-fintools"><label>Anul N <input type="number" value="'+f.anN+'" onchange="finState().anN=parseInt(this.value)||'+f.anN+';finSave();render(true)"></label><span class="evsrc">coloanele '+f.ani.join(' · ')+'</span></div>';
   h+='<div id="finView">'+({bilant:fBilant,pp:fPP,indicatori:fInd,imm:fIMM,buget:fBuget,deviz:fDeviz,cashflow:fCash,mapari:fMapari}[f.sub]||fBilant)()+'</div>';
   return '<div class="in-zone">'+h+'</div>'; }
 function finSub(s){ finState().sub=s; render(true); }
-function finExportJSON(){ dl('Financiar_'+finState().anN+'.json',JSON.stringify(finState(),null,2),'application/json'); toast('Fișă exportată'); }
+function finExportJSON(){ const fx=finState(); const fc=fx.clientId?clientById(fx.clientId):null; dl('Financiar_'+(fc?fc.denumire.replace(/[^\p{L}\p{N}]+/gu,'_')+'_':'')+fx.anN+'.json',JSON.stringify(finState(),null,2),'application/json'); toast('Fișă exportată'); }
 function finImportJSON(){ const i=document.createElement('input'); i.type='file'; i.accept='.json,application/json'; i.onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const o=JSON.parse(r.result); if(!o||!o.b||!o.p) throw new Error('nu e o fișă Financiar'); S.fin=Object.assign(finDefaults(),o); finSave(); render(true); toast('Fișă încărcată'); }catch(err){ toast('Fișier invalid: '+err.message); } }; r.readAsText(f); }; i.click(); }
-function finReset(){ if(!confirm('Golești toată fișa financiară de pe acest dispozitiv?')) return; S.fin=null; try{ localStorage.removeItem('eufcc_fin'); }catch(e){} render(true); }
+function finReset(){ const fx=finState(); const cid=fx.clientId; if(!confirm(cid?'Golești fișa financiară a acestui client de pe dispozitiv?':'Golești toată fișa financiară de pe acest dispozitiv?')) return; const sub=fx.sub; if(cid){ try{ const m=fincLoad(); delete m[cid]; localStorage.setItem(FINC_LS,JSON.stringify(m)); }catch(e){} S.fin=finPrefill(finDefaults(),clientById(cid)); S.fin.clientId=cid; S.fin.sub=sub; finSave(); } else { S.fin=null; try{ localStorage.removeItem('eufcc_fin'); }catch(e){} finState().sub=sub; } render(true); }
 function finKey(ev,el){ if(ev.key!=='Enter') return; ev.preventDefault(); const all=[...document.querySelectorAll('#finView input[data-fk]')]; const i=all.indexOf(el); const suf=(el.dataset.fk||'').split('.').pop(); for(let j=i+1;j<all.length;j++){ if((all[j].dataset.fk||'').split('.').pop()===suf){ all[j].focus(); all[j].select&&all[j].select(); return; } } }
 function finSet(grp,key,idx,val){ const f=finState(); const v=fnum(val);
   if(idx===null){ f[grp][key]=v; } else { f[grp][key][idx]=v; }
@@ -905,7 +921,7 @@ function admListHtml(list){ if(!list.length) return emptyState('🔍','Nicio sur
    const ap=s.acoperit_prin?'<br><span class="in-adm-ok">↳ acoperit prin: '+esc(s.acoperit_prin)+'</span>':"";
    return '<tr><td data-l="Sursă" class="in-adm-src"><b>'+esc(s.nume)+'</b><small><a href="'+esc(s.url)+'" target="_blank" title="'+esc(s.url)+'">'+esc(host)+' ↗</a>'+(nA?' <button class="btn small ghost in-xs" title="apeluri din această sursă" onclick="S.radar.q=\''+esc(host)+'\';S.radar.stari=new Set();S.view=\'radar\';render()">'+nA+' apeluri</button>':'')+'</small></td><td data-l="Mecanism" class="in-small">'+esc(s.mecanism)+'</td><td data-l="Stare"><span class="cd '+m[0]+'">'+m[1]+'</span></td><td data-l="Observații" class="in-small dim">'+esc(s.observatii||"")+ap+'</td></tr>';}).join("")+'</tbody></table></div>'; }
 function admRefresh(){ const list=admList(); const el=document.getElementById("admList"); if(el){ el.innerHTML=admListHtml(list); wrapTables(el); } const c=document.getElementById("admCount"); if(c) c.textContent=list.length+' din '+SURSE.length; const hd=document.querySelector('#main .chd h2 .ct'); if(hd) hd.textContent=list.length+' / '+SURSE.length; }
-const ADM_KEYS=["eufcc_crm","eufcc_rulebooks","eufcc_fin","eufcc_checklists","eufcc_evui","eufcc_theme"];
+const ADM_KEYS=["eufcc_crm","eufcc_rulebooks","eufcc_fin","eufcc_finc","eufcc_checklists","eufcc_evui","eufcc_theme"];
 function admBackup(){ const o={_tip:"eufcc-backup",_data:new Date().toISOString(),_versiune:META.versiune||""}; ADM_KEYS.forEach(k=>{ try{ const v=localStorage.getItem(k); if(v!=null) o[k]=v; }catch(e){} }); dl("eufcc-backup-"+evTodayIsoSafe()+".json",JSON.stringify(o,null,1),"application/json"); toast("Backup generat"); }
 function evTodayIsoSafe(){ const d=TODAY; return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function admRestore(){ const i=document.createElement("input"); i.type="file"; i.accept=".json,application/json"; i.onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const o=JSON.parse(r.result); if(o._tip!=="eufcc-backup") throw new Error("nu e un backup EU Funds CC"); const keys=ADM_KEYS.filter(k=>o[k]!=null); if(!confirm("Restaurez "+keys.length+" seturi ("+keys.map(k=>k.replace("eufcc_","")).join(", ")+") din "+String(o._data||"").slice(0,10)+"? Datele locale actuale vor fi înlocuite.")) return; keys.forEach(k=>localStorage.setItem(k,o[k])); crmLoadStore(); crmApply(); S.fin=null; try{ S.checklists=JSON.parse(localStorage.getItem("eufcc_checklists")||"{}"); }catch(e){} if(typeof evLoad==="function") evLoad(); render(); toast("Backup restaurat"); }catch(err){ toast("Fișier invalid: "+err.message); } }; r.readAsText(f); }; i.click(); }
