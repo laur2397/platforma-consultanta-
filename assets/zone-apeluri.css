@@ -43,7 +43,8 @@
 .ap-radar td.ttl{max-width:360px}
 .ap-radar td.ttl .src{font-size:11px;display:inline-block;min-width:24px;min-height:24px;line-height:24px;text-align:center;border-radius:6px;margin:-6px 0}
 .ap-radar td.ttl .src:hover{background:var(--accent-soft)}
-.ap-radar td.ap-top{max-width:170px}
+.ap-radar td.ap-top{min-width:150px;max-width:220px}
+.ap-radar td.ap-top small{display:block;margin-top:3px;overflow-wrap:anywhere}
 .ap-card .hd{display:flex;justify-content:space-between;gap:6px;align-items:flex-start}
 .ap-card .hd b{font-size:13.5px}
 .ap-card .meta{color:var(--muted);font-size:12px;margin:3px 0 7px}
@@ -56,12 +57,18 @@
 .ap-body{margin-top:8px}
 .ap-body .ap-hint{margin-bottom:6px}
 .ap-bar{display:inline-block;width:44px;height:6px;vertical-align:middle;margin-left:6px}
+/* tabelele de matching: prima coloană (apel / client) are loc de titlu; termenul și verdictul nu se rup */
+.ap-mt td:first-child{min-width:220px}
+.ap-mt td:first-child b{overflow-wrap:anywhere}
+.ap-mt .cd{white-space:nowrap}
+.ap-unk{color:var(--warn-text);font-weight:600;cursor:help}
 .ap-nogo{margin-top:10px}
 .ap-gap{margin-bottom:8px;font-size:13px}
 .ap-gap small{color:var(--critical)}
 /* calendar */
 .ap-calit{cursor:pointer}
 .ap-calit:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ap-calit .ap-gcal{flex-shrink:0;white-space:nowrap}
 .ap-late h3{color:var(--critical)}
 .ap-late details.acc2{margin-top:2px}
 .ap-late details.acc2 .inner{padding-top:8px}
@@ -92,6 +99,12 @@
   .ap-radar{min-width:760px} /* modul „Tabel” ales explicit pe mobil: derulare orizontală în .tw, nu coloane strivite */
   .ap-radar td.ttl{max-width:300px}
   #mcList table.tbl{min-width:0}
+  .ap-mt td:first-child{min-width:0}
+  /* „+ calendar” stă pe primul rând, după pastila de termen — nu singur pe un rând */
+  .calit.ap-calit .ap-gcal{order:2;margin-left:6px}
+  .calit.ap-calit .cd{margin-left:auto}
+  .ap-ghid td.ap-act{padding-top:6px}
+  .ap-ghid td.ap-act .btn{width:100%;justify-content:center}
   .ap-anchor{scroll-margin-top:70px}
   .ap-l1 .btn{width:100%;justify-content:center}
 }

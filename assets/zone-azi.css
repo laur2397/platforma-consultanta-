@@ -1,10 +1,20 @@
 /* Stiluri specifice zonei Azi — doar tokenuri din styles.css; prefix .az- */
 .az-age.good{color:var(--good-text)} .az-age.warn{color:var(--warn-text)} .az-age.crit{color:var(--critical)}
 .az-sub{color:var(--muted);font-size:12px}
+/* cardurile paginii: nu lasă conținutul (cuvinte lungi, tabele) să lărgească grila pe mobil */
+.az-c{min-width:0}
+.az-c .chd h2{flex:1 1 auto;min-width:0}
+.az-c .chd .cha{margin-left:auto;flex-shrink:0}
 /* liste urgențe / oportunități / de verificat: marker fix, text fluid, acțiune la dreapta */
-.az-li .mk{flex-shrink:0;width:14px;text-align:center;color:var(--ink2)}
-.az-li .tx{flex:1;min-width:0}
+.az-li .mk{flex:0 0 14px!important;width:14px;text-align:center;color:var(--ink2)}
+.az-li .tx{flex:1;min-width:0;overflow-wrap:anywhere;white-space:normal}
 .az-li .btn{flex-shrink:0}
+/* „Cele mai bune potriviri”: 3 coloane; titlul apelului se rupe normal, termenul sub el */
+.az-top{table-layout:fixed}
+.az-top td{overflow-wrap:anywhere;white-space:normal}
+.az-top th:first-child,.az-top td:first-child{width:32%}
+.az-top th:last-child,.az-top td:last-child{width:120px}
+.az-top .az-tm{margin-top:4px}
 /* mini-calendar (termenele următoarelor 14 zile) */
 .az-mini td.dtc{width:136px;white-space:nowrap}
 .az-more{margin-top:6px}
@@ -25,6 +35,10 @@
 @media(max-width:900px){
   .az-va details.more summary.btn{flex:0 0 auto}
   .az-mini td.dtc{width:auto}
+  /* antetul cardului: titlul se strânge pe 2 rânduri, acțiunea rămâne pe același rând, la dreapta */
+  .az-c .chd{flex-wrap:nowrap}
+  .az-c .chd h2{flex-wrap:wrap;line-height:1.35}
+  .az-top th:first-child,.az-top td:first-child,.az-top th:last-child,.az-top td:last-child{width:auto}
   /* cele 3 KPI mari pe un singur rând (altfel al treilea rămâne singur) */
   .az-kpi3{grid-template-columns:repeat(3,1fr);gap:8px}
   .az-kpi3 .tile{padding:11px 10px 10px}
