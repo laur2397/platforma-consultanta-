@@ -18,5 +18,7 @@ window.__reboot=function(){ MATCH=null; IX=null; render(); };
   $("#overlay").onclick=closeDrawer;
   $("#firmName").textContent=(META.firma||{}).nume||"";
   $("#stampBox").innerHTML="radar: "+esc(String((DB.apeluri||{}).extras_la||"").slice(0,10))+(function(){const a=radarAge();return a?' · <b style="color:'+radarAgeColor(a.cls)+'">acum '+a.zile+'z</b>':'';})()+"<br>v"+esc(META.versiune||"1");
+  const hb=$("#btnHelp"); if(hb) hb.onclick=()=>helpOpen(false);
   hookSearch(); render();
+  try{ if(!localStorage.getItem("eufcc_seen")) setTimeout(()=>helpOpen(true),600); }catch(e){}
 })();
