@@ -6,6 +6,9 @@ const CL = (DB.clienti && DB.clienti.clienti) || [];
 const PR = (DB.proiecte && DB.proiecte.proiecte) || [];
 const FAZE = (DB.proiecte && DB.proiecte.faze) || {};
 const TS = (DB.proiecte && DB.proiecte.termene_suplimentare) || [];
+/* Etichete lizibile pentru tipurile de termene (datele vin MAJUSCULE, fără diacritice). */
+const TIP_LBL={"DECIZIE INTERNA":"Decizie internă","VIZITA TEREN":"Vizită de teren","CLARIFICARI":"Clarificări","DEPUNERE":"Depunere","CONTRACTARE":"Contractare","RAPORTARE":"Raportare","CERERE PLATA":"Cerere de plată","CERERE RAMBURSARE":"Cerere de rambursare","ACHIZITIE":"Achiziție","AUDIT":"Audit","MONITORIZARE":"Monitorizare","SEDINTA":"Ședință","INTALNIRE":"Întâlnire","SEMNARE":"Semnare","TERMEN AM":"Termen AM","TERMEN OI":"Termen OI","DOCUMENTE CLIENT":"Documente de la client","LIVRABIL":"Livrabil","COMERCIAL":"Comercial","VERIFICARE":"Verificare"};
+function tipLabel(t){ const k=String(t||"").replace(/_/g," ").trim(); if(!k) return ""; const u=k.toUpperCase(); if(TIP_LBL[u]) return TIP_LBL[u]; const l=(k===u)?k.toLowerCase():k; return l.charAt(0).toUpperCase()+l.slice(1); }
 const SURSE = (DB.surse && DB.surse.surse) || [];
 const REF = DB.referinte || {};
 const META = DB.meta || {};
@@ -131,7 +134,7 @@ function comisionPrognozat(p){ const c=p.comision||{}; return (c.fix_lei||0)+ (c
 function calItems(hor){ hor=hor||120; const out=[];
   A.forEach(a=>{ const dz=days(a.data_inchidere); if(dz!=null&&dz>=0&&dz<=hor) out.push({data:a.data_inchidere,tip:"Închidere apel",titlu:a.titlu,sub:a.program,crit:dz<=7,warn:dz<=30,kind:"apel",id:a.id_apel});
     const do_=days(a.data_deschidere); if(do_!=null&&do_>0&&do_<=hor) out.push({data:a.data_deschidere,tip:"Deschidere apel",titlu:a.titlu,sub:a.program,kind:"apel",id:a.id_apel}); });
-  TS.forEach(t=>{ const dz=days(t.data); if(dz!=null&&dz>=-3&&dz<=hor){ const p=PR.find(x=>x.id===t.proiect_id); out.push({data:t.data,tip:t.tip.replace(/_/g," "),titlu:t.descriere,sub:p? (clientById(p.client_id)||{}).denumire:"",crit:!!t.critic||dz<0,warn:dz<=7,kind:"proiect",id:t.proiect_id}); }});
+  TS.forEach(t=>{ const dz=days(t.data); if(dz!=null&&dz>=-3&&dz<=hor){ const p=PR.find(x=>x.id===t.proiect_id); out.push({data:t.data,tip:tipLabel(t.tip),titlu:t.descriere,sub:p? (clientById(p.client_id)||{}).denumire:"",crit:!!t.critic||dz<0,warn:dz<=7,kind:"proiect",id:t.proiect_id}); }});
   out.sort((a,b)=> (a.data<b.data?-1:1)); return out; }
 
 /* ---------- navigation ---------- */
@@ -184,7 +187,7 @@ function a11yEnhance(root){ const R=root||document;
     let lab=null; const p=i.parentElement; if(p){ const l=p.querySelector("label"); if(l) lab=l.textContent; }
     if(!lab&&i.tagName==="SELECT"){ const o=i.querySelector("option"); if(o) lab=o.textContent.replace(/^[—–\-\s]+|[—–\-\s]+$/g,""); }
     if(!lab) lab=i.getAttribute("title")||i.getAttribute("placeholder"); if(lab&&lab.trim()) i.setAttribute("aria-label",lab.trim()); }); }
-document.addEventListener("keydown",e=>{ if(e.key!=="Enter"&&e.key!==" ") return; const t=e.target; if(!t||!t.hasAttribute||!t.hasAttribute("onclick")) return; if(/^(BUTTON|A|INPUT|SELECT|TEXTAREA|SUMMARY|LABEL)$/.test(t.tagName)) return; if(t.hasAttribute("onkeydown")) return; e.preventDefault(); t.click(); });
+document.addEventListener("keydown",e=>{ if(e.key!=="Enter"&&e.key!==" ") return; const t=e.target; if(!t||!t.hasAttribute||!t.hasAttribute("onclick")) return; if(/^(BUTTON|A|INPUT|SELECT|TEXTAREA|SUMMARY|LABEL)$/.test(t.tagName)) return; if(t.hasAttribute("onkeydown")&&e.key==="Enter") return; e.preventDefault(); t.click(); });
 function sessSave(){ try{ sessionStorage.setItem("eufcc_sess",JSON.stringify({view:S.view,intelJud:S.intelJud||"",intelSort:S.intelSort||"",intelDir:S.intelDir||0,fin:S.fin?{sub:S.fin.sub,clientId:S.fin.clientId||''}:null,baze:S.baze||null,calMode:S.calMode,matchClient:S.matchClient,repClient:S.repClient,adminFilter:S.adminFilter||"",adminQ:S.adminQ||""})); }catch(e){} }
 function sessLoad(){ try{ const o=JSON.parse(sessionStorage.getItem("eufcc_sess")||"null"); if(!o) return; window.__sess=o; if(o.view&&NAV.some(n=>n[0]===o.view)) S.view=o.view; if(o.intelJud) S.intelJud=o.intelJud; if(o.intelSort) S.intelSort=o.intelSort; if(o.intelDir) S.intelDir=o.intelDir; if(o.calMode) S.calMode=o.calMode; if(o.matchClient) S.matchClient=o.matchClient; if(o.repClient) S.repClient=o.repClient; if(o.adminFilter) S.adminFilter=o.adminFilter; if(o.adminQ) S.adminQ=o.adminQ; }catch(e){} }
 /* Stratul greu de date (≈7 MB necomprimat) se încarcă o singură dată, la cerere (Baze de date / Market Intel). */
@@ -234,7 +237,7 @@ function openApel(id){ const a=apelById(id); if(!a) return;
   h+=row("Grant",(a.grant_min!=null||a.grant_max!=null)?grantStr(a):null);
   h+=row("Intensitate max",a.intensitate_max_pct?a.intensitate_max_pct+"%":null);
   h+=row("Deschidere",a.data_deschidere?fmtD(a.data_deschidere):null);
-  h+=row("Închidere",a.data_inchidere?fmtD(a.data_inchidere):(a.stare==="activ"?'<span class="flag">DE VERIFICAT</span>':null));
+  h+=row("Termen (închidere)",a.data_inchidere?fmtD(a.data_inchidere):(a.stare==="activ"?'<span class="flag">DE VERIFICAT</span>':null));
   h+=row("Tip depunere",a.tip_depunere?esc(a.tip_depunere):null);
   h+=row("Platformă",a.platforma_depunere?esc(a.platforma_depunere):null);
   h+=row("Acțiune/prioritate",a.actiune_prioritate?esc(a.actiune_prioritate):null);
@@ -301,7 +304,7 @@ function openClient(cid){ const c=clientById(cid); if(!c) return;
     if(c.ajutoare_minimis&&c.ajutoare_minimis.length) h+='<table class="tbl" style="margin-top:6px"><thead><tr><th>An</th><th>Schemă</th><th class="num">EUR</th></tr></thead><tbody>'+c.ajutoare_minimis.map(x=>'<tr><td>'+x.an+'</td><td>'+esc(x.schema)+'</td><td class="num">'+nf.format(x.suma_eur)+'</td></tr>').join("")+'</tbody></table>';
     h+='</div>'; }
   if(prj.length) h+='<div class="section"><h2>Proiecte</h2>'+prj.map(p=>'<div class="kcard" onclick="openProiect(\''+p.id+'\')"><div class="t">'+esc(p.titlu)+' <span class="hdot '+health(p)+'"></span></div><div class="m">'+esc(p.faza)+' · '+esc(FAZE[p.faza]||"")+' · grant '+money(p.grant_lei,"lei")+'</div></div>').join("")+'</div>';
-  h+='<div class="section"><h2>Top apeluri potrivite</h2>';
+  h+='<div class="section"><h2>Cele mai potrivite apeluri</h2>';
   h+= tops.length? '<table class="tbl"><thead><tr><th>Apel</th><th>Termen</th><th>Verdict · scor</th></tr></thead><tbody>'+tops.map(m=>'<tr onclick="openMemo(\''+cid+'\',\''+esc(m.apel.id_apel)+'\')"><td><b>'+esc(m.apel.titlu)+'</b><br><small style="color:var(--muted)">'+esc(m.apel.program)+'</small></td><td>'+cdBadge(m.apel.data_inchidere,{cont:/continuu/.test(m.apel.tip_depunere||"")})+'</td><td>'+vChip(m.verdict,m.scor)+'</td></tr>').join("")+'</tbody></table>' : '<div class="empty">Nimic potrivit acum'+(df.capitaluri_proprii_lei<0?" — blocat de capitalurile negative":"")+'.</div>';
   h+='</div>'+((c.note||c.nota)?'<div class="callout">'+esc(c.note||c.nota)+'</div>':"")+'</div>';
   openDrawer(h, drawerNav("openClient",cid,CL.map(x=>x.id))); }
@@ -323,7 +326,7 @@ function openProiect(pid){ const p=PR.find(x=>x.id===pid); if(!p) return;
   if(p.next_action) h+='<dt>Următoarea acțiune</dt><dd><b>'+esc(p.next_action.descriere)+'</b><br>'+cdBadge(p.next_action.termen,{task:true})+'</dd>';
   const hw=healthWhy(p); if(hw) h+='<dt>Sănătate</dt><dd><span class="hdot '+health(p)+'"></span> '+esc(hw)+'</dd>';
   h+='</dl>';
-  const tsp=TS.filter(t=>t.proiect_id===p.id).sort((a,b)=>(a.data||"").localeCompare(b.data||"")); if(tsp.length) h+='<div class="section"><h2>Termene & obligații ('+tsp.length+')</h2><ul class="list">'+tsp.map(t=>'<li><span style="flex:1"><span class="tp">'+esc((t.tip||"").replace(/_/g," "))+'</span><br>'+esc(t.descriere||"")+'</span>'+cdBadge(t.data,{task:true})+'</li>').join("")+'</ul></div>';
+  const tsp=TS.filter(t=>t.proiect_id===p.id).sort((a,b)=>(a.data||"").localeCompare(b.data||"")); if(tsp.length) h+='<div class="section"><h2>Termene & obligații ('+tsp.length+')</h2><ul class="list">'+tsp.map(t=>'<li><span style="flex:1"><span class="tp">'+esc(tipLabel(t.tip))+'</span><br>'+esc(t.descriere||"")+'</span>'+cdBadge(t.data,{task:true})+'</li>').join("")+'</ul></div>';
   if(p.evaluari&&p.evaluari.length) h+='<div class="section"><h2>Verificări pre-depunere</h2><ul class="list">'+p.evaluari.map(e=>'<li><span style="color:var(--muted);min-width:80px">'+fmtDs(String(e.data).slice(0,10))+'</span><span class="evst '+(e.vclass==="go"?"ok":e.vclass==="no"?"no":"nv")+'">'+esc(e.verdict.split(" — ")[0])+'</span> <small style="color:var(--muted)">'+e.blocante+' blocante · '+e.remediat+' de remediat · '+e.nv+' neverificate'+(e.punctaj?' · punctaj '+esc(e.punctaj):'')+'</small></li>').join("")+'</ul></div>';
   if(p.istoric&&p.istoric.length) h+='<div class="section"><h2>Istoric</h2><ul class="list">'+p.istoric.map(e=>'<li><span style="color:var(--muted);min-width:80px">'+fmtDs(e.data)+'</span> '+esc(e.eveniment)+'</li>').join("")+'</ul></div>';
   if(p.note) h+='<div class="callout">'+esc(p.note)+'</div>';

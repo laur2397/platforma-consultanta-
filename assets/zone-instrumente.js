@@ -244,9 +244,9 @@ function pjRefresh(){ const s=pjState(); const r=pjFilter(); const body=document
   const jc={}, pc={};
   r.forEach(p=>{ if(p.jud) jc[p.jud]=(jc[p.jud]||0)+1; pc[p.pg]=(pc[p.pg]||0)+1; });
   const jt=Object.entries(jc).sort((a,b)=>b[1]-a[1]).slice(0,8); const jmax=Math.max(1,...jt.map(x=>x[1]));
-  const je=document.getElementById('pjJudChart'); if(je) je.innerHTML=jt.map(([j,n])=>'<div class="hbar"><span class="in-small">'+esc(j)+'</span><div class="trk"><div class="fil" style="width:'+Math.max(2,n/jmax*100)+'%"></div></div><span class="vv">'+n+'</span></div>').join('')||'<div class="empty">Niciun județ în setul filtrat.</div>';
+  const je=document.getElementById('pjJudChart'); if(je) je.innerHTML=jt.map(([j,n])=>'<div class="hbar"><span class="in-small">'+esc(j)+'</span><div class="trk"><div class="fil" style="width:'+Math.max(2,n/jmax*100)+'%"></div></div><span class="vv">'+nf.format(n)+'</span></div>').join('')||'<div class="empty">Niciun județ în setul filtrat.</div>';
   const pt=Object.entries(pc).sort((a,b)=>b[1]-a[1]); const pmax=Math.max(1,...pt.map(x=>x[1]));
-  const pe=document.getElementById('pjProgChart'); if(pe) pe.innerHTML=pt.map(([j,n])=>'<div class="hbar"><span class="in-small">'+esc(j)+'</span><div class="trk"><div class="fil" style="width:'+Math.max(2,n/pmax*100)+'%;background:var(--s3)"></div></div><span class="vv">'+n+'</span></div>').join('')||'<div class="empty">Niciun program în setul filtrat.</div>';
+  const pe=document.getElementById('pjProgChart'); if(pe) pe.innerHTML=pt.map(([j,n])=>'<div class="hbar"><span class="in-small">'+esc(j)+'</span><div class="trk"><div class="fil" style="width:'+Math.max(2,n/pmax*100)+'%;background:var(--s3)"></div></div><span class="vv">'+nf.format(n)+'</span></div>').join('')||'<div class="empty">Niciun program în setul filtrat.</div>';
 }
 function pjBen(el){ const q=el.textContent; pjState().q=q; const i=document.getElementById('pjq'); if(i) i.value=q; pjRefresh(); }
 function pjToCrm(el){ const ben=el.dataset.ben, jud=el.dataset.jud, pg=el.dataset.pg; if(CL.some(c=>onrcNorm(c.denumire)===onrcNorm(ben))){ toast('Există deja în CRM'); return; }
@@ -412,9 +412,9 @@ function rgRefresh(){ const s=rgState(), r=rgFilter(), body=document.getElementB
   const jc={},dc={};
   r.forEach(x=>{ if(x._j) jc[x._j]=(jc[x._j]||0)+1; x._d.forEach(d=>dc[d]=(dc[d]||0)+1); });
   const jt=Object.entries(jc).sort((a,b)=>b[1]-a[1]).slice(0,10), jmax=Math.max(1,...jt.map(x=>x[1]));
-  const je=document.getElementById('rgJudChart'); if(je) je.innerHTML=jt.map(([j,n])=>'<div class="hbar"><span class="in-small">'+esc(j)+'</span><div class="trk"><div class="fil" style="width:'+Math.max(2,n/jmax*100)+'%"></div></div><span class="vv">'+n+'</span></div>').join('')||'<div class="empty">Niciun județ în setul filtrat.</div>';
+  const je=document.getElementById('rgJudChart'); if(je) je.innerHTML=jt.map(([j,n])=>'<div class="hbar"><span class="in-small">'+esc(j)+'</span><div class="trk"><div class="fil" style="width:'+Math.max(2,n/jmax*100)+'%"></div></div><span class="vv">'+nf.format(n)+'</span></div>').join('')||'<div class="empty">Niciun județ în setul filtrat.</div>';
   const dt=Object.entries(dc).sort((a,b)=>b[1]-a[1]).slice(0,10), dmax=Math.max(1,...dt.map(x=>x[1]));
-  const de=document.getElementById('rgDomChart'); if(de) de.innerHTML=dt.map(([d,n])=>'<div class="hbar"><span class="in-small" title="'+esc(RG_LEG[d]||d)+'">'+esc(d.length>26?d.slice(0,26)+'…':d)+'</span><div class="trk"><div class="fil" style="width:'+Math.max(2,n/dmax*100)+'%;background:var(--s3)"></div></div><span class="vv">'+n+'</span></div>').join('')||'<div class="empty">Niciun domeniu în setul filtrat.</div>';
+  const de=document.getElementById('rgDomChart'); if(de) de.innerHTML=dt.map(([d,n])=>'<div class="hbar"><span class="in-small" title="'+esc(RG_LEG[d]||d)+'">'+esc(d.length>26?d.slice(0,26)+'…':d)+'</span><div class="trk"><div class="fil" style="width:'+Math.max(2,n/dmax*100)+'%;background:var(--s3)"></div></div><span class="vv">'+nf.format(n)+'</span></div>').join('')||'<div class="empty">Niciun domeniu în setul filtrat.</div>';
 }
 function rgExport(){ const s=rgState(), r=rgFilter(), tl=(RG_TIP.find(x=>x[0]===s.tip)||[])[1]||'';
   const head=['Registru','Nume','Judet','Email','Telefon','Domenii','Certificate','Valabil_pana','Mentiuni_suspendari'];
@@ -516,11 +516,12 @@ function finSet(grp,key,idx,val){ const f=finState(); const v=fnum(val);
 /* re-randează doar #finView și readuce focusul pe câmpul editat (data-fk) — mecanism păstrat intact */
 function finLive(){ const f=finState(); finSave();
   const el=document.getElementById('finView'); if(!el) return;
-  const act=document.activeElement; const fk=(act&&act.dataset&&act.dataset.fk)||null; let pos=null; try{ pos=(act&&typeof act.selectionStart==='number')?act.selectionStart:null; }catch(e){}
+  const act=document.activeElement; const fk=(act&&act.dataset&&act.dataset.fk)||null; let pos=null, raw=null; try{ pos=(act&&typeof act.selectionStart==='number')?act.selectionStart:null; raw=act?act.value:null; }catch(e){}
   el.innerHTML=({bilant:fBilant,pp:fPP,indicatori:fInd,imm:fIMM,buget:fBuget,deviz:fDeviz,cashflow:fCash,mapari:fMapari}[f.sub]||fBilant)(); wrapTables(el);
-  if(fk){ const n=el.querySelector('[data-fk="'+fk+'"]'); if(n){ n.focus(); try{ if(pos!=null) n.setSelectionRange(pos,pos); }catch(e){} } }
+  /* readucem textul exact așa cum era tastat (ex. „12,” sau „1234”) și caretul la aceeași poziție — altfel cifrele se inversau */
+  if(fk){ const n=el.querySelector('[data-fk="'+fk+'"]'); if(n){ if(raw!=null) n.value=raw; n.focus(); try{ const q=pos!=null?pos:n.value.length; n.setSelectionRange(q,q); }catch(e){} } }
 }
-function inp(grp,key,idx,val,ph){ return '<input type="number" step="any" class="finin" data-fk="'+grp+'.'+key+'.'+(idx===null?'x':idx)+'" value="'+(val||'')+'" placeholder="'+(ph||'—')+'" oninput="finSet(\''+grp+'\',\''+key+'\','+(idx===null?'null':idx)+',this.value)" onkeydown="finKey(event,this)">'; }
+function inp(grp,key,idx,val,ph){ return '<input type="text" inputmode="decimal" autocomplete="off" class="finin" data-fk="'+grp+'.'+key+'.'+(idx===null?'x':idx)+'" value="'+(val||'')+'" placeholder="'+(ph||'—')+'" oninput="finSet(\''+grp+'\',\''+key+'\','+(idx===null?'null':idx)+',this.value)" onkeydown="finKey(event,this)">'; }
 function vrd(ok,txt){ return '<span class="cd '+(ok?'cd-good':'cd-crit')+'">'+txt+'</span>'; }
 function fpill(k){ return {ok:'<span class="cd cd-good">OK</span>',no:'<span class="cd cd-crit">NU</span>',warn:'<span class="cd cd-warn">ATENȚIE</span>',info:'<span class="cd cd-off">INFO</span>'}[k]||''; }
 /* tabel financiar cu 3 coloane-an: rânduri grupate (in-grp) + input pe an */
@@ -919,7 +920,7 @@ function vAdmin(){ const F=S.adminFilter||"";
 function admListHtml(list){ if(!list.length) return emptyState('🔍','Nicio sursă pentru filtrul curent','Schimbă starea sau golește căutarea.','<button class="btn small" onclick="S.adminFilter=\'\';S.adminQ=\'\';render(true)">Resetează filtrele</button>');
   return '<div class="card in-tc"><table class="tbl stack"><thead><tr><th>Sursă</th><th>Mecanism</th><th>Stare</th><th>Observații</th></tr></thead><tbody>'+list.map(s=>{ const m=ADM_ST[s.stare]||["cd-off",s.stare]; const host=(()=>{ try{ return new URL(s.url).hostname.replace(/^www\./,""); }catch(e){ return s.url||""; } })(); const nA=A.filter(a=>(a.url_sursa||"").includes(host)).length;
    const ap=s.acoperit_prin?'<br><span class="in-adm-ok">↳ acoperit prin: '+esc(s.acoperit_prin)+'</span>':"";
-   return '<tr><td data-l="Sursă" class="in-adm-src"><b>'+esc(s.nume)+'</b><small><a href="'+esc(s.url)+'" target="_blank" title="'+esc(s.url)+'">'+esc(host)+' ↗</a>'+(nA?' <button class="btn small ghost in-xs" title="apeluri din această sursă" onclick="S.radar.q=\''+esc(host)+'\';S.radar.stari=new Set();S.view=\'radar\';render()">'+nA+' apeluri</button>':'')+'</small></td><td data-l="Mecanism" class="in-small">'+esc(s.mecanism)+'</td><td data-l="Stare"><span class="cd '+m[0]+'">'+m[1]+'</span></td><td data-l="Observații" class="in-small dim">'+esc(s.observatii||"")+ap+'</td></tr>';}).join("")+'</tbody></table></div>'; }
+   return '<tr><td data-l="Sursă" class="in-adm-src"><b>'+esc(s.nume)+'</b><small><a href="'+esc(s.url)+'" target="_blank" title="'+esc(s.url)+'">'+esc(host)+' ↗</a>'+(nA?' <button class="btn small ghost in-xs" title="apeluri din această sursă" onclick="S.radar.q=\''+esc(host)+'\';S.radar.stari=new Set();S.view=\'radar\';render()">'+nA+(nA===1?' apel':' apeluri')+'</button>':'')+'</small></td><td data-l="Mecanism" class="in-small">'+esc(s.mecanism)+'</td><td data-l="Stare"><span class="cd '+m[0]+'">'+m[1]+'</span></td><td data-l="Observații" class="in-small dim">'+esc(s.observatii||"")+ap+'</td></tr>';}).join("")+'</tbody></table></div>'; }
 function admRefresh(){ const list=admList(); const el=document.getElementById("admList"); if(el){ el.innerHTML=admListHtml(list); wrapTables(el); } const c=document.getElementById("admCount"); if(c) c.textContent=list.length+' din '+SURSE.length; const hd=document.querySelector('#main .chd h2 .ct'); if(hd) hd.textContent=list.length+' / '+SURSE.length; }
 const ADM_KEYS=["eufcc_crm","eufcc_rulebooks","eufcc_fin","eufcc_finc","eufcc_checklists","eufcc_evui","eufcc_theme"];
 function admBackup(){ const o={_tip:"eufcc-backup",_data:new Date().toISOString(),_versiune:META.versiune||""}; ADM_KEYS.forEach(k=>{ try{ const v=localStorage.getItem(k); if(v!=null) o[k]=v; }catch(e){} }); dl("eufcc-backup-"+evTodayIsoSafe()+".json",JSON.stringify(o,null,1),"application/json"); toast("Backup generat"); }
