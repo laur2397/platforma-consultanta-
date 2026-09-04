@@ -165,12 +165,12 @@ function zoneGo(zid){ const z=ZONES.find(x=>x[0]===zid); if(!z) return; S.lastIn
 function zoneCount(z){ const m={apeluri:"radar",clienti:"clienti",proiecte:"pipeline"}; return m[z[0]]?navCounts(m[z[0]]):null; }
 function renderNav(){ const cur=zoneOf(S.view);
   $("#nav").innerHTML=ZONES.map(z=>{ const on=z[0]===cur[0]; const cnt=on?null:zoneCount(z);
-    return '<li><button class="zone'+(on?" on":"")+'" data-z="'+z[0]+'">'+ico(z[4])+z[1]+(cnt!=null&&z[3].length>1?'<span class="ct">'+cnt+'</span>':"")+'</button>'+(on&&z[3].length>1?'<ul class="subnavi">'+z[3].map(v=>{ const c=navCounts(v); return '<li><button class="sub'+(S.view===v?" on":"")+'" data-v="'+v+'">'+VIEW_SHORT[v]+(c!=null?'<span class="ct">'+c+'</span>':"")+'</button></li>'; }).join("")+'</ul>':"")+'</li>'; }).join("");
+    return '<li><button class="zone'+(on?" on":"")+'" data-z="'+z[0]+'">'+ico(z[4])+z[1]+(cnt!=null&&z[3].length>1?'<span class="ct">'+nf.format(cnt)+'</span>':"")+'</button>'+(on&&z[3].length>1?'<ul class="subnavi">'+z[3].map(v=>{ const c=navCounts(v); return '<li><button class="sub'+(S.view===v?" on":"")+'" data-v="'+v+'">'+VIEW_SHORT[v]+(c!=null?'<span class="ct">'+c+'</span>':"")+'</button></li>'; }).join("")+'</ul>':"")+'</li>'; }).join("");
   document.querySelectorAll("#nav button.zone").forEach(b=>b.onclick=()=>zoneGo(b.dataset.z));
   document.querySelectorAll("#nav button.sub").forEach(b=>b.onclick=()=>{ S.view=b.dataset.v; render(); });
   const tb=$("#tabbar"); if(tb){ tb.innerHTML=ZONES.map(z=>'<button class="'+(z[0]===cur[0]?"on":"")+'" data-z="'+z[0]+'">'+ico(z[4])+z[1]+'</button>').join("");
     tb.querySelectorAll("button").forEach(b=>b.onclick=()=>zoneGo(b.dataset.z)); } }
-function zoneTabsHtml(v){ const z=zoneOf(v); if(z[3].length<2) return ""; return '<div class="zonetabs" role="tablist">'+z[3].map(x=>{ const c=navCounts(x); return '<button role="tab" class="'+(x===v?"on":"")+'" onclick="S.view=\''+x+'\';render()">'+VIEW_SHORT[x]+(c!=null?' <span class="ct">'+c+'</span>':"")+'</button>'; }).join("")+'</div>'; }
+function zoneTabsHtml(v){ const z=zoneOf(v); if(z[3].length<2) return ""; return '<div class="zonetabs" role="tablist">'+z[3].map(x=>{ const c=navCounts(x); return '<button role="tab" class="'+(x===v?"on":"")+'" onclick="S.view=\''+x+'\';render()">'+VIEW_SHORT[x]+(c!=null?' <span class="ct">'+nf.format(c)+'</span>':"")+'</button>'; }).join("")+'</div>'; }
 function sheetOpen(){ $("#sheetGrid").innerHTML=NAV.map(([id,ic,l])=>'<button class="'+(S.view===id?"on":"")+'" onclick="S.view=\''+id+'\';sheetClose();render()">'+ico(id)+l+'</button>').join(""); $("#moreSheet").classList.add("open"); }
 function sheetClose(){ const s=$("#moreSheet"); if(s) s.classList.remove("open"); }
 function wrapTables(root){ (root||document).querySelectorAll("table.tbl").forEach(t=>{ if(!t.parentElement.classList.contains("tw")){ const w=document.createElement("div"); w.className="tw"; t.parentNode.insertBefore(w,t); w.appendChild(t); } }); }
@@ -205,7 +205,7 @@ function render(keep){ renderNav(); const v=S.view; const M=$("#main"); const _s
   const gated=HEAVY_VIEWS.includes(v)&&!heavyReady();
   M.innerHTML = zoneTabsHtml(v)+(gated?heavyGate(v):(f? f() : "<div class='empty'>…</div>"));
   // titlu: emoji → iconiță SVG a secțiunii
-  const h1=M.querySelector(".viewtitle h1"); if(h1&&!h1.querySelector(".vi")) h1.innerHTML='<span class="vi">'+ico(v)+'</span>'+esc(h1.textContent.replace(/^[^\p{L}\p{N}\[]+/u,"").trim());
+  const h1=M.querySelector(".viewtitle h1"); if(h1&&!h1.querySelector(".vi")) h1.innerHTML='<span class="vi">'+ico(v)+'</span>'+esc((zoneOf(v)[3].length>1&&VIEW_SHORT[v])||h1.textContent.replace(/^[^\p{L}\p{N}\[]+/u,"").trim());
   wrapTables(M); a11yEnhance(M); drawerSeqCollect(M); M.scrollTop=keep?_st:0; sessSave();
   if(!gated&&window["after_"+v]) window["after_"+v](); }
 
@@ -213,7 +213,7 @@ function render(keep){ renderNav(); const v=S.view; const M=$("#main"); const _s
 function openDrawer(html,nav){ const d=$("#drawer"); const was=d.classList.contains("open"); if(!was) window._drawerFocus=document.activeElement; d.innerHTML=html; if(nav){ const dh=d.querySelector(".dh2"); const cb=dh&&dh.querySelector("button"); if(cb) cb.insertAdjacentHTML("beforebegin",nav); } d.setAttribute("role","dialog"); d.setAttribute("aria-modal","true"); try{ wrapTables(d); a11yEnhance(d); }catch(e){} d.classList.add("open"); $("#overlay").classList.add("open"); if(!was){ try{ history.pushState({drawer:1},""); }catch(e){} } const f=d.querySelector(".db .btn, .db a, .db input, .db select"); if(f) setTimeout(()=>f.focus({preventScroll:true}),60); }
 function closeDrawer(){ window._dnav=null; const d=$("#drawer"); const was=d.classList.contains("open"); d.classList.remove("open"); $("#overlay").classList.remove("open"); if(was&&history.state&&history.state.drawer){ window._popSkip=true; history.back(); } if(window._drawerFocus&&window._drawerFocus.focus){ try{ window._drawerFocus.focus({preventScroll:true}); }catch(e){} } window._drawerFocus=null; }
 window.addEventListener("popstate",()=>{ if(window._popSkip){ window._popSkip=false; return; } const d=$("#drawer"); if(d&&d.classList.contains("open")){ d.classList.remove("open"); $("#overlay").classList.remove("open"); } });
-function drawerHead(title, sub){ return '<div class="dh2"><h2>'+title+(sub?'<br><small style="color:var(--muted);font-weight:400;font-size:12px">'+sub+'</small>':"")+'</h2><button class="btn small" onclick="closeDrawer()">✕ închide</button></div>'; }
+function drawerHead(title, sub){ return '<div class="dh2"><h2>'+title+(sub?'<br><small class="dsub">'+sub+'</small>':"")+'</h2><button class="btn small" onclick="closeDrawer()">✕ închide</button></div>'; }
 /* Navigare „‹ ›” în drawer prin lista vizibilă (ordinea exactă din pagină: radar filtrat, calendar, matching, CRM…). */
 function drawerSeqCollect(M){ const grab=fn=>{ const out=[]; M.querySelectorAll('[onclick*="'+fn+'(\'"]').forEach(e=>{ const m=(e.getAttribute("onclick")||"").match(new RegExp(fn+"\\('([^']+)'")); if(m&&!out.includes(m[1])) out.push(m[1]); }); return out; }; window._seq={openApel:grab("openApel"),openClient:grab("openClient"),openProiect:grab("openProiect")}; }
 function drawerNav(fn,id,all){ let seq=(window._seq||{})[fn]||[]; if(!seq.includes(id)) seq=all||[]; const i=seq.indexOf(id); if(seq.length<2||i<0){ window._dnav=null; return ""; } window._dnav={fn,seq,i};
@@ -308,22 +308,22 @@ function openClient(cid){ const c=clientById(cid); if(!c) return;
 function openProiect(pid){ const p=PR.find(x=>x.id===pid); if(!p) return;
   const c=clientById(p.client_id); const a=apelById(p.apel_id)||{titlu:(p.apel_istoric||{}).titlu||p.apel_id, program:(p.apel_istoric||{}).program||"apel istoric"};
   let h=drawerHead(esc(p.titlu)+(p.demo?' <span class="tag-demo">DEMO</span>':""), esc((c?c.denumire:"")+" × "+(a.titlu||"")))+'<div class="db">';
-  h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="badge b-planificat">'+p.faza+" · "+esc(FAZE[p.faza]||"")+'</span><span class="hdot '+health(p)+'"></span>'+(p.cod_smis?'<span class="chip">SMIS '+esc(p.cod_smis)+'</span>':"")+'</div>';
-  h+='<dl class="kv">';
-  h+='<dt>Valoare totală</dt><dd>'+money(p.valoare_totala_lei,"lei")+'</dd>';
-  h+='<dt>Grant</dt><dd>'+money(p.grant_lei,"lei")+' · cofinanțare '+money(p.cofinantare_lei,"lei")+'</dd>';
-  h+='<dt>Consultant</dt><dd>'+esc(p.consultant||"—")+'</dd>';
-  h+='<dt>Comision prognozat</dt><dd>'+money(Math.round(comisionPrognozat(p)),"lei")+' <small style="color:var(--muted)">(fix + succes% × grant × prob. fază '+Math.round((PROB[p.faza]||0)*100)+'%)</small></dd>';
-  if(p.next_action) h+='<dt>Next action</dt><dd><b>'+esc(p.next_action.descriere)+'</b><br>'+cdBadge(p.next_action.termen,{task:true})+'</dd>';
-  const hw=healthWhy(p); if(hw) h+='<dt>Sănătate</dt><dd><span class="hdot '+health(p)+'"></span> '+esc(hw)+'</dd>';
-  h+='</dl>';
-  const tsp=TS.filter(t=>t.proiect_id===p.id).sort((a,b)=>(a.data||"").localeCompare(b.data||"")); if(tsp.length) h+='<div class="section"><h2>Termene & obligații ('+tsp.length+')</h2><ul class="list">'+tsp.map(t=>'<li><span style="flex:1"><span class="tp">'+esc((t.tip||"").replace(/_/g," "))+'</span><br>'+esc(t.descriere||"")+'</span>'+cdBadge(t.data,{task:true})+'</li>').join("")+'</ul></div>';
   h+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
   if(!p.demo) h+='<button class="btn primary" onclick="evStartFor(\''+esc(p.id)+'\')">🧪 Verifică proiectul</button>';
   if(apelById(p.apel_id)) h+='<button class="btn" onclick="openApel(\''+esc(p.apel_id)+'\')">📡 Apelul</button>';
   if(c) h+='<button class="btn" onclick="openClient(\''+c.id+'\')">👥 Clientul</button>';
   if(!p.demo) h+='<button class="btn" onclick="crmProjForm(\''+esc(p.id)+'\')">✎ Editează</button><button class="btn ghost" style="margin-left:auto;color:var(--critical)" onclick="crmDeleteProject(\''+esc(p.id)+'\')">🗑 Șterge</button>';
   h+='</div>';
+  h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="badge b-planificat">'+p.faza+" · "+esc(FAZE[p.faza]||"")+'</span><span class="hdot '+health(p)+'"></span>'+(p.cod_smis?'<span class="chip">SMIS '+esc(p.cod_smis)+'</span>':"")+'</div>';
+  h+='<dl class="kv">';
+  h+='<dt>Valoare totală</dt><dd>'+money(p.valoare_totala_lei,"lei")+'</dd>';
+  h+='<dt>Grant</dt><dd>'+money(p.grant_lei,"lei")+' · cofinanțare '+money(p.cofinantare_lei,"lei")+'</dd>';
+  h+='<dt>Consultant</dt><dd>'+esc(p.consultant||"—")+'</dd>';
+  h+='<dt>Comision prognozat</dt><dd>'+money(Math.round(comisionPrognozat(p)),"lei")+' <small style="color:var(--muted)">(fix + succes% × grant × prob. fază '+Math.round((PROB[p.faza]||0)*100)+'%)</small></dd>';
+  if(p.next_action) h+='<dt>Următoarea acțiune</dt><dd><b>'+esc(p.next_action.descriere)+'</b><br>'+cdBadge(p.next_action.termen,{task:true})+'</dd>';
+  const hw=healthWhy(p); if(hw) h+='<dt>Sănătate</dt><dd><span class="hdot '+health(p)+'"></span> '+esc(hw)+'</dd>';
+  h+='</dl>';
+  const tsp=TS.filter(t=>t.proiect_id===p.id).sort((a,b)=>(a.data||"").localeCompare(b.data||"")); if(tsp.length) h+='<div class="section"><h2>Termene & obligații ('+tsp.length+')</h2><ul class="list">'+tsp.map(t=>'<li><span style="flex:1"><span class="tp">'+esc((t.tip||"").replace(/_/g," "))+'</span><br>'+esc(t.descriere||"")+'</span>'+cdBadge(t.data,{task:true})+'</li>').join("")+'</ul></div>';
   if(p.evaluari&&p.evaluari.length) h+='<div class="section"><h2>Verificări pre-depunere</h2><ul class="list">'+p.evaluari.map(e=>'<li><span style="color:var(--muted);min-width:80px">'+fmtDs(String(e.data).slice(0,10))+'</span><span class="evst '+(e.vclass==="go"?"ok":e.vclass==="no"?"no":"nv")+'">'+esc(e.verdict.split(" — ")[0])+'</span> <small style="color:var(--muted)">'+e.blocante+' blocante · '+e.remediat+' de remediat · '+e.nv+' neverificate'+(e.punctaj?' · punctaj '+esc(e.punctaj):'')+'</small></li>').join("")+'</ul></div>';
   if(p.istoric&&p.istoric.length) h+='<div class="section"><h2>Istoric</h2><ul class="list">'+p.istoric.map(e=>'<li><span style="color:var(--muted);min-width:80px">'+fmtDs(e.data)+'</span> '+esc(e.eveniment)+'</li>').join("")+'</ul></div>';
   if(p.note) h+='<div class="callout">'+esc(p.note)+'</div>';
@@ -343,13 +343,13 @@ const CMD_ACTIONS=[
 function buildIndex(){ const ix=[];
   NAV.forEach(([id,ic,l])=>ix.push({k:"secțiune",id,l,s:"deschide secțiunea"}));
   CMD_ACTIONS.forEach(a=>ix.push({k:"acțiune",id:a.id,l:a.l,s:a.s}));
-  A.forEach(a=>ix.push({k:"apel",id:a.id_apel,l:a.titlu,s:(a.program||"")+(a.data_inchidere?" · "+fmtDs(a.data_inchidere):"")}));
-  CL.forEach(c=>ix.push({k:"client",id:c.id,l:c.denumire,s:(c.judet||"")+" · "+(c.dimensiune||c.tip||"")}));
+  A.forEach(a=>ix.push({k:"apel",id:a.id_apel,l:a.titlu,s:(a.program||"")+(a.data_inchidere?" · "+fmtDs(a.data_inchidere):""),t:[].concat(a.regiuni||[],a.judete_eligibile||[],a.domenii||[],a.administrator||"",a.stare||"").join(" ")}));
+  CL.forEach(c=>ix.push({k:"client",id:c.id,l:c.denumire,s:(c.judet||"")+" · "+(c.dimensiune||c.tip||""),t:(c.cui||"")+" "+(c.regiune||"")+" "+(c.interese||[]).join(" ")}));
   PR.forEach(p=>ix.push({k:"proiect",id:p.id,l:p.titlu,s:p.faza+" · "+(FAZE[p.faza]||"")}));
   return ix; }
 let IX=null;
 function doSearch(q){ IX=IX||buildIndex(); q=q.toLowerCase().trim(); if(!q) return IX.filter(x=>x.k==="secțiune"||x.k==="acțiune").slice(0,12);
-  const toks=q.split(/\s+/); const score=x=>{ const t=(x.l+" "+x.s).toLowerCase(); if(!toks.every(tk=>t.includes(tk))) return -1; let s=0; if(x.l.toLowerCase().startsWith(q)) s+=3; if(x.k==="secțiune"||x.k==="acțiune") s+=1; return s; };
+  const toks=q.split(/\s+/); const score=x=>{ const t=(x.l+" "+x.s+" "+(x.t||"")).toLowerCase(); if(!toks.every(tk=>t.includes(tk))) return -1; let s=0; if(x.l.toLowerCase().startsWith(q)) s+=3; if(x.k==="secțiune"||x.k==="acțiune") s+=1; return s; };
   return IX.map(x=>({x,s:score(x)})).filter(o=>o.s>=0).sort((a,b)=>b.s-a.s).slice(0,12).map(o=>o.x); }
 function cmdRun(k,id){ if(k==="apel") openApel(id); else if(k==="client") openClient(id); else if(k==="proiect") openProiect(id); else if(k==="secțiune"){ S.view=id; render(); } else if(k==="acțiune"){ const a=CMD_ACTIONS.find(x=>x.id===id); if(a) a.run(); } }
 function hookSearch(){ const inp=$("#globalSearch"), box=$("#searchHits"); let cur=-1;

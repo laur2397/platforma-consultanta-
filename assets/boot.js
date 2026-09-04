@@ -17,7 +17,7 @@ window.__reboot=function(){ MATCH=null; IX=null; render(); };
     '<div class="callout warn">Sursele gov.ro centrale sunt blocate din datacenter — scanarea folosește OI-uri regionale + comunicate oficiale + presă (marcate [DE VERIFICAT] unde e cazul). Pentru acces direct: browserul tău (Claude in Chrome) sau VPS românesc (Faza 3).</div></div>'); };
   $("#overlay").onclick=closeDrawer;
   $("#firmName").textContent=(META.firma||{}).nume||"";
-  $("#stampBox").innerHTML="radar: "+esc(String((DB.apeluri||{}).extras_la||"").slice(0,10))+(function(){const a=radarAge();return a?' · <b style="color:'+radarAgeColor(a.cls)+'">acum '+a.zile+'z</b>':'';})()+"<br>v"+esc(META.versiune||"1");
+  $("#stampBox").innerHTML="radar: "+esc(fmtD(String((DB.apeluri||{}).extras_la||"").slice(0,10)))+(function(){const a=radarAge();return a?' · <b style="color:'+radarAgeColor(a.cls)+'">acum '+a.zile+'z</b>':'';})()+"<br>v"+esc(META.versiune||"1");
   const hb=$("#btnHelp"); if(hb) hb.onclick=()=>helpOpen(false);
   hookSearch(); render();
   try{ if(!localStorage.getItem("eufcc_seen")) setTimeout(()=>helpOpen(true),600); }catch(e){}

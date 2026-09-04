@@ -162,7 +162,7 @@ html[data-theme="dark"] .flag{color:var(--serious)}
 
 /* ===== Filters ===== */
 .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;box-shadow:var(--shadow)}
-.filters select,.filters input[type=text],.filters input[type=search],select,input[type=text],input[type=search],input[type=number],input[type=date],textarea{padding:7px 10px;border:1px solid var(--grid);border-radius:8px;background:var(--surface2);color:var(--ink);font-size:12.5px}
+.filters select,.filters input[type=text],.filters input[type=search],select,input[type=text],input[type=search],input[type=number],input[type=date],input[type=email],input[type=tel],input[type=url],input:not([type]),textarea{padding:7px 10px;border:1px solid var(--grid);border-radius:8px;background:var(--surface2);color:var(--ink);font-size:12.5px}
 .filters select,.filters input[type=text],.filters input[type=search]{max-width:200px}
 .filters input[type=search]{max-width:none}
 select:focus,input:focus,textarea:focus{outline:0;box-shadow:0 0 0 3px var(--accent-soft);border-color:var(--accent)}
@@ -364,7 +364,7 @@ html[data-theme="dark"] .evbadge-un{color:var(--serious)}
   .searchwrap .kbd{display:none}
   .tstamp{display:none}
   #btnPrint{display:none}
-  .btn.primary .lbl{display:none}
+  #btnRescan .lbl{display:none}
   .side{display:none}
   .main{padding:16px 14px calc(84px + env(safe-area-inset-bottom))}
   .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:60;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--grid);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
@@ -409,7 +409,7 @@ html[data-theme="dark"] .evbadge-un{color:var(--serious)}
 .evsec{margin-top:14px;scroll-margin-top:70px;transition:box-shadow .3s}
 .evsec.evflash{box-shadow:0 0 0 3px var(--accent-soft),var(--shadow-lg)}
 .evsech{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
-.evsech h2{margin-bottom:2px}
+.evsech h2{margin-bottom:2px;font-size:15px;text-transform:none;letter-spacing:-.01em;color:var(--ink)}
 .evrules{list-style:none;margin-top:6px}
 .evrules li{display:grid;grid-template-columns:14px 1fr auto;gap:10px;align-items:start;padding:7px 0;border-bottom:1px solid var(--grid);font-size:13px}
 .evrules li:last-child{border-bottom:0}
@@ -580,7 +580,8 @@ details.acc2[open]>summary::before{content:"▾"}
 @media(max-width:900px){ .viewactions details.more summary.btn{flex:0 0 auto} .chd{flex-wrap:wrap} }
 
 /* ===== cereri agent C ===== */
-.list li>span:not(.cd):not(.chip):not(.badge):not(.tp):not(.hdot):not(.vi){flex:1;min-width:0}
+.list li>:where(span:not(.cd,.chip,.badge,.tp,.hdot,.vi,.mk,.flag,[aria-hidden])){flex:1;min-width:0}
+.list li>span.mk,.list li>span.flag,.list li>span[aria-hidden]{flex:0 0 auto}
 .subnav button .ct{font-size:11px;background:var(--surface2);color:var(--ink2);border-radius:99px;padding:0 7px;margin-left:6px;font-variant-numeric:tabular-nums}
 .subnav button.on .ct{background:var(--accent-soft);color:var(--accent-ink)}
 
@@ -604,3 +605,13 @@ th.sortable:focus-visible,.tbl tbody tr:focus-visible{outline-offset:-2px}
 .drawer .dnav span{min-width:44px;text-align:center;font-variant-numeric:tabular-nums}
 .drawer .dnav .btn{padding:2px 8px;font-size:15px;line-height:1}
 .drawer .dnav .btn[disabled]{opacity:.35;cursor:default}
+
+/* ---- QA runda 3: reguli transversale ---- */
+.grid2>*,.grid3>*,.tiles>*,.grid2 .card,.grid3 .card{min-width:0}
+.drawer .dh2 small.dsub{color:var(--muted);font-weight:400;font-size:12px}
+@media (max-width:900px){
+  .tiles:has(> :nth-child(3):last-child){grid-template-columns:repeat(3,1fr)}
+  .tiles:has(> :nth-child(3):last-child) .tile .v{font-size:20px}
+  .tbl.stack td{overflow-wrap:anywhere}
+  .main .card{min-width:0;overflow-wrap:anywhere}
+}
