@@ -349,5 +349,7 @@ function helpOpen(first){ const z=[["azi","Azi","Ce am de făcut azi: termene, u
   h+='<div class="callout">Regula platformei: <b>AI pregătește; omul decide.</b> Nimic nu pleacă spre AM sau client fără validarea consultantului. Fiecare regulă și fiecare apel are sursă.</div>';
   h+='<div style="margin-top:12px"><button class="btn primary" onclick="closeDrawer()">'+(first?"Începe":"Am înțeles")+'</button></div></div>';
   openDrawer(h); try{ localStorage.setItem("eufcc_seen","1"); }catch(e){} }
+/* KPI static (fără click) — aceeași formă ca tile() din zona Azi */
+function tileS(v,l,d,cls){ return '<div class="tile '+(cls||"")+(String(v).length>7?" long":"")+'" style="cursor:default"><div class="v">'+v+'</div><div class="l">'+l+'</div>'+(d?'<div class="d">'+d+'</div>':'')+'</div>'; }
 function emptyState(icon,title,text,actionHtml){ return '<div class="emptybig">'+(icon?'<div class="ei">'+icon+'</div>':"")+'<div class="et">'+title+'</div>'+(text?'<div class="ex">'+text+'</div>':"")+(actionHtml?'<div class="ea">'+actionHtml+'</div>':"")+'</div>'; }
 

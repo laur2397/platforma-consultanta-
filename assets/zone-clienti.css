@@ -1,1 +1,68 @@
-/* Stiluri specifice zonei clienti — folosește tokenurile din styles.css */
+/* Stiluri specifice zonei clienti — folosește tokenurile din styles.css (prefix .cl-) */
+
+/* antet de card (cardHead) în interiorul paginilor zonei — aceeași etichetă ca .card>h2 */
+.cl-page .chd{margin-bottom:12px}
+.cl-page .chd h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+.cl-page .cha select{min-width:170px}
+.cl-muted{color:var(--muted)}
+.cl-small{font-size:12px}
+.cl-tblcard{padding:12px 14px 6px}
+.cl-tblcard .chd{margin-bottom:6px}
+.cl-scroll{max-height:380px;overflow:auto}
+.cl-h3{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;margin:12px 0 4px;display:flex;gap:8px;align-items:baseline}
+.cl-h3s{text-transform:none;letter-spacing:0;font-weight:500}
+.cl-sum{display:block;font-weight:400;color:var(--muted);font-size:12px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---- CRM: filtre pe un rând + grilă de carduri uniforme ---- */
+.cl-filters input[type=search]{flex:1;min-width:200px}
+.cl-chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.cl-count{margin-left:auto;color:var(--muted);font-size:12.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.cl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(272px,1fr));gap:14px;margin-top:12px}
+.card.cl-card{display:flex;flex-direction:column;gap:8px;padding:14px 16px}
+.cl-card .cl-hd{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.cl-card .cl-name{font-weight:600;font-size:14px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.7em}
+.cl-card .cl-edit{padding:2px 7px;margin:-2px -4px 0 0}
+.cl-card .cl-meta{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:-6px;min-height:18px}
+.cl-card .cl-row{font-size:12.5px;color:var(--ink2);min-height:24px;display:flex;gap:6px;align-items:center;flex-wrap:nowrap;min-width:0}
+.cl-card .cl-row .cd{flex-shrink:0}
+.cl-card .cl-k{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;flex-shrink:0}
+.cl-card .cl-t{font-size:12.5px;color:var(--ink);min-height:19px;margin-top:-6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cl-card .cl-min{font-size:12px;color:var(--ink2);min-height:34px}
+.cl-card .cl-min .minibar{margin-top:4px}
+.cl-card .cl-ft{margin-top:auto;padding-top:8px;border-top:1px dashed var(--grid);display:flex;gap:6px;flex-wrap:wrap;align-items:center;min-height:34px}
+
+/* ---- Prospect ONRC ---- */
+.cl-drop{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.cl-onrcload{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px dashed var(--grid);border-radius:var(--r);padding:8px 12px;margin-top:12px;font-size:12px;color:var(--ink2)}
+.cl-onrcload .onrcmeta{margin:0}
+.cl-pfilters input[type=search]{flex:1;min-width:180px}
+.cl-pfilters input[type=text]{max-width:190px}
+.cl-pfilters .cl-more{flex:1 1 100%;border:0;background:transparent;margin:0}
+.cl-pfilters .cl-more summary{padding:4px 6px;font-size:12px;color:var(--muted);font-weight:500}
+.cl-pfilters .cl-more .inner{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:4px 6px 6px}
+.cl-chk{font-size:12.5px;color:var(--ink2);display:inline-flex;align-items:center;gap:5px}
+
+/* ---- Market Intel ---- */
+.cl-judchips{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:-4px 0 6px}
+.cl-radio .tiles{margin-top:6px}
+.cl-radio .tiles.compact .tile .d{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cl-radio2{margin-top:6px}
+.cl-lt{flex:1;min-width:0}
+.cl-card .cl-prog{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:12px;margin-left:2px}
+@media(max-width:900px){.cl-radio2 .list li{flex-wrap:wrap}.cl-radio2 .list .cl-lt{flex:1 1 100%}}
+.cl-page .list li[tabindex]:focus-visible,.cl-page .card.cl-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+@media(max-width:900px){
+  .cl-filters input[type=search],.cl-pfilters input[type=search]{flex:1 1 100%;max-width:none}
+  .cl-chips{flex:1 1 100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .cl-chips::-webkit-scrollbar{display:none}
+  .cl-chips .fchip{flex-shrink:0}
+  .cl-filters select{flex:1;max-width:none}
+  .cl-pfilters select,.cl-pfilters input[type=text]{flex:1 1 40%;max-width:none;min-width:0}
+  .cl-pfilters .cl-more .inner input[type=text],.cl-pfilters .cl-more .inner select{flex:1 1 40%;max-width:none}
+  .cl-grid{grid-template-columns:1fr;gap:10px}
+  .cl-scroll{max-height:none}
+  .cl-page .cha select{min-width:0;flex:1}
+  .cl-page .chd{flex-wrap:wrap}
+  .cl-radio .tiles.compact .tile .d{display:none}
+}

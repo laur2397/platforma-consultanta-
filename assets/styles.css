@@ -96,7 +96,7 @@ html[data-theme="dark"] .btn.primary:hover{background:#4d95ea}
 .sheet .sg button svg.i{width:20px;height:20px}
 
 /* Main */
-.main{overflow-y:auto;padding:22px 26px 70px;scroll-behavior:smooth}
+.main{overflow-y:auto;padding:22px 26px 70px}
 .main>*{animation:fadein .22s ease both}
 @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 .viewtitle{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
@@ -576,7 +576,7 @@ details.acc2>summary{list-style:none;display:flex;align-items:center;gap:8px}
 details.acc2>summary::-webkit-details-marker{display:none}
 details.acc2>summary::before{content:"▸";color:var(--muted);font-size:12px;width:12px;flex-shrink:0;transition:transform .15s}
 details.acc2[open]>summary::before{content:"▾"}
-@media(max-width:900px){ .viewactions details.more summary.btn{flex:0 0 auto} }
+@media(max-width:900px){ .viewactions details.more summary.btn{flex:0 0 auto} .chd{flex-wrap:wrap} }
 
 /* ===== Print ===== */
 @media print{

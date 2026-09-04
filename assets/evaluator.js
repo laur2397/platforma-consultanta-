@@ -218,7 +218,7 @@ function evRuleSentences(rb){ const a=rb.apel_id?(apelById(rb.apel_id)||{}):{}; 
   out.push({t:(rb.documente||[]).length+" documente în lista dosarului ("+(rb.documente||[]).filter(d=>d.confirmat!==false).length+" confirmate obligatorii)",s:"ghid / listă tipică"});
   return out; }
 function evContextCard(){ const D=window.evUI.dosar; const rb=evGetRb(); const cli=CL; const prj=PR.filter(p=>!D.client_id||p.client_id===D.client_id);
-  let h='<div class="card" id="sec-ctx"><h2>Pentru cine și pentru ce verific?</h2><div class="evform"><div class="r3">';
+  let h='<div class="card" id="sec-ctx">'+cardHead('Pentru cine și pentru ce verific?')+'<div class="evform"><div class="r3">';
   h+='<div><label>Client (din CRM)</label><select onchange="evChooseClient(this.value)"><option value="">— fără client / manual —</option>'+cli.map(c=>'<option value="'+esc(c.id)+'"'+(D.client_id===c.id?" selected":"")+'>'+esc(c.denumire)+(c.demo?" (demo)":"")+'</option>').join("")+'</select></div>';
   h+='<div><label>Proiect (opțional)</label><select onchange="evChooseProject(this.value)"><option value="">— fără proiect —</option>'+prj.map(p=>'<option value="'+esc(p.id)+'"'+(D.project_id===p.id?" selected":"")+'>'+esc(p.titlu)+'</option>').join("")+'</select></div>';
   const groups={}; A.filter(a=>a.stare!=="inchis").forEach(a=>{ (groups[a.program||"Alte programe"]=groups[a.program||"Alte programe"]||[]).push(a); });
@@ -226,7 +226,7 @@ function evContextCard(){ const D=window.evUI.dosar; const rb=evGetRb(); const c
   h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px"><span class="evsrc">Alege apelul și regulile se încarcă singure din radar (verificat la sursă) + legislația aplicabilă. Clientul precompletează dosarul.</span>'+(!rb?'<button class="btn small" onclick="window.evUI.curId=evRbForApel(\'\').id;evSaveUI();render()">Verificare generală, fără apel →</button>':'')+'<button class="btn small ghost" onclick="evImport()" title="continuă un dosar exportat (JSON)">⬆ Încarcă dosar</button></div>';
   h+='</div></div>';
   if(rb){ const rules=evRuleSentences(rb); const a=rb.apel_id?apelById(rb.apel_id):null;
-    h+='<div class="card section" style="margin-top:14px"><h2>Regulile după care verific'+(a?' — '+esc(a.program||""):'')+' <span class="evsrc" style="text-transform:none;letter-spacing:0">'+rules.length+' reguli · '+(rb.auto?'pre-încărcate din radar':'manual')+'</span></h2>';
+    h+='<div class="card section" style="margin-top:14px">'+cardHead('Regulile după care verific'+(a?' — '+esc(a.program||""):''),rules.length,'<span class="evsrc">'+(rb.auto?'reguli pre-încărcate din radar':'reguli adăugate manual')+'</span>');
     if(rb.auto_conf===false) h+='<div class="callout warn">Apelul e marcat <b>[DE VERIFICAT]</b> în radar — regulile preluate automat pot fi incomplete. Confirmă-le cu ghidul.</div>';
     h+='<ul class="evrules">'+rules.map(r=>'<li><span class="evdot'+(r.man&&r.conf===false?" nv":"")+'"></span><span>'+esc(r.t)+'</span><span class="evsrc">'+esc(r.s)+'</span></li>').join("")+'</ul>';
     h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn small" onclick="evOpenAdvanced()">⚙ Reguli avansate din ghid (plafoane, documente, grilă)</button>'+(a&&a.url_ghid?'<a class="btn small" href="'+esc(a.url_ghid)+'" target="_blank">📄 Ghidul solicitantului ↗</a>':'')+(a&&a.url_sursa?'<a class="btn small" href="'+esc(a.url_sursa)+'" target="_blank">🔗 Sursa apelului ↗</a>':'')+'<button class="btn small ghost" onclick="evDelRb()">🗑 șterge regulile</button></div>';
@@ -314,14 +314,14 @@ function evExport(){ const rb=evGetRb(); const rep=window.evUI.report||evLive();
 
 /* ---- vederea ---- */
 function vVerif(){ evLoad(); evLoadUI(); const rb=evGetRb(); const step=rb?(window.evUI.step||0):0; if(!rb) window.evUI.step=0;
-  let h='<div class="viewtitle"><h1>🧪 Verificare proiect</h1><span class="sub">reguli pre-încărcate · verdict live · sursă la fiecare regulă</span><div class="viewactions">'+(rb?'<button class="btn small ghost" onclick="evResetDosar()">↺ dosar nou</button>':"")+'</div></div>';
+  let h='<div class="pj-page"><div class="viewtitle"><h1>Verificare proiect</h1><span class="sub" title="Totul rulează în browser — documentele nu pleacă nicăieri.">Alegi apelul, completezi dosarul și primești verdictul live, cu sursă la fiecare regulă.</span><div class="viewactions">'+(rb?'<button class="btn small ghost" onclick="evResetDosar()">↺ dosar nou</button>':"")+'</div></div>';
   const steps=["Context & reguli","Dosarul","Raport"]; h+='<div class="evsteps">'+steps.map((s,i)=>'<button class="evstepbtn'+(i===step?" on":"")+(i<step?" done":"")+'"'+(rb||i===0?' onclick="evStep('+i+')"':' disabled')+'><span class="n">'+(i<step?"✓":i+1)+'</span>'+s+'</button>').join("")+'</div>';
   if(rb&&step>0) h+='<div class="semafor" id="evSemafor"></div>';
-  if(step===0){ h+='<div class="callout" style="margin-bottom:12px">Alege apelul → regulile se încarcă singure. Completezi dosarul ca pe un checklist, iar verdictul se actualizează în timp real: <b>CONFORM · NECONFORM · NEVERIFICAT</b>, fiecare cu sursă. Totul rulează în browser — documentele nu pleacă nicăieri.</div>'; h+=evContextCard(); if(rb) h+='<div style="margin-top:14px"><button class="btn primary" onclick="evStep(1)">Începe verificarea →</button> <span class="evsrc">poți trece mai departe și fără să completezi tot</span></div>';
-    const quick=PR.filter(p=>!p.demo&&p.apel_id&&apelById(p.apel_id)).slice(0,8); if(quick.length&&!rb) h+='<div class="card section" style="margin-top:14px"><h2>Începe rapid — proiectele tale cu apel</h2><div class="evsub">'+quick.map(p=>'<button class="fchip" onclick="evStartFor(\''+esc(p.id)+'\')">🧪 '+esc(p.titlu.slice(0,40))+'</button>').join("")+'</div></div>'; }
+  if(step===0){ h+=evContextCard(); if(rb) h+='<div style="margin-top:14px"><button class="btn primary" onclick="evStep(1)">Începe verificarea →</button> <span class="evsrc">poți trece mai departe și fără să completezi tot</span></div>';
+    const quick=PR.filter(p=>!p.demo&&p.apel_id&&apelById(p.apel_id)).slice(0,8); if(quick.length&&!rb) h+='<div class="card section" style="margin-top:14px">'+cardHead('Începe rapid',quick.length,'<span class="evsrc">proiectele tale cu apel</span>')+'<div class="evsub">'+quick.map(p=>'<button class="fchip" onclick="evStartFor(\''+esc(p.id)+'\')">🧪 '+esc(p.titlu.slice(0,40))+'</button>').join("")+'</div></div>'; }
   else if(step===1){ h+=["sec-sol","sec-fin","sec-cae","sec-doc","sec-con"].map(evSectionHtml).join(""); h+='<div style="display:flex;gap:8px;margin-top:14px;align-items:center;flex-wrap:wrap"><button class="btn" onclick="evStep(0)">← Context</button><button class="btn primary" onclick="evStep(2)">Vezi raportul →</button><span class="evsrc">«Nu știu» și câmpurile goale rămân vizibile în raport ca neverificate.</span></div>'; }
   else { h+='<div id="evReport"></div><div style="display:flex;gap:8px;margin-top:14px"><button class="btn" onclick="evStep(1)">← Înapoi la dosar</button></div>'; }
-  return h; }
+  return h+'</div>'; }
 window.after_verif=function(){ if(evGetRb()) evLive(); };
 // dacă sesiunea a fost restaurată direct pe „Verificare proiect”, prima randare a rulat înainte ca acest modul să existe
 if(typeof S!=="undefined"&&S.view==="verif"&&typeof render==="function") render();
