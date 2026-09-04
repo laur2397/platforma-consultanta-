@@ -106,7 +106,7 @@ html[data-theme="dark"] .btn.primary:hover{background:#4d95ea}
 .viewtitle .sub{color:var(--muted);font-size:12.5px}
 .viewactions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
 .section{margin-top:20px}
-.section h2,.card>h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:10px;font-weight:600}
+.section h2,.card>h2,.chd h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:10px;font-weight:600}
 .card>h2{font-size:12px!important;color:var(--muted)!important}
 .card>h2:first-child{display:flex;align-items:center;gap:8px}
 
@@ -128,7 +128,7 @@ html[data-theme="dark"] .btn.primary:hover{background:#4d95ea}
 
 /* ===== Cards, grids, tables ===== */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);padding:16px 18px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 @media(max-width:1100px){.grid2,.grid3{grid-template-columns:1fr}}
 .tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px;padding:0 4px;scrollbar-width:thin}
@@ -529,7 +529,6 @@ html[data-theme="dark"] .evdoc.on{background:rgba(12,163,12,.16)}
 .calit .body{flex:1;min-width:0}
 .calit.k-inchidere{border-left-color:var(--critical)} .calit.k-deschidere{border-left-color:var(--accent)} .calit.k-proiect{border-left-color:var(--s7)}
 .mcell .ev.k-deschidere{background:var(--accent-soft);color:var(--accent-ink)} .mcell .ev.k-proiect{background:rgba(74,58,167,.12);color:var(--s7)} .mcell .ev.more{background:transparent;color:var(--muted);font-weight:600}
-#mcList table.tbl{min-width:520px}
 .card select{max-width:100%}
 @media(max-width:900px){
   .tiles.compact{grid-template-columns:repeat(4,1fr);gap:6px}
@@ -571,6 +570,13 @@ details.more summary::-webkit-details-marker{display:none}
 details.more .menu{position:absolute;right:0;top:calc(100% + 4px);z-index:20;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-lg);padding:4px;min-width:200px;display:flex;flex-direction:column}
 details.more .menu button{border:0;background:transparent;color:var(--ink);text-align:left;padding:8px 10px;border-radius:7px;font-size:13px;cursor:pointer;white-space:nowrap}
 details.more .menu button:hover{background:var(--surface2)}
+
+/* ===== cereri agenți runda 1 (generic) ===== */
+details.acc2>summary{list-style:none;display:flex;align-items:center;gap:8px}
+details.acc2>summary::-webkit-details-marker{display:none}
+details.acc2>summary::before{content:"▸";color:var(--muted);font-size:12px;width:12px;flex-shrink:0;transition:transform .15s}
+details.acc2[open]>summary::before{content:"▾"}
+@media(max-width:900px){ .viewactions details.more summary.btn{flex:0 0 auto} }
 
 /* ===== Print ===== */
 @media print{
