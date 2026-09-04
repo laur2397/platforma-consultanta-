@@ -1,25 +1,32 @@
 /* Stiluri specifice zonei instrumente — folosește tokenurile din styles.css. Prefix: .in- */
 
-/* sub-nav compact: etichetă scurtă + număr în .ct (o singură linie la 1440px) */
-.subnav.in-sub{gap:0;margin:0 0 14px}
-.subnav.in-sub button{padding:8px 12px;font-size:13px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-.subnav.in-sub button .ct{font-size:11px;background:var(--surface2);color:var(--ink2);border-radius:99px;padding:0 7px;font-variant-numeric:tabular-nums;font-weight:600;line-height:1.5}
+/* Sub-navigația de nivel 2 = „segmented control” (pastile într-o bandă gri), NU subliniere albastră:
+   pe pagină rămâne un singur rând subliniat — .zonetabs, pus de core.js. */
+.subnav.in-sub{display:inline-flex;gap:2px;flex-wrap:wrap;margin:0 0 14px;padding:3px;background:var(--surface2);border:1px solid var(--grid);border-radius:10px;max-width:100%}
+.subnav.in-sub button{border:0;border-radius:8px;margin:0;padding:6px 12px;font-size:13px;font-weight:500;line-height:1.3;color:var(--ink2);display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.subnav.in-sub button:hover{color:var(--ink);background:var(--surface3)}
+.subnav.in-sub button.on{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:var(--shadow);border-bottom:0}
+.subnav.in-sub button .ct{font-size:11px;background:var(--surface3);color:var(--ink2);border-radius:99px;padding:0 7px;margin:0;font-variant-numeric:tabular-nums;font-weight:600;line-height:1.5}
 .subnav.in-sub button.on .ct{background:var(--accent-soft);color:var(--accent-ink)}
-.subnav.in-sub.in-sub2{margin:0 0 12px}
+/* nivelul 3 (Baze › Atestați) = chips de filtru, cu număr */
+.in-chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
+.in-chips .fchip{display:inline-flex;align-items:center;gap:6px}
+.in-chips .fchip .ct{font-size:11px;background:var(--surface2);color:var(--ink2);border-radius:99px;padding:0 6px;font-variant-numeric:tabular-nums;font-weight:600;line-height:1.5}
+.in-chips .fchip.on .ct{background:var(--surface);color:var(--ink)}
 
 /* rând-sursă: o singură linie, text mic — datele își păstrează originea și data */
 .in-src{font-size:12px;color:var(--muted);margin:-4px 0 10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .in-src b{color:var(--ink2);font-weight:600}
 
-/* filtre: număr rezultate la dreapta; „mai multe filtre” compact */
+/* filtre: număr rezultate la dreapta; „Mai multe filtre” stă ÎN cardul de filtre (linie punctată), ca în Radar/Prospect */
 .in-count{margin-left:auto;color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .filters .in-count{margin-left:auto}
 .filters>input[type=text]{flex:1;min-width:200px;max-width:none}
-details.in-mf{margin:-4px 0 12px;background:transparent;border-style:dashed}
-details.in-mf summary{font-size:12.5px;padding:8px 14px;color:var(--ink2);display:flex;align-items:center;gap:8px}
-details.in-mf summary .ct{font-size:11px;background:var(--accent-soft);color:var(--accent-ink);border-radius:99px;padding:0 7px;font-weight:600}
-details.in-mf .inner{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:0 14px 12px}
-details.in-mf .inner select{max-width:220px}
+.filters>details.in-mf{flex:1 1 100%;border:0;background:transparent;margin:0;border-top:1px dashed var(--grid);border-radius:0}
+.filters>details.in-mf summary{font-size:12px;font-weight:600;padding:8px 2px 2px;color:var(--ink2);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.filters>details.in-mf summary .ct{font-size:11px;background:var(--accent-soft);color:var(--accent-ink);border-radius:99px;padding:0 7px;font-weight:600}
+.filters>details.in-mf .inner{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 2px 2px}
+.filters>details.in-mf .inner select{max-width:220px}
 
 /* referință (texte explicative) — închise implicit */
 details.in-ref{margin-top:12px}
@@ -38,19 +45,31 @@ details.in-ref+details.in-ref{margin-top:0}
 .in-note{font-size:12.5px;color:var(--ink2);line-height:1.5}
 .in-act{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px}
 .in-act input[type=text]{width:140px}
+/* text mic în celule (înlocuiește stilurile inline font-size:12px) */
+.in-small{font-size:12px}
+.in-small.dim{color:var(--ink2)}
+.btn.small.in-xs{font-size:11px;padding:1px 6px}
+/* marcajele mici din celule nu se rup la mijlocul cuvântului (ex. „reședință” pe mobil) */
+.in-zone .resb,.in-zone .tpb,.in-zone .flag{white-space:nowrap}
+/* contact compact în tabele: max 2 rânduri (e-mail · telefon+site); restul în title */
+.in-ctr{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.in-ctr>*{white-space:nowrap}
+/* KPI: 3 tile-uri egale (fără orfan pe mobil) */
+.in-zone .tiles.in-k3{grid-template-columns:repeat(3,1fr)}
 
-/* Baze de date — grila celor 7 registre */
+/* Baze de date — grila celor 7 registre: icon + badge pe rândul de sus, titlul pe UN rând, numărul aliniat între carduri */
 .in-dbgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(262px,1fr));gap:12px;margin-top:12px}
+.in-dbgrid>*{min-width:0}
 .card.in-db{display:flex;flex-direction:column;gap:6px;padding:14px 16px;min-width:0;overflow:hidden}
-.in-db .in-db-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.in-db .in-db-h b{font-size:14px;letter-spacing:-.01em}
+.in-db .in-db-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.in-db .in-db-top .badge{flex-shrink:0}
+.in-db .in-db-h{display:block;font-size:14px;letter-spacing:-.01em;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
 .in-db .in-db-ic{width:34px;height:34px;border-radius:9px;background:var(--surface2);display:grid;place-items:center;font-size:18px;line-height:1;flex-shrink:0}
-.in-db .in-db-top{display:flex;align-items:center;gap:10px}
-.in-db .in-db-n{font-size:24px;font-weight:700;letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.1;margin-top:2px}
+.in-db .in-db-n{font-size:24px;font-weight:700;letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.1}
 .in-db .in-db-n small{font-size:12px;font-weight:500;color:var(--muted);letter-spacing:0;margin-left:4px}
-.in-db .in-db-n.dim{color:var(--muted);font-size:18px}
+.in-db .in-db-n.dim{color:var(--muted);font-size:18px;line-height:1.45}
 .in-db .in-db-t{font-size:12.5px;color:var(--ink2);line-height:1.45}
-.in-db .evsrc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:help}
+.in-db .evsrc{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:help;line-height:1.4}
 .in-db .in-db-a{margin-top:auto;padding-top:6px}
 .in-kpi-row{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
 
@@ -71,8 +90,11 @@ details.in-ref+details.in-ref{margin-top:0}
 .in-res{font-size:22px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
 .in-res.acc{color:var(--accent)}
 .in-res-l{font-size:12.5px;color:var(--ink2);margin-top:4px}
+/* stare goală în cardul de rezultat: text liniștit, nu titlu de 22px */
+.in-res-empty{font-size:13px;color:var(--muted);line-height:1.5;padding:4px 0 2px}
 .in-hl td{background:rgba(208,59,59,.06)}
 .in-mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+.in-zone .tiles.compact .tile .v{font-size:18px}
 
 /* Administrare */
 .in-adm-src small{display:block;color:var(--muted);font-size:11px}
@@ -81,6 +103,15 @@ details.in-ref+details.in-ref{margin-top:0}
 .in-legend b{color:var(--accent-deep)}
 
 @media(max-width:900px){
+  .subnav.in-sub{display:flex;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .subnav.in-sub::-webkit-scrollbar{display:none}
+  .subnav.in-sub button{flex-shrink:0}
+  .in-chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -14px 12px;padding:0 14px}
+  .in-chips::-webkit-scrollbar{display:none}
+  .in-chips .fchip{flex-shrink:0}
+  .in-zone .tiles.in-k3{grid-template-columns:1fr 1fr}
+  .in-zone .tiles.in-k3 .tile:last-child{grid-column:1/-1}
+  .in-zone .tiles.compact{grid-template-columns:1fr 1fr}
   .in-fin td.in-lbl{min-width:150px}
   .in-fin td.in-in{width:96px;min-width:96px}
   .in-fintools .evsrc{margin-left:0;flex:1 1 100%}
@@ -88,7 +119,7 @@ details.in-ref+details.in-ref{margin-top:0}
   .in-dbgrid{grid-template-columns:1fr}
   .in-count{flex:1 1 100%;text-align:right;margin-left:0}
   .filters>input[type=text]{flex:1 1 100%}
-  details.in-mf .inner select{max-width:100%;flex:1 1 100%}
+  .filters>details.in-mf .inner select{max-width:100%;flex:1 1 100%}
   .in-zone .hbar .vv{white-space:normal;font-size:11.5px;line-height:1.25}
 }
 

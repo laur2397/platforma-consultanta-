@@ -165,7 +165,7 @@ function zoneGo(zid){ const z=ZONES.find(x=>x[0]===zid); if(!z) return; S.lastIn
 function zoneCount(z){ const m={apeluri:"radar",clienti:"clienti",proiecte:"pipeline"}; return m[z[0]]?navCounts(m[z[0]]):null; }
 function renderNav(){ const cur=zoneOf(S.view);
   $("#nav").innerHTML=ZONES.map(z=>{ const on=z[0]===cur[0]; const cnt=on?null:zoneCount(z);
-    return '<li><button class="zone'+(on?" on":"")+'" data-z="'+z[0]+'">'+ico(z[4])+z[1]+(cnt!=null&&z[3].length>1?'<span class="ct">'+nf.format(cnt)+'</span>':"")+'</button>'+(on&&z[3].length>1?'<ul class="subnavi">'+z[3].map(v=>{ const c=navCounts(v); return '<li><button class="sub'+(S.view===v?" on":"")+'" data-v="'+v+'">'+VIEW_SHORT[v]+(c!=null?'<span class="ct">'+c+'</span>':"")+'</button></li>'; }).join("")+'</ul>':"")+'</li>'; }).join("");
+    return '<li><button class="zone'+(on?" on":"")+'" data-z="'+z[0]+'">'+ico(z[4])+z[1]+(cnt!=null&&z[3].length>1?'<span class="ct">'+nf.format(cnt)+'</span>':"")+'</button>'+(on&&z[3].length>1?'<ul class="subnavi">'+z[3].map(v=>{ const c=navCounts(v); return '<li><button class="sub'+(S.view===v?" on":"")+'" data-v="'+v+'">'+VIEW_SHORT[v]+(c!=null?'<span class="ct">'+nf.format(c)+'</span>':"")+'</button></li>'; }).join("")+'</ul>':"")+'</li>'; }).join("");
   document.querySelectorAll("#nav button.zone").forEach(b=>b.onclick=()=>zoneGo(b.dataset.z));
   document.querySelectorAll("#nav button.sub").forEach(b=>b.onclick=()=>{ S.view=b.dataset.v; render(); });
   const tb=$("#tabbar"); if(tb){ tb.innerHTML=ZONES.map(z=>'<button class="'+(z[0]===cur[0]?"on":"")+'" data-z="'+z[0]+'">'+ico(z[4])+z[1]+'</button>').join("");
