@@ -14,15 +14,13 @@ function inEmptyRow(cols,txt,resetJs){ return '<tr><td colspan="'+cols+'" style=
 const inCsv=rows=>rows.map(row=>row.map(c=>{const s=(c==null?'':String(c));return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(',')).join('\n');
 
 /* ============ MODUL BAZE DE DATE ============ */
-const PRIM = (DB.primarii && DB.primarii.uat) || [];
+let PRIM=[];
 const bznorm = s=>(s||'').toString().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[ăâîșțĂÂÎȘȚ]/g,c=>({'ă':'a','â':'a','î':'i','ș':'s','ț':'t','Ă':'A','Â':'A','Î':'I','Ș':'S','Ț':'T'}[c]||c)).toLowerCase();
-PRIM.forEach(u=>u._k=bznorm(u.n+' '+u.j+' '+u.pr));
+
 
 function bzState(){ if(!S.baze){ S.baze={sub:'prezentare',q:'',judet:'',tip:'',limit:200}; const o=window.__sess&&window.__sess.baze; if(o&&typeof o==="object") Object.assign(S.baze,o); } return S.baze; }
 
-const SIC = DB.sicap || {items:[]};
-const SICI = SIC.items || [];
-SICI.forEach(o=>o._k=bznorm(o.n+' '+o.auth+' '+o.sup+' '+o.cpv));
+let SIC={items:[]}, SICI=[];
 const BZ_NREG=()=>Object.values((DB.registre||{reg:{}}).reg||{}).reduce((a,x)=>a+x.length,0);
 function vBaze(){ const b=bzState();
   const acts={
@@ -72,7 +70,7 @@ function bzDash(){
 }
 
 /* ---------- Subpagina Primării (director) ---------- */
-const BZ_JUD=[...new Set(PRIM.map(u=>u.j))].sort((a,b)=>a.localeCompare(b,'ro'));
+let BZ_JUD=[];
 function bzDir(){ const b=bzState();
   let h='<div class="filters"><input type="text" id="bzq" placeholder="caută primărie, județ sau primar…" value="'+esc(b.q)+'" oninput="bzSet(\'q\',this.value)">';
   h+='<select onchange="bzSet(\'judet\',this.value)"><option value="">— toate județele —</option>'+BZ_JUD.map(j=>'<option '+(b.judet===j?'selected':'')+'>'+esc(j)+'</option>').join('')+'</select>';
@@ -139,7 +137,7 @@ function bzExport(){ const r=bzFilter(); const b=bzState();
 
 /* ---------- Subpagina Achiziții SICAP (motor de căutare live) ---------- */
 function scState(){ const b=bzState(); if(!b.sic) b.sic={dom:'',q:'',minval:'',sort:'pub',dir:-1,limit:80}; return b.sic; }
-const SIC_DOMS=(SIC.domenii||[]).slice();
+let SIC_DOMS=[];
 function scDir(){ const s=scState();
   const totVal=SICI.reduce((a,o)=>a+(o.val||0),0);
   const dmin=SICI.reduce((a,o)=>o.pub&&o.pub<a?o.pub:a,'9999'), dmax=SICI.reduce((a,o)=>o.pub>a?o.pub:a,'');
@@ -191,9 +189,7 @@ function scExport(){ const r=scFilter();
   dl('SICAP_achizitii'+(scState().dom?'_'+bznorm(scState().dom):'')+'.csv','﻿'+inCsv([head].concat(rows)),'text/csv;charset=utf-8'); toast('Export generat'); }
 
 /* ---------- Subpagina Proiecte contractate (MIPE) ---------- */
-const PROJ = (DB.proiecte_mipe && DB.proiecte_mipe.items) || [];
-PROJ.forEach(p=>p._k=bznorm(p.ben+' '+p.tit+' '+p.smis+' '+p.jud));
-const PJ_JUD=[...new Set(PROJ.map(p=>p.jud).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ro'));
+let PROJ=[], PJ_JUD=[];
 function pjState(){ const b=bzState(); if(!b.pj) b.pj={q:'',prog:'',jud:'',cat:'',sort:'v',limit:60}; return b.pj; }
 function pjDir(){ const s=pjState();
   const totVal=PROJ.reduce((a,p)=>a+(p.v||0),0);
@@ -257,14 +253,7 @@ function pjExport(){ const r=pjFilter();
   dl('Proiecte_contractate'+(pjState().jud?'_'+bznorm(pjState().jud):'')+(pjState().prog?'_'+pjState().prog:'')+'.csv','﻿'+inCsv([head].concat(rows)),'text/csv;charset=utf-8'); toast('Export generat'); }
 
 /* ---------- Subpagina Instituții & entități ---------- */
-const INST=(DB.institutii&&DB.institutii.items)||[];
-const ENT=DB.sicap_entitati||{autoritati:[],furnizori:[]};
-const ENTALL=[].concat(
-  INST.map(i=>({tip:i.tip,nume:i.nume,jud:i.judet,email:i.email,cui:'',n:0,v:0,dom:[]})),
-  (ENT.autoritati||[]).map(a=>({tip:'Autoritate contractantă',nume:a.nume,jud:'',email:'',cui:a.cui,n:a.n,v:a.v,dom:a.dom||[]})),
-  (ENT.furnizori||[]).map(f=>({tip:'Furnizor',nume:f.nume,jud:'',email:'',cui:f.cui,n:f.n,v:f.v,dom:f.dom||[]}))
-);
-ENTALL.forEach(e=>e._k=bznorm(e.nume+' '+e.jud+' '+e.cui));
+let INST=[], ENT={autoritati:[],furnizori:[]}, ENTALL=[];
 function enState(){ const b=bzState(); if(!b.en) b.en={q:'',tip:'',limit:80}; return b.en; }
 function enDir(){ const s=enState();
   const nA=(ENT.autoritati||[]).length, nF=(ENT.furnizori||[]).length;
@@ -341,16 +330,10 @@ function vfRegas(){ const el=document.getElementById('vfCui'); const cui=(el&&el
 function vfExport(){ const csv=inCsv([['Judet','Someri','Rata_somaj_pct']].concat(SOM.map(s=>[s.judet,s.someri,s.rata]))); dl('Somaj_judete.csv','﻿'+csv,'text/csv;charset=utf-8'); toast('Export generat'); }
 
 /* ---------- Subpagina Registre profesionale atestate ---------- */
-const REG = DB.registre || {reg:{},dom:[],jud:[],stat:{},surse:[],legenda:[]};
-const RG_DOM = REG.dom||[], RG_JUD = REG.jud||[], RG_LEG = Object.fromEntries((REG.legenda||[]).map(x=>[x[0],x[1]]));
+let REG={reg:{},dom:[],jud:[],stat:{},surse:[],legenda:[]}, RG_DOM=[], RG_JUD=[], RG_LEG={};
 const RG_TIP = [['ver','Verificatori de proiecte','📐','Verificatori'],['exp','Experți tehnici','🔬','Experți tehnici'],['aud','Auditori energetici','⚡','Auditori energetici'],['dir','Diriginți de șantier','👷','Diriginți de șantier']];
 /* record pozițional: [0]=nume [1]=idx județ [2]=email [3]=telefon [4]=[idx domenii] [5]=an valabilitate [6]=[serii] [7]=grad(doar aud) */
-const RG_ALL = {};
-RG_TIP.forEach(([t])=>{ const a=(REG.reg||{})[t]||[];
-  a.forEach(r=>{ r._t=t; r._j=RG_JUD[r[1]]||''; r._d=(r[4]||[]).map(i=>RG_DOM[i]).filter(Boolean);
-    r._g=(t==='aud'?(r[8]||''):''); r._m=r[7]||'';
-    r._k=bznorm(r[0]+' '+r._j+' '+r._d.join(' ')+' '+(r[6]||[]).join(' ')+' '+(r[2]||'')); });
-  RG_ALL[t]=a; });
+let RG_ALL={};
 const RG_AN = TODAY.getFullYear();
 
 function rgState(){ const b=bzState(); if(!b.rg) b.rg={tip:'ver',q:'',jud:'',dom:'',doarContact:false,doarValabil:false,sort:'n',limit:60}; return b.rg; }
@@ -923,3 +906,18 @@ function ioPreview(){ const el=$("#ioPrev"); try{ const {out}=ioParse(); el.inne
 function ioImport(){ try{ const {obj,out}=ioParse(); if(!out.length){ toast("Nicio cheie recunoscută"); return; } if(!confirm("Aplici importul? "+out.map(o=>o[0]+": "+o[1]+" → "+o[2]).join(", ")+" (în memorie, până la reload)")) return;
   if(obj.apeluri){ A.length=0; obj.apeluri.apeluri.forEach(x=>A.push(x)); Object.assign(DB.apeluri,obj.apeluri); } if(obj.clienti&&obj.clienti.clienti){ CL.length=0; obj.clienti.clienti.forEach(x=>CL.push(x)); } if(obj.proiecte&&obj.proiecte.proiecte){ PR.length=0; obj.proiecte.proiecte.forEach(x=>PR.push(x)); } if(obj.surse&&obj.surse.surse){ SURSE.length=0; obj.surse.surse.forEach(x=>SURSE.push(x)); } if(obj.meta) Object.assign(META,obj.meta);
   MATCH=null; IX=null; _INTEL=null; toast("Date aplicate"); render(); }catch(e){ toast("JSON invalid: "+e.message); } }
+
+/* Stratul greu de date (primării, MIPE, SICAP, registre) se încarcă la cerere — vezi heavyLoad() în core.js.
+   Această funcție (re)derivă indexurile locale; rulează la parsare (cu ce există) și după încărcarea stratului greu. */
+function instrumenteInit(){
+  PRIM=(DB.primarii && DB.primarii.uat) || []; PRIM.forEach(u=>{ if(!u._k) u._k=bznorm(u.n+' '+u.j+' '+u.pr); });
+  SIC=DB.sicap || {items:[]}; SICI=SIC.items || []; SICI.forEach(o=>{ if(!o._k) o._k=bznorm(o.n+' '+o.auth+' '+o.sup+' '+o.cpv); }); SIC_DOMS=(SIC.domenii||[]).slice();
+  BZ_JUD=[...new Set(PRIM.map(u=>u.j))].sort((a,b)=>a.localeCompare(b,'ro'));
+  PROJ=(DB.proiecte_mipe && DB.proiecte_mipe.items) || []; PROJ.forEach(p=>{ if(!p._k) p._k=bznorm(p.ben+' '+p.tit+' '+p.smis+' '+p.jud); }); PJ_JUD=[...new Set(PROJ.map(p=>p.jud).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ro'));
+  INST=(DB.institutii&&DB.institutii.items)||[]; ENT=DB.sicap_entitati||{autoritati:[],furnizori:[]};
+  ENTALL=[].concat(INST.map(i=>({tip:i.tip,nume:i.nume,jud:i.judet,email:i.email,cui:'',n:0,v:0,dom:[]})),(ENT.autoritati||[]).map(a=>({tip:'Autoritate contractantă',nume:a.nume,jud:'',email:'',cui:a.cui,n:a.n,v:a.v,dom:a.dom||[]})),(ENT.furnizori||[]).map(f=>({tip:'Furnizor',nume:f.nume,jud:'',email:'',cui:f.cui,n:f.n,v:f.v,dom:f.dom||[]})));
+  ENTALL.forEach(e=>e._k=bznorm(e.nume+' '+e.jud+' '+e.cui));
+  REG=DB.registre || {reg:{},dom:[],jud:[],stat:{},surse:[],legenda:[]}; RG_DOM=REG.dom||[]; RG_JUD=REG.jud||[]; RG_LEG=Object.fromEntries((REG.legenda||[]).map(x=>[x[0],x[1]]));
+  RG_ALL={}; RG_TIP.forEach(([t])=>{ const a=(REG.reg||{})[t]||[]; a.forEach(r=>{ r._t=t; r._j=RG_JUD[r[1]]||''; r._d=(r[4]||[]).map(i=>RG_DOM[i]).filter(Boolean); r._g=(t==='aud'?(r[8]||''):''); r._m=r[7]||''; r._k=bznorm(r[0]+' '+r._j+' '+r._d.join(' ')+' '+(r[6]||[]).join(' ')+' '+(r[2]||'')); }); RG_ALL[t]=a; });
+}
+instrumenteInit();

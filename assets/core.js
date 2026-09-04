@@ -136,7 +136,7 @@ function calItems(hor){ hor=hor||120; const out=[];
 
 /* ---------- navigation ---------- */
 const NAV=[["buletin","🏠","Azi"],["radar","📡","Radar apeluri"],["matching","🎯","Matching"],["pipeline","📋","Pipeline"],["calendar","📅","Calendar"],["clienti","👥","Clienți"],["prospect","🏢","Prospect ONRC"],["biblioteca","📚","Bibliotecă"],["rapoarte","📊","Rapoarte"],["conformitate","🛡️","Conformitate"],["verif","🧪","Verificare proiect"],["intel","🔎","Market Intel"],["financiar","🧮","Financiar"],["baze","🗄️","Baze de date"],["admin","⚙️","Administrare"]];
-function navCounts(id){ if(id==="radar") return A.filter(a=>a.stare==="activ").length; if(id==="pipeline") return PR.length; if(id==="clienti"){ const r=CL.filter(c=>!c.demo).length; return r||null; } if(id==="calendar") return calItems(30).length; if(id==="baze") return (DB.primarii&&DB.primarii.uat?DB.primarii.uat.length:null); if(id==="prospect"){ const n=onrcTotal(); return n||null; } return null; }
+function navCounts(id){ if(id==="radar") return A.filter(a=>a.stare==="activ").length; if(id==="pipeline") return PR.length; if(id==="clienti"){ const r=CL.filter(c=>!c.demo).length; return r||null; } if(id==="calendar") return calItems(30).length; if(id==="baze") return (DB.primarii&&DB.primarii.uat?DB.primarii.uat.length:((DB.counts||{}).primarii||null)); if(id==="prospect"){ const n=onrcTotal(); return n||null; } return null; }
 /* Iconițe SVG (stroke, 24×24) — înlocuiesc emoji-urile din navigare și titluri */
 const ICONS={
   buletin:'<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
@@ -176,16 +176,27 @@ function sheetClose(){ const s=$("#moreSheet"); if(s) s.classList.remove("open")
 function wrapTables(root){ (root||document).querySelectorAll("table.tbl").forEach(t=>{ if(!t.parentElement.classList.contains("tw")){ const w=document.createElement("div"); w.className="tw"; t.parentNode.insertBefore(w,t); w.appendChild(t); } }); }
 function sessSave(){ try{ sessionStorage.setItem("eufcc_sess",JSON.stringify({view:S.view,intelJud:S.intelJud||"",intelSort:S.intelSort||"",intelDir:S.intelDir||0,fin:S.fin?{sub:S.fin.sub}:null,baze:S.baze||null,calMode:S.calMode,matchClient:S.matchClient,repClient:S.repClient,adminFilter:S.adminFilter||"",adminQ:S.adminQ||""})); }catch(e){} }
 function sessLoad(){ try{ const o=JSON.parse(sessionStorage.getItem("eufcc_sess")||"null"); if(!o) return; window.__sess=o; if(o.view&&NAV.some(n=>n[0]===o.view)) S.view=o.view; if(o.intelJud) S.intelJud=o.intelJud; if(o.intelSort) S.intelSort=o.intelSort; if(o.intelDir) S.intelDir=o.intelDir; if(o.calMode) S.calMode=o.calMode; if(o.matchClient) S.matchClient=o.matchClient; if(o.repClient) S.repClient=o.repClient; if(o.adminFilter) S.adminFilter=o.adminFilter; if(o.adminQ) S.adminQ=o.adminQ; }catch(e){} }
+/* Stratul greu de date (≈7 MB necomprimat) se încarcă o singură dată, la cerere (Baze de date / Market Intel). */
+window.HEAVY=window.HEAVY||{loading:false,cbs:[]};
+function heavyReady(){ return !!(DB.proiecte_mipe&&DB.primarii&&DB.registre); }
+function heavyLoad(cb){ const H=window.HEAVY; if(heavyReady()){ if(cb) cb(); return; } if(cb) H.cbs.push(cb); if(H.loading) return; H.loading=true;
+  const sc=document.createElement("script"); sc.src="assets/data-heavy.js?v="+encodeURIComponent(META.versiune||"1");
+  sc.onload=()=>{ Object.assign(DB,window.DB_HEAVY||{}); H.loading=false; try{ if(typeof instrumenteInit==="function") instrumenteInit(); }catch(e){ console.error(e); } try{ _INTEL=null; }catch(e){} IX=null; const cbs=H.cbs.splice(0); cbs.forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); renderNav(); };
+  sc.onerror=()=>{ H.loading=false; H.cbs.length=0; toast("Nu am putut încărca seturile mari de date — verifică conexiunea"); };
+  document.head.appendChild(sc); }
+const HEAVY_VIEWS=["baze","intel"];
+function heavyGate(v){ heavyLoad(()=>{ if(S.view===v) render(true); }); return '<div class="viewtitle"><h1>'+esc(VIEW_SHORT[v]||v)+'</h1><span class="sub">se încarcă seturile de date</span></div>'+emptyState('⏳','Se încarcă seturile mari de date…','Proiecte contractate, primării, SICAP și registre (≈1,6 MB comprimat). Se descarcă o singură dată și rămân în cache pentru offline.'); }
 function render(keep){ renderNav(); const v=S.view; const M=$("#main"); const _st=M.scrollTop; tileActions.length=0; if(v==="radar") radarSave();
   // pe ecrane înguste radarul se deschide în modul „carduri” până când utilizatorul alege altfel
   if(v==="radar"&&!S.radar._touched) S.radar.mode = window.innerWidth<720 ? "carduri" : "tabel";
   const f={buletin:vBuletin,radar:vRadar,matching:vMatching,pipeline:vPipeline,calendar:vCalendar,clienti:vClienti,prospect:vProspect,biblioteca:vBiblioteca,rapoarte:vRapoarte,conformitate:vConformitate,verif:function(){ return typeof vVerif==="function"?vVerif():"<div class='empty'>Modulul de verificare nu s-a încărcat.</div>"; },intel:vIntel,financiar:vFinanciar,baze:vBaze,admin:vAdmin}[v];
   S.lastIn=S.lastIn||{}; S.lastIn[zoneOf(v)[0]]=v;
-  M.innerHTML = zoneTabsHtml(v)+(f? f() : "<div class='empty'>…</div>");
+  const gated=HEAVY_VIEWS.includes(v)&&!heavyReady();
+  M.innerHTML = zoneTabsHtml(v)+(gated?heavyGate(v):(f? f() : "<div class='empty'>…</div>"));
   // titlu: emoji → iconiță SVG a secțiunii
   const h1=M.querySelector(".viewtitle h1"); if(h1&&!h1.querySelector(".vi")) h1.innerHTML='<span class="vi">'+ico(v)+'</span>'+esc(h1.textContent.replace(/^[^\p{L}\p{N}\[]+/u,"").trim());
   wrapTables(M); M.scrollTop=keep?_st:0; sessSave();
-  if(window["after_"+v]) window["after_"+v](); }
+  if(!gated&&window["after_"+v]) window["after_"+v](); }
 
 /* ---------- drawer ---------- */
 function openDrawer(html){ const d=$("#drawer"); const was=d.classList.contains("open"); if(!was) window._drawerFocus=document.activeElement; d.innerHTML=html; d.classList.add("open"); $("#overlay").classList.add("open"); if(!was){ try{ history.pushState({drawer:1},""); }catch(e){} } const f=d.querySelector(".db .btn, .db a, .db input, .db select"); if(f) setTimeout(()=>f.focus({preventScroll:true}),60); }
