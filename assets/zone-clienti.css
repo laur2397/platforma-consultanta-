@@ -84,3 +84,8 @@
   /* tabelele derulează orizontal în .tw/.cl-scroll — nu rupem cuvintele pe litere */
   .cl-page .tbl td,.cl-page .tbl th{overflow-wrap:break-word}
 }
+
+/* județe salvate local: chip cu ✕ pentru ștergerea unui singur județ */
+.cl-cty{display:inline-flex;align-items:center;gap:4px;padding-right:4px}
+.cl-cty .x{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:11px;line-height:1;padding:3px 5px;border-radius:99px;min-width:20px;min-height:20px}
+.cl-cty .x:hover{background:var(--critical);color:#fff}

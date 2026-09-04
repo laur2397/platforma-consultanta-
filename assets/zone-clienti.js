@@ -232,7 +232,7 @@ function vProspect(){
     return h+'</div>'; }
   /* zona de încărcare compactă când există date (rămâne țintă pentru drag & drop) */
   const stx=onrcStats(); const per=stx.per;
-  h+='<div class="cl-onrcload dropzone" id="onrcDrop" '+dz+'>'+inp+'<span class="evsrc">Județe salvate local:</span>'+loaded.map(c=>'<span class="chip hl" title="'+per[c].a.toLocaleString("ro-RO")+' active · '+per[c].r+' risc · '+per[c].in+' inactive">'+esc(c)+' · '+per[c].n.toLocaleString("ro-RO")+'</span>').join("")+'<span class="evsrc">· trage aici alt fișier .json.gz</span><span id="onrcLoadStatus" class="onrcmeta"></span></div>';
+  h+='<div class="cl-onrcload dropzone" id="onrcDrop" '+dz+'>'+inp+'<span class="evsrc">Județe salvate local:</span>'+loaded.map(c=>'<span class="chip hl cl-cty" title="'+per[c].a.toLocaleString("ro-RO")+' active · '+per[c].r+' risc · '+per[c].in+' inactive">'+esc(c)+' · '+per[c].n.toLocaleString("ro-RO")+'<button class="x" onclick="onrcDeleteCounty(\''+esc(c)+'\')" title="șterge județul '+esc(c)+' de pe dispozitiv" aria-label="șterge județul '+esc(c)+'">✕</button></span>').join("")+'<span class="evsrc">· trage aici alt fișier .json.gz</span><span id="onrcLoadStatus" class="onrcmeta"></span></div>';
   const setSt=st=>()=>{ (S.onrc=S.onrc||{}).stare=st; };
   h+='<div class="tiles">'
     +tile(stx.g.n.toLocaleString("ro-RO"),"Firme încărcate",loaded.length+' județ'+(loaded.length>1?'e':''),"","prospect",setSt("toate"))
@@ -272,7 +272,7 @@ function onrcRenderResults(){
   if(!res.total){ box.innerHTML=emptyState('🔍','Niciun rezultat pentru filtrele curente','Lărgește căutarea: altă stare, alt CAEN sau fără filtrul de localitate.'); return; }
   const inCrm=new Set(CL.map(c=>String(c.cui||"").replace(/\D/g,"")).filter(Boolean));
   /* 6 coloane; administratorii (date personale) rămân doar în fișa din drawer */
-  let h='<div class="card cl-tblcard">'+cardHead('Rezultate',res.total.toLocaleString("ro-RO")+(res.capped?' · primele '+res.cap:''),'<span class="evsrc hide-m">click pe un rând → fișă completă</span><button class="btn small" onclick="onrcExportCSV()" title="lista filtrată (fără date personale ale reprezentanților)">⬇ Export CSV</button>');
+  let h='<div class="card cl-tblcard">'+cardHead('Rezultate',res.total.toLocaleString("ro-RO")+(res.capped?' · primele '+res.cap:''),'<span class="evsrc hide-m">click pe un rând → fișă completă</span><button class="btn small" onclick="onrcAddBulk()" title="adaugă toate firmele din rezultate (fără inactive și fără cele deja în CRM) ca prospecți">➕ Toate în CRM</button><button class="btn small" onclick="onrcExportCSV()" title="lista filtrată (fără date personale ale reprezentanților)">⬇ Export CSV</button>');
   h+='<table class="tbl"><thead><tr><th>Denumire</th><th class="num">CUI</th><th>Localitate</th><th>Stare</th><th>CAEN principal</th><th>Telefon</th></tr></thead><tbody>';
   h+=res.rows.map(r=>{ const d=ONRC.c[r.cty]; const F=d.f[r.i]; const st=ONRC_STLBL[F[ONRC_FIELDS.stare]||0];
     const cp=(F[ONRC_FIELDS.caen]||[])[0]; const cpc=cp?String(cp[0]):""; const cpd=cpc?(d.caen_den&&d.caen_den[cpc]||""):"";
@@ -350,14 +350,26 @@ function onrcExportCSV(){ const flt=window._onrcLast||S.onrc; if(!flt){ toast("R
   const head=["Denumire","CUI","Forma","Judet","Localitate","Stare","CAEN_principal","CAEN_denumire","Telefon","Website"]; const rows=res.rows.map(r=>{ const d=ONRC.c[r.cty]; const F=d.f[r.i]; const cp=(F[ONRC_FIELDS.caen]||[])[0]; const cpc=cp?String(cp[0]):""; return [F[ONRC_FIELDS.den],F[ONRC_FIELDS.cui],F[ONRC_FIELDS.forma]||"",judLabel(r.cty),(d.loc||[])[F[ONRC_FIELDS.loc]]||"",ONRC_STLBL[F[ONRC_FIELDS.stare]||0][1],cpc,cpc?(d.caen_den&&d.caen_den[cpc]||""):"",F[ONRC_FIELDS.tel]||"",F[ONRC_FIELDS.web]||""]; });
   const csv=[head].concat(rows).map(r=>r.map(c=>{const x=(c==null?'':String(c));return /[";\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x;}).join(';')).join('\n'); dl('Prospecti_ONRC'+(flt.county?'_'+flt.county:'')+'.csv','\ufeff'+csv,'text/csv;charset=utf-8'); toast('Export generat — '+rows.length+' firme (fără date personale)'+(res.capped?' · primele '+res.cap:'')); }
 function onrcToRadar(reg){ closeDrawer(); S.radar.regiune=reg; S.radar.stari=new Set(["activ"]); S.view="radar"; render(); }
-function onrcAddProspect(cty,i){ const d=ONRC.c[cty]; if(!d) return; const F=d.f[i]; if(!F) return; const id="onrc_"+F[ONRC_FIELDS.cui];
-  if(CL.some(c=>c.id===id)){ toast("Deja în CRM"); return; }
+function onrcAddProspect(cty,i,quiet){ const d=ONRC.c[cty]; if(!d) return false; const F=d.f[i]; if(!F) return false; const id="onrc_"+F[ONRC_FIELDS.cui];
+  if(CL.some(c=>c.id===id)){ if(!quiet) toast("Deja în CRM"); return false; }
   const cp=(F[ONRC_FIELDS.caen]||[])[0];
   crmAddClient({ id, denumire:F[ONRC_FIELDS.den], tip:"privat", dimensiune:"", forma_juridica:F[ONRC_FIELDS.forma]||"",
     judet:judLabel(cty), regiune:onrcRegOf(cty), localitate:(d.loc||[])[F[ONRC_FIELDS.loc]]||"", cui:String(F[ONRC_FIELDS.cui]||""),
     telefon:F[ONRC_FIELDS.tel]||"", caen_principal:cp?String(cp[0]):"", interese:[], date_financiare:{}, sursa:"ONRC", nota:"Prospect importat din ONRC — de completat dimensiune și date financiare." });
-  toast("Adăugat ca prospect: "+F[ONRC_FIELDS.den]);
+  if(!quiet) toast("Adăugat ca prospect: "+F[ONRC_FIELDS.den]); return true;
 }
+/* Adăugare în masă: toate firmele din rezultatele filtrate (fără cele inactive și fără cele deja în CRM). */
+function onrcAddBulk(){ const flt=window._onrcLast||S.onrc; if(!flt){ toast("Rulează o căutare întâi"); return; } const res=onrcSearch(Object.assign({},flt));
+  const inCrm=new Set(CL.map(c=>c.id)); const cand=res.rows.filter(r=>{ const F=ONRC.c[r.cty].f[r.i]; return (F[ONRC_FIELDS.stare]||0)!==3 && !inCrm.has("onrc_"+F[ONRC_FIELDS.cui]); });
+  if(!cand.length){ toast("Nimic nou de adăugat (toate sunt deja în CRM sau inactive)"); return; }
+  const MAX=200; const lot=cand.slice(0,MAX);
+  if(!confirm("Adaugi "+lot.length+" firme ca prospecți în CRM"+(cand.length>MAX?" (primele "+MAX+" din "+cand.length+")":"")+(res.capped?" — lista e limitată la primele "+res.cap+" rezultate; restrânge filtrele pentru precizie":"")+"?")) return;
+  let n=0; lot.forEach(r=>{ if(onrcAddProspect(r.cty,r.i,true)) n++; });
+  toast(n+" prospecți adăugați în CRM"); onrcRenderResults(); }
+/* Ștergerea unui singur județ din stratul local (IndexedDB + memorie). */
+async function onrcDeleteCounty(cty){ if(!ONRC.c[cty]) return; const n=(ONRC.c[cty].f||[]).length; if(!confirm("Ștergi județul "+cty+" ("+n.toLocaleString("ro-RO")+" firme) de pe acest dispozitiv?")) return;
+  try{ const db=await onrcIDB(); await new Promise((res)=>{ const tx=db.transaction(ONRC_IDB_STORE,"readwrite"); tx.objectStore(ONRC_IDB_STORE).delete(cty); tx.oncomplete=()=>res(); tx.onerror=()=>res(); tx.onabort=()=>res(); }); }catch(e){}
+  delete ONRC.c[cty]; if(S.onrc&&S.onrc.county===cty) S.onrc.county=""; toast("Județ șters: "+cty); render(); }
 
 /* La pornire: restaurează datele ONRC salvate local pe dispozitiv (dacă există). */
 (async function onrcBoot(){
