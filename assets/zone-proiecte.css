@@ -11,7 +11,11 @@
 .pj-sel{width:100%}
 .pj-h3{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;margin:12px 0 2px}
 .pj-h3:first-of-type{margin-top:0}
-.pj-sum{display:block;font-weight:400;color:var(--muted);font-size:12px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* rezumatul acordeoanelor: fără nowrap tăiat — maximum 2 rânduri */
+.pj-sum{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;font-weight:400;color:var(--muted);font-size:12px;margin-top:2px;overflow:hidden;white-space:normal;line-height:1.45}
+.pj-refacc summary{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.pj-refacc summary>b{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px}
+.pj-refacc summary>.pj-sum{flex:1 1 260px;min-width:0}
 .pj-page details.acc2.pj-ref{margin:10px 0 0;background:var(--surface2);border-color:transparent}
 .pj-page details.acc2.pj-ref summary{padding:8px 12px;font-size:12px;color:var(--ink2)}
 .pj-page details.acc2.pj-ref .inner{padding:0 12px 10px;font-size:12.5px;color:var(--ink2);line-height:1.5}
@@ -19,22 +23,55 @@
 .pj-page table.pj-static tbody tr:hover,.pj-page tr.pj-static-row:hover{background:transparent}
 .pj-page .emptybig{margin:6px 0 8px}
 .pj-top{align-items:start}
+.pj-page .grid2>*{min-width:0}
 
 /* ---- Pipeline ---- */
+.pj-kpi{margin-bottom:6px}
 .pj-filters input[type=search]{flex:1;min-width:180px}
 .pj-page .kcard:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* antetul coloanei kanban: un singur rând, aliniat la stânga (numărul rămâne pastilă la dreapta) */
+.pj-page .kcol h3{min-height:0;align-items:center;flex-wrap:nowrap}
+.pj-page .kcol h3 .pj-kt{flex:1 1 auto;min-width:0;text-align:left;background:transparent;padding:0;margin-left:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* ---- Rapoarte: două carduri egale, acțiunile sus ---- */
 .pj-rep .card{display:flex;flex-direction:column}
 .pj-rep .chd h2{white-space:nowrap}
 .pj-rep .cha{justify-content:flex-end}
+.pj-rep .pj-repsub{display:block;font-size:12.5px;color:var(--muted);line-height:1.45;margin:-4px 0 8px}
 .pj-rep .copybox{flex:1;margin-top:8px}
 .pj-rep .pj-sel{margin-bottom:8px}
 .pj-rep .callout{margin:0 0 8px}
+
+/* ---- Conformitate: checklist-uri (idiomul .evdoc din Verificare, o coloană) ---- */
+.pj-cksub{margin:-4px 0 6px}
+.pj-page .evdocs.pj-ck{grid-template-columns:1fr;gap:5px;margin-top:4px}
+.pj-page .pj-ck .evdoc{align-items:flex-start;line-height:1.4}
+.pj-page .pj-ck .evdoc input[type=checkbox]{flex:0 0 auto;margin:2px 0 0;width:15px;height:15px}
+.pj-page .pj-ck .evdoc span{flex:1;min-width:0;text-align:left}
+.pj-page .pj-ck .pj-done{color:var(--muted);text-decoration:line-through}
+
+/* ---- Verificare proiect (randată în .pj-page) ---- */
+.pj-page .evrep-head h2.evrep-title{text-transform:none;letter-spacing:0;font-size:17px;color:var(--ink)}
+.pj-page .viewactions .pj-reset{flex:0 0 auto;margin-left:auto}
+.pj-page .evstepbtn .lbl-s{display:none}
+.pj-page .evdoclegend{margin-top:8px;line-height:1.5}
+.pj-page .evdoc .evchipdel{flex:0 0 auto}
 
 @media(max-width:900px){
   .pj-filters input[type=search]{flex:1 1 100%;max-width:none}
   .pj-filters select{flex:1;max-width:none}
   .pj-page .chd{flex-wrap:wrap}
   .pj-page .cha .fchip{padding:4px 10px}
+  /* KPI: 3 pe rând (nu 2 + orfan) */
+  .pj-page .tiles.k3{grid-template-columns:repeat(3,1fr)}
+  .pj-page .tiles.k3 .tile .v{font-size:18px}
+  .pj-page .tiles.k3 .tile .d{display:none}
+  /* navigația pe coloane: ținte tactile ≥ 32 px */
+  .pj-page .kanmini{gap:6px}
+  .pj-page .kanmini button{min-height:32px;padding:6px 12px;font-size:12px}
+  /* pașii verificării: 3 pe un rând, compacți; textul scurt pe mobil */
+  .pj-page .evsteps{flex-wrap:nowrap;gap:6px}
+  .pj-page .evstepbtn{flex:1 1 0;min-width:0;padding:6px 8px 6px 6px;font-size:12px;justify-content:flex-start;gap:6px}
+  .pj-page .evstepbtn .lbl-l{display:none}
+  .pj-page .evstepbtn .lbl-s{display:inline;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
