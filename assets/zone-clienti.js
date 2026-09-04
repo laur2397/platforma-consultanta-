@@ -389,7 +389,7 @@ function crmMakeClient(f){
   const interese=String(f.interese||"").split(/[;|]/).map(x=>x.trim()).filter(Boolean);
   const c={ id, denumire:String(f.denumire||"(fără nume)").trim(), cui,
     tip:(f.tip||"privat").trim()||"privat", dimensiune:(f.dimensiune||"").trim(),
-    judet:(f.judet||"").trim(), regiune:(f.regiune||"").trim(),
+    judet:judLabel((f.judet||"").trim()), regiune:((f.regiune||"").trim()||onrcRegOf((f.judet||"").trim())),
     forma_juridica:(f.forma_juridica||"").trim(), caen_principal:String(f.caen_principal||"").trim(),
     interese, email:(f.email||"").trim(), telefon:(f.telefon||"").trim(),
     datorii_fiscale:truthy(f.datorii_fiscale), date_financiare:df, sursa:f.sursa||"user" };
@@ -455,7 +455,8 @@ function crmNewForm(id){ const ex=id?CL.find(c=>c.id===id):null; const df=(ex&&e
   h+='<label>Denumire *</label><input id="cf_denumire" value="'+v("denumire")+'">';
   h+='<div class="r2"><div><label>CUI</label><input id="cf_cui" value="'+v("cui")+'"></div><div><label>Tip</label><select id="cf_tip"><option value=""></option>'+opt(ex?ex.tip:"privat",["privat","UAT","ONG","PFA"])+'</select></div></div>';
   h+='<div class="r2"><div><label>Dimensiune</label><select id="cf_dimensiune"><option value=""></option>'+opt(ex?ex.dimensiune:"",["microintreprindere","mica","mijlocie","mare"])+'</select></div><div><label>Formă juridică</label><input id="cf_forma_juridica" value="'+v("forma_juridica")+'"></div></div>';
-  h+='<div class="r2"><div><label>Județ</label><input id="cf_judet" value="'+v("judet")+'"></div><div><label>Regiune</label><input id="cf_regiune" value="'+v("regiune")+'"></div></div>';
+  const judCur=ex?judLabel(ex.judet||""):""; const judList=(typeof gberAllJud==="function"?gberAllJud():[]).slice(); if(judCur&&!judList.includes(judCur)) judList.push(judCur);
+  h+='<div class="r2"><div><label>Județ</label><select id="cf_judet" onchange="const r=document.getElementById(\'cf_regiune\'); if(r) r.value=onrcRegOf(this.value)"><option value="">— alege —</option>'+judList.sort((a,b)=>a.localeCompare(b,"ro")).map(j=>'<option'+(j===judCur?" selected":"")+'>'+esc(j)+'</option>').join("")+'</select></div><div><label>Regiune <span class="evsrc">(se completează din județ)</span></label><input id="cf_regiune" value="'+v("regiune")+'" placeholder="automat"></div></div>';
   h+='<div class="r2"><div><label>CAEN principal</label><input id="cf_caen_principal" value="'+v("caen_principal")+'"></div><div><label>Nr. angajați</label><input id="cf_nr_angajati" type="number" value="'+esc(df.nr_angajati!=null?df.nr_angajati:"")+'"></div></div>';
   h+='<div class="r2"><div><label>Capitaluri proprii (lei)</label><input id="cf_capitaluri_proprii_lei" type="number" value="'+esc(df.capitaluri_proprii_lei!=null?df.capitaluri_proprii_lei:"")+'"></div><div><label>Cifră afaceri (lei)</label><input id="cf_cifra_afaceri_lei" type="number" value="'+esc(df.cifra_afaceri_3ani_lei?Object.values(df.cifra_afaceri_3ani_lei).pop():"")+'"></div></div>';
   h+='<div class="r2"><div><label>Minimis utilizat (€)</label><input id="cf_minimis_utilizat_eur" type="number" value="'+esc(ex&&ex.ajutoare_minimis?ex.ajutoare_minimis.reduce((s,x)=>s+(x.suma_eur||0),0):"")+'"></div><div><label style="margin-top:20px"><input type="checkbox" id="cf_datorii_fiscale" '+(ex&&ex.datorii_fiscale?"checked":"")+'> are datorii fiscale</label></div></div>';
