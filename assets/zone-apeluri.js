@@ -66,7 +66,7 @@ function radarCsv(){ const r=radarFiltered(); const head=["Titlu","Program","Adm
 
 
 /* ---------- Matching ---------- */
-const MATCH_SUB='criterii HARD (eliminatorii) + scor SOFT 0-100 · estimativ, nevalidat uman';
+const MATCH_SUB='criterii eliminatorii + scor de potrivire 0–100 · estimativ, de validat de consultant';
 function vMatching(){ if(!CL.length) return '<div class="viewtitle"><h1>Matching & prioritizare</h1><span class="sub">'+MATCH_SUB+'</span></div>'+emptyState('🎯','Niciun client în CRM','Motorul de matching compară clienții tăi cu toate apelurile din radar. Adaugă sau importă clienți ca să vezi potrivirile.','<button class="btn primary" onclick="S.view=\'clienti\';render()">→ Clienți</button>'+(window.CRM.hideDemo?'<button class="btn ghost" onclick="crmToggleDemo()">👁 arată clienții demo</button>':''));
   if(!clientById(S.matchClient)) S.matchClient=CL[0].id; const cid=S.matchClient; const c=clientById(cid); const M=S.match||(S.match={onlyActive:false,sort:"scor"});
   const groups={}; A.filter(a=>a.stare!=="in_evaluare"&&a.stare!=="inchis").forEach(a=>{ (groups[a.program||"Alte programe"]=groups[a.program||"Alte programe"]||[]).push(a); });

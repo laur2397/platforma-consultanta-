@@ -3,7 +3,7 @@
 /* ---------- Pipeline ---------- */
 function vPipeline(){ const cols=Object.keys(FAZE); const _pc=crmProjCounts(); const F=S.pipe||(S.pipe={q:"",consultant:"",client:"",red:false}); const hd=!!window.CRM.hideDemo;
   const menu=[["⬇ Export CSV","pipeCsv()"]]; if(_pc.demo||hd) menu.push([hd?"👁 Arată proiectele demo":"🙈 Ascunde proiectele demo","crmToggleDemo()"]);
-  let h='<div class="pj-page"><div class="viewtitle"><h1>Pipeline</h1><span class="sub">'+_pc.reali+' proiecte reale'+(_pc.demo?' · '+_pc.demo+' demo':'')+' · fazele P0→P9 — trage cardul în altă coloană ca să schimbi faza.</span><div class="viewactions"><button class="btn small primary" onclick="crmProjForm()">+ Proiect nou</button><button class="btn small" onclick="crmImportOpen()">⬆ Import</button>'+moreMenu(menu)+'</div></div>';
+  let h='<div class="pj-page"><div class="viewtitle"><h1>Pipeline</h1><span class="sub" title="Trage cardul în altă coloană (sau alege faza din card) ca să schimbi faza.">'+_pc.reali+' proiecte reale'+(_pc.demo?' · '+_pc.demo+' demo':'')+' · fazele P0→P9, de la idee la implementare.</span><div class="viewactions"><button class="btn small primary" onclick="crmProjForm()">+ Proiect nou</button><button class="btn small" onclick="crmImportOpen()">⬆ Import</button>'+moreMenu(menu)+'</div></div>';
   if(!PR.length) return h+emptyState('📋','Niciun proiect în pipeline','Adaugă primul proiect sau alege un apel din Radar și apasă „➕ Proiect în pipeline”.','<button class="btn" onclick="S.view=\'radar\';render()">📡 Radar</button>'+(hd?'<button class="btn ghost" onclick="crmToggleDemo()">👁 arată demo</button>':''))+'</div>';
   const totG=PR.reduce((s,p)=>s+(p.grant_lei||0),0), totC=PR.reduce((s,p)=>s+comisionPrognozat(p),0); const nRed=PR.filter(p=>health(p)==="r").length;
   h+='<div class="tiles k3 pj-kpi">';
@@ -114,7 +114,7 @@ function riskRegister(){
   return {rows, isDemo:false};
 }
 function vConformitate(){ const r=REF; const RF=S.riskFilter||""; const _rr=riskRegister(); const rows=_rr.rows.filter(x=>!RF||x.sev===RF); const nMaj=_rr.rows.filter(x=>x.sev==="MAJOR").length;
-  let h='<div class="pj-page"><div class="viewtitle"><h1>Conformitate</h1><span class="sub">Riscurile proiectelor active, detectate automat, plus referențialul legal (corecții, praguri, fluxuri, durabilitate).</span></div>';
+  let h='<div class="pj-page"><div class="viewtitle"><h1>Conformitate</h1><span class="sub" title="Registrul de riscuri se calculează automat din termene, apeluri și datele clienților; referința legală (corecții, praguri, fluxuri, durabilitate) e mai jos, pliată.">Riscurile dosarelor active și referința legală, într-un loc.</span></div>';
   if(_rr.isDemo) h+='<div class="callout warn">Riscuri <b>demo</b> — registrul se generează automat din proiectele tale reale imediat ce adaugi proiecte în Pipeline.</div>';
   /* HERO — registrul de riscuri */
   const chips=[["","Toate ("+_rr.rows.length+")"]].concat(nMaj?[["MAJOR","Major ("+nMaj+")"]]:[]).concat((_rr.rows.length-nMaj)?[["MINOR","Minor ("+(_rr.rows.length-nMaj)+")"]]:[]).map(([k,l])=>'<button class="fchip'+(RF===k?" on":"")+'" onclick="S.riskFilter=\''+k+'\';render(true)">'+l+'</button>').join("");

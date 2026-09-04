@@ -88,7 +88,7 @@ function vIntel(){ const st=intelStats(); const ap=intelApCounts(st);
   const cliJud=[...new Set(CL.map(c=>c.judet).filter(j=>j&&st.byJud[j]))];
   const totUat=(DB.primarii||{}).total||Object.values(st.uatJud).reduce((a,b)=>a+b,0);
   const rowKey='tabindex="0" onkeydown="if(event.key===\'Enter\')this.click()"';
-  let h='<div class="cl-page"><div class="viewtitle"><h1>Market Intel</h1><span class="sub">Încrucișare deterministă pe date reale — '+nf.format(st.totMipe)+' proiecte contractate · '+nf.format(totUat)+' UAT · SICAP.</span><div class="viewactions"><button class="btn small" onclick="intelCsv(\'jud\')" title="harta pieței pe județ">⬇ Export CSV județe</button><button class="btn small" onclick="intelCsv(\'warm\')" title="beneficiari recurenți (leaduri calde)">⬇ Export CSV leaduri</button></div></div>';
+  let h='<div class="cl-page"><div class="viewtitle"><h1>Market Intel</h1><span class="sub" title="Calcule deterministe pe date publice reale: proiecte contractate MIPE, primării, achiziții SICAP.">Piața pe județe, din '+nf.format(st.totMipe)+' proiecte contractate · '+nf.format(totUat)+' UAT · SICAP.</span><div class="viewactions"><button class="btn small" onclick="intelCsv(\'jud\')" title="harta pieței pe județ">⬇ Export CSV județe</button><button class="btn small" onclick="intelCsv(\'warm\')" title="beneficiari recurenți — clienți potențiali cu istoric de finanțări">⬇ Export CSV clienți potențiali</button></div></div>';
   /* HERO — radiografia județului (implicit județul primului client). Un singur rând de alegere: chips cu județele clienților + „alt județ…” (select) ca ultim element. */
   const selOther=!sel||!cliJud.includes(sel);
   const selHtml='<select class="cl-judsel" onchange="S.intelJud=this.value;render(true)" aria-label="alt județ"><option value="">'+(cliJud.length?'alt județ…':'— alege un județ —')+'</option>'+st.judList.slice().sort((a,b)=>a.localeCompare(b,"ro")).map(j=>'<option '+(selOther&&j===sel?"selected":"")+'>'+esc(j)+'</option>').join("")+'</select>';
@@ -222,7 +222,7 @@ function vProspect(){
   const loaded=Object.keys(ONRC.c); const has=loaded.length>0;
   const F=S.onrc=Object.assign({q:"",county:"",stare:"activ",caen:"",loc:"",forma:"",telOnly:false},S.onrc||{});
   const privacy="Fișierele ONRC (inclusiv datele personale ale reprezentanților) se încarcă și se prelucrează doar în acest browser — nu se trimit spre niciun server, nu ajung în cod sau pe GitHub. Se salvează local, în IndexedDB, și le poți șterge oricând din meniul ⋯.";
-  let h='<div class="cl-page"><div class="viewtitle"><h1>Prospect ONRC</h1><span class="sub" title="'+esc(privacy)+'">Baza locală de firme din Registrul Comerțului — 🔒 datele rămân la tine, se prelucrează doar în acest browser.</span>'
+  let h='<div class="cl-page"><div class="viewtitle"><h1>Prospect ONRC</h1><span class="sub" title="'+esc(privacy)+'">Firme din Registrul Comerțului, filtrate după CAEN, localitate și stare · 🔒 doar în acest browser.</span>'
     +(has?'<div class="viewactions"><label class="btn small primary" for="onrcFiles">⬆ Încarcă județ</label>'+moreMenu([["🗑 Șterge datele locale ONRC","onrcClearLocal()"]])+'</div>':'')+'</div>';
   const dz='ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="event.preventDefault();this.classList.remove(\'over\');onrcLoadFiles(event.dataTransfer.files)"';
   const inp='<input type="file" id="onrcFiles" multiple accept=".gz,.json,application/gzip,application/json" hidden>';
