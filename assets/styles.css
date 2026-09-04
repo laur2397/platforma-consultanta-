@@ -543,6 +543,35 @@ html[data-theme="dark"] .evdoc.on{background:rgba(12,163,12,.16)}
   .hbar{grid-template-columns:110px 1fr 84px}
 }
 
+/* ===== Zone (IA v3) ===== */
+.navi button.zone{font-size:14px;font-weight:600;padding:10px 11px}
+.navi .subnavi{list-style:none;margin:2px 0 6px 0;padding-left:8px;border-left:1px solid var(--side-line);margin-left:19px}
+.navi .subnavi button.sub{font-size:13px;font-weight:500;padding:6px 10px;color:var(--side-ink);border-radius:8px}
+.navi .subnavi button.sub.on{background:rgba(255,255,255,.08);color:#fff;font-weight:600}
+.navi .subnavi button.sub.on::before{display:none}
+.navi .subnavi button.sub .ct{background:rgba(255,255,255,.08)}
+.navi .subnavi button.sub.on .ct{background:var(--accent);color:#fff}
+.zonetabs{display:flex;gap:2px;margin:-6px 0 16px;border-bottom:1px solid var(--grid);overflow-x:auto;scrollbar-width:none}
+.zonetabs::-webkit-scrollbar{display:none}
+.zonetabs button{border:0;background:transparent;color:var(--ink2);padding:9px 14px;font-size:13.5px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.zonetabs button .ct{font-size:11px;background:var(--surface2);color:var(--ink2);border-radius:99px;padding:0 7px;font-variant-numeric:tabular-nums}
+.zonetabs button:hover{color:var(--ink)}
+.zonetabs button.on{color:var(--accent-ink);border-bottom-color:var(--accent);font-weight:600}
+.zonetabs button.on .ct{background:var(--accent-soft);color:var(--accent-ink)}
+@media(max-width:900px){ .zonetabs{margin:-4px -14px 12px;padding:0 14px;position:sticky;top:-16px;background:var(--page);z-index:5} .zonetabs button{padding:10px 12px} }
+
+/* ===== cardHead / moreMenu ===== */
+.chd{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.chd h2{margin-bottom:0!important;display:flex;align-items:center;gap:8px}
+.chd h2 .ct{font-size:11px;background:var(--surface2);color:var(--ink2);border-radius:99px;padding:0 7px;font-variant-numeric:tabular-nums;text-transform:none;letter-spacing:0}
+.cha{display:flex;gap:6px;flex-wrap:wrap}
+details.more{position:relative;display:inline-block}
+details.more summary{list-style:none;cursor:pointer}
+details.more summary::-webkit-details-marker{display:none}
+details.more .menu{position:absolute;right:0;top:calc(100% + 4px);z-index:20;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-lg);padding:4px;min-width:200px;display:flex;flex-direction:column}
+details.more .menu button{border:0;background:transparent;color:var(--ink);text-align:left;padding:8px 10px;border-radius:7px;font-size:13px;cursor:pointer;white-space:nowrap}
+details.more .menu button:hover{background:var(--surface2)}
+
 /* ===== Print ===== */
 @media print{
   .side,.topbar,.tabbar,.viewactions,.filters,.presets,.drawer,.overlay,.chatfab,.chatpanel{display:none!important}

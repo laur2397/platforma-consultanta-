@@ -135,7 +135,7 @@ function calItems(hor){ hor=hor||120; const out=[];
   out.sort((a,b)=> (a.data<b.data?-1:1)); return out; }
 
 /* ---------- navigation ---------- */
-const NAV=[["buletin","🏠","Buletin"],["radar","📡","Radar apeluri"],["matching","🎯","Matching"],["pipeline","📋","Pipeline"],["calendar","📅","Calendar"],["clienti","👥","Clienți"],["prospect","🏢","Prospect ONRC"],["biblioteca","📚","Bibliotecă"],["rapoarte","📊","Rapoarte"],["conformitate","🛡️","Conformitate"],["verif","🧪","Verificare proiect"],["intel","🔎","Market Intel"],["financiar","🧮","Financiar"],["baze","🗄️","Baze de date"],["admin","⚙️","Administrare"]];
+const NAV=[["buletin","🏠","Azi"],["radar","📡","Radar apeluri"],["matching","🎯","Matching"],["pipeline","📋","Pipeline"],["calendar","📅","Calendar"],["clienti","👥","Clienți"],["prospect","🏢","Prospect ONRC"],["biblioteca","📚","Bibliotecă"],["rapoarte","📊","Rapoarte"],["conformitate","🛡️","Conformitate"],["verif","🧪","Verificare proiect"],["intel","🔎","Market Intel"],["financiar","🧮","Financiar"],["baze","🗄️","Baze de date"],["admin","⚙️","Administrare"]];
 function navCounts(id){ if(id==="radar") return A.filter(a=>a.stare==="activ").length; if(id==="pipeline") return PR.length; if(id==="clienti"){ const r=CL.filter(c=>!c.demo).length; return r||null; } if(id==="calendar") return calItems(30).length; if(id==="baze") return (DB.primarii&&DB.primarii.uat?DB.primarii.uat.length:null); if(id==="prospect"){ const n=onrcTotal(); return n||null; } return null; }
 /* Iconițe SVG (stroke, 24×24) — înlocuiesc emoji-urile din navigare și titluri */
 const ICONS={
@@ -157,16 +157,20 @@ const ICONS={
   more:'<circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/>'
 };
 function ico(id){ return '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">'+(ICONS[id]||ICONS.more)+'</svg>'; }
-const NAV_GROUPS=[["Operațional",["buletin","radar","matching","pipeline","calendar"]],["Clienți & piață",["clienti","prospect","intel"]],["Instrumente",["verif","financiar","conformitate","rapoarte","biblioteca"]],["Sistem",["baze","admin"]]];
-const TAB_MAIN=["buletin","radar","pipeline","clienti"];
-function navBtn(id){ const it=NAV.find(n=>n[0]===id); if(!it) return ""; const c=navCounts(id);
-  return '<li><button class="'+(S.view===id?"on":"")+'" data-v="'+id+'">'+ico(id)+it[2]+(c!=null?'<span class="ct">'+c+'</span>':"")+'</button></li>'; }
-function renderNav(){ $("#nav").innerHTML=NAV_GROUPS.map(([g,ids])=>'<li class="grp">'+g+'</li>'+ids.map(navBtn).join("")).join("");
-  document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{ S.view=b.dataset.v; render(); });
-  // bara de tab-uri pe mobil (4 secțiuni principale + „Mai mult”)
-  const tb=$("#tabbar"); if(tb){ const inMain=TAB_MAIN.includes(S.view);
-    tb.innerHTML=TAB_MAIN.map(id=>{ const it=NAV.find(n=>n[0]===id); return '<button class="'+(S.view===id?"on":"")+'" data-v="'+id+'">'+ico(id)+it[2].split(" ")[0]+'</button>'; }).join("")+'<button class="'+(inMain?"":"on")+'" data-v="__more">'+ico("more")+'Mai mult</button>';
-    tb.querySelectorAll("button").forEach(b=>b.onclick=()=>{ if(b.dataset.v==="__more") sheetOpen(); else { S.view=b.dataset.v; render(); } }); } }
+/* Arhitectura informației: 5 zone, fiecare cu tab-uri (vederile existente rămân toate). */
+const ZONES=[["azi","Azi","buletin",["buletin"],"buletin"],["apeluri","Apeluri","radar",["radar","calendar","matching","biblioteca"],"radar"],["clienti","Clienți","clienti",["clienti","prospect","intel"],"clienti"],["proiecte","Proiecte","pipeline",["pipeline","verif","rapoarte","conformitate"],"pipeline"],["instrumente","Instrumente","financiar",["financiar","baze","admin"],"admin"]];
+const VIEW_SHORT={buletin:"Azi",radar:"Radar",calendar:"Calendar",matching:"Matching",biblioteca:"Bibliotecă",clienti:"CRM clienți",prospect:"Prospect ONRC",intel:"Market Intel",pipeline:"Pipeline",verif:"Verificare proiect",rapoarte:"Rapoarte",conformitate:"Conformitate",financiar:"Financiar",baze:"Baze de date",admin:"Administrare"};
+function zoneOf(view){ return ZONES.find(z=>z[3].includes(view))||ZONES[0]; }
+function zoneGo(zid){ const z=ZONES.find(x=>x[0]===zid); if(!z) return; S.lastIn=S.lastIn||{}; S.view=(S.lastIn[zid]&&z[3].includes(S.lastIn[zid]))?S.lastIn[zid]:z[2]; render(); }
+function zoneCount(z){ return z[3].reduce((s,v)=>{ const c=navCounts(v); return s+(typeof c==="number"?c:0); },0)||null; }
+function renderNav(){ const cur=zoneOf(S.view);
+  $("#nav").innerHTML=ZONES.map(z=>{ const on=z[0]===cur[0]; const cnt=on?null:zoneCount(z);
+    return '<li><button class="zone'+(on?" on":"")+'" data-z="'+z[0]+'">'+ico(z[4])+z[1]+(cnt!=null&&z[3].length>1?'<span class="ct">'+cnt+'</span>':"")+'</button>'+(on&&z[3].length>1?'<ul class="subnavi">'+z[3].map(v=>{ const c=navCounts(v); return '<li><button class="sub'+(S.view===v?" on":"")+'" data-v="'+v+'">'+VIEW_SHORT[v]+(c!=null?'<span class="ct">'+c+'</span>':"")+'</button></li>'; }).join("")+'</ul>':"")+'</li>'; }).join("");
+  document.querySelectorAll("#nav button.zone").forEach(b=>b.onclick=()=>zoneGo(b.dataset.z));
+  document.querySelectorAll("#nav button.sub").forEach(b=>b.onclick=()=>{ S.view=b.dataset.v; render(); });
+  const tb=$("#tabbar"); if(tb){ tb.innerHTML=ZONES.map(z=>'<button class="'+(z[0]===cur[0]?"on":"")+'" data-z="'+z[0]+'">'+ico(z[4])+z[1]+'</button>').join("");
+    tb.querySelectorAll("button").forEach(b=>b.onclick=()=>zoneGo(b.dataset.z)); } }
+function zoneTabsHtml(v){ const z=zoneOf(v); if(z[3].length<2) return ""; return '<div class="zonetabs" role="tablist">'+z[3].map(x=>{ const c=navCounts(x); return '<button role="tab" class="'+(x===v?"on":"")+'" onclick="S.view=\''+x+'\';render()">'+VIEW_SHORT[x]+(c!=null?' <span class="ct">'+c+'</span>':"")+'</button>'; }).join("")+'</div>'; }
 function sheetOpen(){ $("#sheetGrid").innerHTML=NAV.map(([id,ic,l])=>'<button class="'+(S.view===id?"on":"")+'" onclick="S.view=\''+id+'\';sheetClose();render()">'+ico(id)+l+'</button>').join(""); $("#moreSheet").classList.add("open"); }
 function sheetClose(){ const s=$("#moreSheet"); if(s) s.classList.remove("open"); }
 function wrapTables(root){ (root||document).querySelectorAll("table.tbl").forEach(t=>{ if(!t.parentElement.classList.contains("tw")){ const w=document.createElement("div"); w.className="tw"; t.parentNode.insertBefore(w,t); w.appendChild(t); } }); }
@@ -176,7 +180,8 @@ function render(keep){ renderNav(); const v=S.view; const M=$("#main"); const _s
   // pe ecrane înguste radarul se deschide în modul „carduri” până când utilizatorul alege altfel
   if(v==="radar"&&!S.radar._touched) S.radar.mode = window.innerWidth<720 ? "carduri" : "tabel";
   const f={buletin:vBuletin,radar:vRadar,matching:vMatching,pipeline:vPipeline,calendar:vCalendar,clienti:vClienti,prospect:vProspect,biblioteca:vBiblioteca,rapoarte:vRapoarte,conformitate:vConformitate,verif:function(){ return typeof vVerif==="function"?vVerif():"<div class='empty'>Modulul de verificare nu s-a încărcat.</div>"; },intel:vIntel,financiar:vFinanciar,baze:vBaze,admin:vAdmin}[v];
-  M.innerHTML = f? f() : "<div class='empty'>…</div>";
+  S.lastIn=S.lastIn||{}; S.lastIn[zoneOf(v)[0]]=v;
+  M.innerHTML = zoneTabsHtml(v)+(f? f() : "<div class='empty'>…</div>");
   // titlu: emoji → iconiță SVG a secțiunii
   const h1=M.querySelector(".viewtitle h1"); if(h1&&!h1.querySelector(".vi")) h1.innerHTML='<span class="vi">'+ico(v)+'</span>'+esc(h1.textContent.replace(/^[^\p{L}\p{N}\[]+/u,"").trim());
   wrapTables(M); M.scrollTop=keep?_st:0; sessSave();
@@ -330,5 +335,9 @@ function hookSearch(){ const inp=$("#globalSearch"), box=$("#searchHits"); let c
   document.addEventListener("click",e=>{ if(!e.target.closest(".searchwrap")) box.classList.remove("open"); });
   document.addEventListener("keydown",e=>{ if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){ e.preventDefault(); inp.focus(); inp.select(); } if(e.key==="Escape"&&document.activeElement!==inp){ closeDrawer(); sheetClose(); box.classList.remove("open"); } }); }
 /* Stare goală reutilizabilă: iconiță + titlu + explicație + acțiune */
+/* Antet uniform de card: etichetă + (count) + acțiuni la dreapta */
+function cardHead(t,count,actionsHtml){ return '<div class="chd"><h2>'+t+(count!=null?' <span class="ct">'+count+'</span>':'')+'</h2>'+(actionsHtml?'<div class="cha">'+actionsHtml+'</div>':'')+'</div>'; }
+/* Meniu „⋯” pentru acțiuni secundare: items = [[label, onclickJs], ...] */
+function moreMenu(items){ if(!items||!items.length) return ''; return '<details class="more"><summary class="btn small" title="mai multe acțiuni">⋯</summary><div class="menu">'+items.map(([l,js])=>'<button onclick="this.closest(\'details\').removeAttribute(\'open\');'+js.replace(/"/g,'&quot;')+'">'+l+'</button>').join('')+'</div></details>'; }
 function emptyState(icon,title,text,actionHtml){ return '<div class="emptybig">'+(icon?'<div class="ei">'+icon+'</div>':"")+'<div class="et">'+title+'</div>'+(text?'<div class="ex">'+text+'</div>':"")+(actionHtml?'<div class="ea">'+actionHtml+'</div>':"")+'</div>'; }
 

@@ -5,13 +5,18 @@
    - Iconițe / manifest: cache-first (nu se schimbă des).
    Bump CACHE_VERSION la orice schimbare pentru a purja cache-ul vechi. */
 
-const CACHE_VERSION = "eufcc-v15";
+const CACHE_VERSION = "eufcc-v16";
 const url = (p) => new URL(p, self.location).toString();
 
 const SHELL = [
   "./",
   "index.html",
   "assets/styles.css",
+  "assets/zone-azi.css",
+  "assets/zone-apeluri.css",
+  "assets/zone-clienti.css",
+  "assets/zone-proiecte.css",
+  "assets/zone-instrumente.css",
   "assets/core.js",
   "assets/zone-azi.js",
   "assets/zone-apeluri.js",
