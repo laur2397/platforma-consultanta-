@@ -598,3 +598,9 @@ details.acc2[open]>summary::before{content:"▾"}
 th.sortable:focus-visible,.tbl tbody tr:focus-visible{outline-offset:-2px}
 .hbar.go:focus-visible{outline-offset:0;border-radius:6px}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+/* ---- Drawer: navigare ‹ › prin lista vizibilă ---- */
+.drawer .dnav{display:flex;align-items:center;gap:2px;font-size:12px;color:var(--muted);white-space:nowrap;margin-top:2px}
+.drawer .dnav span{min-width:44px;text-align:center;font-variant-numeric:tabular-nums}
+.drawer .dnav .btn{padding:2px 8px;font-size:15px;line-height:1}
+.drawer .dnav .btn[disabled]{opacity:.35;cursor:default}

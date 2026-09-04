@@ -206,14 +206,20 @@ function render(keep){ renderNav(); const v=S.view; const M=$("#main"); const _s
   M.innerHTML = zoneTabsHtml(v)+(gated?heavyGate(v):(f? f() : "<div class='empty'>…</div>"));
   // titlu: emoji → iconiță SVG a secțiunii
   const h1=M.querySelector(".viewtitle h1"); if(h1&&!h1.querySelector(".vi")) h1.innerHTML='<span class="vi">'+ico(v)+'</span>'+esc(h1.textContent.replace(/^[^\p{L}\p{N}\[]+/u,"").trim());
-  wrapTables(M); a11yEnhance(M); M.scrollTop=keep?_st:0; sessSave();
+  wrapTables(M); a11yEnhance(M); drawerSeqCollect(M); M.scrollTop=keep?_st:0; sessSave();
   if(!gated&&window["after_"+v]) window["after_"+v](); }
 
 /* ---------- drawer ---------- */
-function openDrawer(html){ const d=$("#drawer"); const was=d.classList.contains("open"); if(!was) window._drawerFocus=document.activeElement; d.innerHTML=html; d.setAttribute("role","dialog"); d.setAttribute("aria-modal","true"); try{ wrapTables(d); a11yEnhance(d); }catch(e){} d.classList.add("open"); $("#overlay").classList.add("open"); if(!was){ try{ history.pushState({drawer:1},""); }catch(e){} } const f=d.querySelector(".db .btn, .db a, .db input, .db select"); if(f) setTimeout(()=>f.focus({preventScroll:true}),60); }
-function closeDrawer(){ const d=$("#drawer"); const was=d.classList.contains("open"); d.classList.remove("open"); $("#overlay").classList.remove("open"); if(was&&history.state&&history.state.drawer){ window._popSkip=true; history.back(); } if(window._drawerFocus&&window._drawerFocus.focus){ try{ window._drawerFocus.focus({preventScroll:true}); }catch(e){} } window._drawerFocus=null; }
+function openDrawer(html,nav){ const d=$("#drawer"); const was=d.classList.contains("open"); if(!was) window._drawerFocus=document.activeElement; d.innerHTML=html; if(nav){ const dh=d.querySelector(".dh2"); const cb=dh&&dh.querySelector("button"); if(cb) cb.insertAdjacentHTML("beforebegin",nav); } d.setAttribute("role","dialog"); d.setAttribute("aria-modal","true"); try{ wrapTables(d); a11yEnhance(d); }catch(e){} d.classList.add("open"); $("#overlay").classList.add("open"); if(!was){ try{ history.pushState({drawer:1},""); }catch(e){} } const f=d.querySelector(".db .btn, .db a, .db input, .db select"); if(f) setTimeout(()=>f.focus({preventScroll:true}),60); }
+function closeDrawer(){ window._dnav=null; const d=$("#drawer"); const was=d.classList.contains("open"); d.classList.remove("open"); $("#overlay").classList.remove("open"); if(was&&history.state&&history.state.drawer){ window._popSkip=true; history.back(); } if(window._drawerFocus&&window._drawerFocus.focus){ try{ window._drawerFocus.focus({preventScroll:true}); }catch(e){} } window._drawerFocus=null; }
 window.addEventListener("popstate",()=>{ if(window._popSkip){ window._popSkip=false; return; } const d=$("#drawer"); if(d&&d.classList.contains("open")){ d.classList.remove("open"); $("#overlay").classList.remove("open"); } });
 function drawerHead(title, sub){ return '<div class="dh2"><h2>'+title+(sub?'<br><small style="color:var(--muted);font-weight:400;font-size:12px">'+sub+'</small>':"")+'</h2><button class="btn small" onclick="closeDrawer()">✕ închide</button></div>'; }
+/* Navigare „‹ ›” în drawer prin lista vizibilă (ordinea exactă din pagină: radar filtrat, calendar, matching, CRM…). */
+function drawerSeqCollect(M){ const grab=fn=>{ const out=[]; M.querySelectorAll('[onclick*="'+fn+'(\'"]').forEach(e=>{ const m=(e.getAttribute("onclick")||"").match(new RegExp(fn+"\\('([^']+)'")); if(m&&!out.includes(m[1])) out.push(m[1]); }); return out; }; window._seq={openApel:grab("openApel"),openClient:grab("openClient"),openProiect:grab("openProiect")}; }
+function drawerNav(fn,id,all){ let seq=(window._seq||{})[fn]||[]; if(!seq.includes(id)) seq=all||[]; const i=seq.indexOf(id); if(seq.length<2||i<0){ window._dnav=null; return ""; } window._dnav={fn,seq,i};
+  return '<div class="dnav" role="group" aria-label="navigare în listă"><button class="btn small ghost" '+(i>0?'onclick="dnavGo(-1)"':'disabled')+' aria-label="anterior" title="anterior (←)">‹</button><span>'+(i+1)+' / '+seq.length+'</span><button class="btn small ghost" '+(i<seq.length-1?'onclick="dnavGo(1)"':'disabled')+' aria-label="următor" title="următor (→)">›</button></div>'; }
+function dnavGo(d){ const n=window._dnav; if(!n) return; const j=n.i+d; if(j<0||j>=n.seq.length) return; const fn=window[n.fn]; if(typeof fn==="function"){ fn(n.seq[j]); const dr=$("#drawer"); if(dr) dr.scrollTop=0; } }
+document.addEventListener("keydown",e=>{ if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight") return; const d=$("#drawer"); if(!d||!d.classList.contains("open")||!window._dnav) return; const t=e.target; if(t&&/^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName)) return; if(e.altKey||e.ctrlKey||e.metaKey) return; e.preventDefault(); dnavGo(e.key==="ArrowRight"?1:-1); });
 function openApel(id){ const a=apelById(id); if(!a) return;
   const tops=topForApel(id,5);
   let h=drawerHead(esc(a.titlu), esc(a.program+" · "+(a.administrator||"")))+'<div class="db">';
@@ -241,7 +247,7 @@ function openApel(id){ const a=apelById(id); if(!a) return;
   h+= tops.length? '<table class="tbl"><thead><tr><th>Client</th><th>Verdict · scor</th><th></th></tr></thead><tbody>'+tops.map(m=>'<tr onclick="openMemo(\''+m.client.id+'\',\''+esc(a.id_apel)+'\')"><td><b>'+esc(m.client.denumire)+'</b><br><small style="color:var(--muted)">'+esc(m.client.judet||"")+' · '+esc(m.client.dimensiune||m.client.tip||"")+'</small></td><td>'+vChip(m.verdict,m.scor)+'</td><td style="white-space:nowrap"><span style="color:var(--accent)">memo →</span> <button class="btn small ghost" title="proiect nou în pipeline pentru acest client × apel" onclick="event.stopPropagation();crmProjForm(null,\''+m.client.id+'\',\''+esc(a.id_apel)+'\')">➕</button></td></tr>').join("")+'</tbody></table>'
     : '<div class="empty">Niciun client eligibil din portofoliul curent.</div>';
   h+='</div><div class="callout">Verdictele sunt <b>estimări AI pe date sumare</b> — decizia finală se ia doar după citirea ghidului (criteriile complete CAE/ETF) și validare umană.</div></div>';
-  openDrawer(h); }
+  openDrawer(h, drawerNav("openApel",id,A.map(x=>x.id_apel))); }
 function openMemo(cid, aid){ const cl=clientById(cid), a=apelById(aid); if(!cl||!a) return;
   const m=evalPair(cl,a);
   let txt="MEMO GO/NO-GO (L3) — generat de Command Center la "+new Date().toLocaleDateString("ro-RO")+"\n";
@@ -298,7 +304,7 @@ function openClient(cid){ const c=clientById(cid); if(!c) return;
   h+='<div class="section"><h2>Top apeluri potrivite</h2>';
   h+= tops.length? '<table class="tbl"><thead><tr><th>Apel</th><th>Termen</th><th>Verdict · scor</th></tr></thead><tbody>'+tops.map(m=>'<tr onclick="openMemo(\''+cid+'\',\''+esc(m.apel.id_apel)+'\')"><td><b>'+esc(m.apel.titlu)+'</b><br><small style="color:var(--muted)">'+esc(m.apel.program)+'</small></td><td>'+cdBadge(m.apel.data_inchidere,{cont:/continuu/.test(m.apel.tip_depunere||"")})+'</td><td>'+vChip(m.verdict,m.scor)+'</td></tr>').join("")+'</tbody></table>' : '<div class="empty">Nimic potrivit acum'+(df.capitaluri_proprii_lei<0?" — blocat de capitalurile negative":"")+'.</div>';
   h+='</div>'+((c.note||c.nota)?'<div class="callout">'+esc(c.note||c.nota)+'</div>':"")+'</div>';
-  openDrawer(h); }
+  openDrawer(h, drawerNav("openClient",cid,CL.map(x=>x.id))); }
 function openProiect(pid){ const p=PR.find(x=>x.id===pid); if(!p) return;
   const c=clientById(p.client_id); const a=apelById(p.apel_id)||{titlu:(p.apel_istoric||{}).titlu||p.apel_id, program:(p.apel_istoric||{}).program||"apel istoric"};
   let h=drawerHead(esc(p.titlu)+(p.demo?' <span class="tag-demo">DEMO</span>':""), esc((c?c.denumire:"")+" × "+(a.titlu||"")))+'<div class="db">';
@@ -321,7 +327,7 @@ function openProiect(pid){ const p=PR.find(x=>x.id===pid); if(!p) return;
   if(p.evaluari&&p.evaluari.length) h+='<div class="section"><h2>Verificări pre-depunere</h2><ul class="list">'+p.evaluari.map(e=>'<li><span style="color:var(--muted);min-width:80px">'+fmtDs(String(e.data).slice(0,10))+'</span><span class="evst '+(e.vclass==="go"?"ok":e.vclass==="no"?"no":"nv")+'">'+esc(e.verdict.split(" — ")[0])+'</span> <small style="color:var(--muted)">'+e.blocante+' blocante · '+e.remediat+' de remediat · '+e.nv+' neverificate'+(e.punctaj?' · punctaj '+esc(e.punctaj):'')+'</small></li>').join("")+'</ul></div>';
   if(p.istoric&&p.istoric.length) h+='<div class="section"><h2>Istoric</h2><ul class="list">'+p.istoric.map(e=>'<li><span style="color:var(--muted);min-width:80px">'+fmtDs(e.data)+'</span> '+esc(e.eveniment)+'</li>').join("")+'</ul></div>';
   if(p.note) h+='<div class="callout">'+esc(p.note)+'</div>';
-  h+='</div>'; openDrawer(h); }
+  h+='</div>'; openDrawer(h, drawerNav("openProiect",pid,PR.map(x=>x.id))); }
 
 
 /* ---------- global search ---------- */
