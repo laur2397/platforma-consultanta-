@@ -38,6 +38,21 @@ Reguli:
 - **Dark mode**: doar tokenuri (`var(--…)`), niciun hex nou.
 - **Onestitate**: nimic inventat; „[DE VERIFICAT]”/„demo” rămân vizibile; nu ascunde stări „neverificat”.
 
+## 2b. Glosar de termeni (un singur nume pentru fiecare lucru)
+
+| Concept | Termenul folosit în UI | Nu folosi |
+|---|---|---|
+| data limită a unui apel | **Termen** | Închidere (ca antet de coloană), Deadline |
+| următorul pas pe un proiect | **Următoarea acțiune** | Next action |
+| cel mai bun apel pentru un client / client pentru un apel | **Cel mai potrivit apel** / **Cel mai potrivit client** | Top match, Top apel |
+| suma nerambursabilă | **Grant** (în tabele) · „sprijin nerambursabil” doar în text legal | Finanțare nerambursabilă (ca etichetă) |
+| export | **⬇ Export CSV** / **⬇ Export JSON** / **⬇ Export .ics** | Salvează fișa, Exportă, CSV matrice |
+| numere | `nf.format()` (3.181), curs valutar cu virgulă (5,2418) | 3181, 5.2418 |
+| date | `fmtD()` → 02.09.2026 | 2026-09-02 |
+| navigație de nivel 2 | doar `.zonetabs` (subliniere); nivelurile 3+ sunt pastile/segment (`.ap-seg`, `.fchip`) | al doilea rând subliniat |
+
+Regulă de aur: **fiecare acțiune apare o singură dată pe ecran** (fie în `.viewactions`/⋯, fie în card — nu în ambele) și un singur `.btn.primary` vizibil, inclusiv topbar-ul.
+
 ## 3. Vocabularul de componente (există în `styles.css`)
 
 `.card` · `.card>h2` (etichetă secțiune) · `cardHead(t,count,actionsHtml)` · `.tiles/.tile` (+`.acc/.crit/.warnv/.long`, `.tiles.compact`) · `.badge b-*` (stări apel) · `.cd cd-good/warn/crit/off` (pastile de status) · `.chip/.chip.hl` · `.fchip/.fchip.on` (filtre) · `.filters` · `.callout/.warn/.crit/.good` · `.list` · `details.acc2` · `.tbl` (+`.stack`, `.tw` wrapper automat) · `.kv` (definiții) · `.minibar` · `.evsrc` (text mic muted) · `emptyState()` · `chartDonut/chartCols/chartHBars` · `drawerHead()/openDrawer()` · `toast()` · `moreMenu()`.
