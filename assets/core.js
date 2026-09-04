@@ -174,6 +174,17 @@ function zoneTabsHtml(v){ const z=zoneOf(v); if(z[3].length<2) return ""; return
 function sheetOpen(){ $("#sheetGrid").innerHTML=NAV.map(([id,ic,l])=>'<button class="'+(S.view===id?"on":"")+'" onclick="S.view=\''+id+'\';sheetClose();render()">'+ico(id)+l+'</button>').join(""); $("#moreSheet").classList.add("open"); }
 function sheetClose(){ const s=$("#moreSheet"); if(s) s.classList.remove("open"); }
 function wrapTables(root){ (root||document).querySelectorAll("table.tbl").forEach(t=>{ if(!t.parentElement.classList.contains("tw")){ const w=document.createElement("div"); w.className="tw"; t.parentNode.insertBefore(w,t); w.appendChild(t); } }); }
+/* Accesibilitate: elementele clicabile care nu sunt butoane devin focusabile + acționabile cu Enter/Spațiu; select-urile primesc nume accesibil. */
+function a11yEnhance(root){ const R=root||document;
+  R.querySelectorAll("[onclick]").forEach(e=>{ const t=e.tagName; if(/^(BUTTON|A|INPUT|SELECT|TEXTAREA|SUMMARY|LABEL|OPTION)$/.test(t)) return; if(e.closest("button,a,label")) return;
+    if(!e.hasAttribute("tabindex")) e.setAttribute("tabindex","0");
+    if(!e.hasAttribute("role")) e.setAttribute("role", t==="TH"?"columnheader":(e.getAttribute("aria-checked")!=null?"checkbox":"button"));
+    if(t==="TH"&&e.classList.contains("sortable")&&!e.hasAttribute("aria-sort")) e.setAttribute("aria-sort", e.classList.contains("on")?(/▾/.test(e.textContent)?"descending":"ascending"):"none"); });
+  R.querySelectorAll("select,input:not([type=hidden]),textarea").forEach(i=>{ if(i.getAttribute("aria-label")||i.getAttribute("aria-labelledby")||i.closest("label")||(i.id&&R.querySelector('label[for="'+i.id+'"]'))) return;
+    let lab=null; const p=i.parentElement; if(p){ const l=p.querySelector("label"); if(l) lab=l.textContent; }
+    if(!lab&&i.tagName==="SELECT"){ const o=i.querySelector("option"); if(o) lab=o.textContent.replace(/^[—–\-\s]+|[—–\-\s]+$/g,""); }
+    if(!lab) lab=i.getAttribute("title")||i.getAttribute("placeholder"); if(lab&&lab.trim()) i.setAttribute("aria-label",lab.trim()); }); }
+document.addEventListener("keydown",e=>{ if(e.key!=="Enter"&&e.key!==" ") return; const t=e.target; if(!t||!t.hasAttribute||!t.hasAttribute("onclick")) return; if(/^(BUTTON|A|INPUT|SELECT|TEXTAREA|SUMMARY|LABEL)$/.test(t.tagName)) return; if(t.hasAttribute("onkeydown")) return; e.preventDefault(); t.click(); });
 function sessSave(){ try{ sessionStorage.setItem("eufcc_sess",JSON.stringify({view:S.view,intelJud:S.intelJud||"",intelSort:S.intelSort||"",intelDir:S.intelDir||0,fin:S.fin?{sub:S.fin.sub}:null,baze:S.baze||null,calMode:S.calMode,matchClient:S.matchClient,repClient:S.repClient,adminFilter:S.adminFilter||"",adminQ:S.adminQ||""})); }catch(e){} }
 function sessLoad(){ try{ const o=JSON.parse(sessionStorage.getItem("eufcc_sess")||"null"); if(!o) return; window.__sess=o; if(o.view&&NAV.some(n=>n[0]===o.view)) S.view=o.view; if(o.intelJud) S.intelJud=o.intelJud; if(o.intelSort) S.intelSort=o.intelSort; if(o.intelDir) S.intelDir=o.intelDir; if(o.calMode) S.calMode=o.calMode; if(o.matchClient) S.matchClient=o.matchClient; if(o.repClient) S.repClient=o.repClient; if(o.adminFilter) S.adminFilter=o.adminFilter; if(o.adminQ) S.adminQ=o.adminQ; }catch(e){} }
 /* Stratul greu de date (≈7 MB necomprimat) se încarcă o singură dată, la cerere (Baze de date / Market Intel). */
@@ -195,11 +206,11 @@ function render(keep){ renderNav(); const v=S.view; const M=$("#main"); const _s
   M.innerHTML = zoneTabsHtml(v)+(gated?heavyGate(v):(f? f() : "<div class='empty'>…</div>"));
   // titlu: emoji → iconiță SVG a secțiunii
   const h1=M.querySelector(".viewtitle h1"); if(h1&&!h1.querySelector(".vi")) h1.innerHTML='<span class="vi">'+ico(v)+'</span>'+esc(h1.textContent.replace(/^[^\p{L}\p{N}\[]+/u,"").trim());
-  wrapTables(M); M.scrollTop=keep?_st:0; sessSave();
+  wrapTables(M); a11yEnhance(M); M.scrollTop=keep?_st:0; sessSave();
   if(!gated&&window["after_"+v]) window["after_"+v](); }
 
 /* ---------- drawer ---------- */
-function openDrawer(html){ const d=$("#drawer"); const was=d.classList.contains("open"); if(!was) window._drawerFocus=document.activeElement; d.innerHTML=html; d.classList.add("open"); $("#overlay").classList.add("open"); if(!was){ try{ history.pushState({drawer:1},""); }catch(e){} } const f=d.querySelector(".db .btn, .db a, .db input, .db select"); if(f) setTimeout(()=>f.focus({preventScroll:true}),60); }
+function openDrawer(html){ const d=$("#drawer"); const was=d.classList.contains("open"); if(!was) window._drawerFocus=document.activeElement; d.innerHTML=html; d.setAttribute("role","dialog"); d.setAttribute("aria-modal","true"); try{ wrapTables(d); a11yEnhance(d); }catch(e){} d.classList.add("open"); $("#overlay").classList.add("open"); if(!was){ try{ history.pushState({drawer:1},""); }catch(e){} } const f=d.querySelector(".db .btn, .db a, .db input, .db select"); if(f) setTimeout(()=>f.focus({preventScroll:true}),60); }
 function closeDrawer(){ const d=$("#drawer"); const was=d.classList.contains("open"); d.classList.remove("open"); $("#overlay").classList.remove("open"); if(was&&history.state&&history.state.drawer){ window._popSkip=true; history.back(); } if(window._drawerFocus&&window._drawerFocus.focus){ try{ window._drawerFocus.focus({preventScroll:true}); }catch(e){} } window._drawerFocus=null; }
 window.addEventListener("popstate",()=>{ if(window._popSkip){ window._popSkip=false; return; } const d=$("#drawer"); if(d&&d.classList.contains("open")){ d.classList.remove("open"); $("#overlay").classList.remove("open"); } });
 function drawerHead(title, sub){ return '<div class="dh2"><h2>'+title+(sub?'<br><small style="color:var(--muted);font-weight:400;font-size:12px">'+sub+'</small>':"")+'</h2><button class="btn small" onclick="closeDrawer()">✕ închide</button></div>'; }

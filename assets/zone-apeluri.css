@@ -41,7 +41,8 @@
 /* radar — tabel (6 coloane) și carduri */
 .ap-tblcard{padding:4px 10px}
 .ap-radar td.ttl{max-width:360px}
-.ap-radar td.ttl .src{font-size:11px}
+.ap-radar td.ttl .src{font-size:11px;display:inline-block;min-width:24px;min-height:24px;line-height:24px;text-align:center;border-radius:6px;margin:-6px 0}
+.ap-radar td.ttl .src:hover{background:var(--accent-soft)}
 .ap-radar td.ap-top{max-width:170px}
 .ap-card .hd{display:flex;justify-content:space-between;gap:6px;align-items:flex-start}
 .ap-card .hd b{font-size:13.5px}

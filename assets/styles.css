@@ -592,3 +592,9 @@ details.acc2[open]>summary::before{content:"▾"}
   body{background:#fff;color:#000}
   .card,.tile{box-shadow:none;break-inside:avoid}
 }
+
+/* ---- Accesibilitate: inel de focus uniform pentru tastatură ---- */
+.btn:focus-visible,button:focus-visible,a:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+th.sortable:focus-visible,.tbl tbody tr:focus-visible{outline-offset:-2px}
+.hbar.go:focus-visible{outline-offset:0;border-radius:6px}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}

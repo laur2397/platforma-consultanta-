@@ -152,7 +152,7 @@ function vConformitate(){ const r=REF; const RF=S.riskFilter||""; const _rr=risk
   h+='</div>';
   return h+'</div>'; }
 function ckList(key,items){ const st=S.checklists[key]=S.checklists[key]||{};
-  return '<ul class="list">'+items.map((it,i)=>'<li style="cursor:pointer" onclick="ckTg(\''+key+'\','+i+')"><span>'+(st[i]?"✅":"⬜")+'</span> <span style="'+(st[i]?"color:var(--muted);text-decoration:line-through":"")+'">'+esc(it)+'</span></li>').join("")+'</ul>'; }
+  return '<ul class="list">'+items.map((it,i)=>'<li style="cursor:pointer" role="checkbox" aria-checked="'+(st[i]?"true":"false")+'" onclick="ckTg(\''+key+'\','+i+')"><span aria-hidden="true">'+(st[i]?"✅":"⬜")+'</span> <span style="'+(st[i]?"color:var(--muted);text-decoration:line-through":"")+'">'+esc(it)+'</span></li>').join("")+'</ul>'; }
 function ckTg(key,i){ const st=S.checklists[key]=S.checklists[key]||{}; if(i>=0) st[i]=!st[i]; try{ localStorage.setItem("eufcc_checklists",JSON.stringify(S.checklists)); }catch(e){} render(true); }
 function gberAllJud(){ const g=REF.gber_harta_2022_2027||{}; return [].concat(g["60_pct"]||[],g["50_pct"]||[],g["40_pct"]||[],g["30_pct"]||[],["Ilfov","București"]).sort(); }
 function gberRender(){ const sel=$("#gberJud"); const j=(sel&&sel.value)||S.gberJud||""; const g=REF.gber_harta_2022_2027||{}; const box=$("#gberBox"); if(!box) return; box.classList.toggle("empty",!j); if(!j){ box.innerHTML="Alege județul pentru intensitatea maximă."; return; }
