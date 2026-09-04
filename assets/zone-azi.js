@@ -54,10 +54,7 @@ function vBuletin(){ const b=(META.buletin)||{}; const K=buletinKPI(); const _ra
   ref+='<details class="acc2 az-det"><summary>Lista [DE VERIFICAT] a zilei <span class="ct">'+dvN+'</span><span class="evsrc">— informații nereconfirmate la sursă</span></summary><div class="inner">'+(dvN?'<ul class="list">'+(b.de_verificat||[]).map(u=>'<li class="az-li"><span class="mk">□</span><span class="tx">'+esc(u)+'</span></li>').join("")+'</ul>':'<div class="empty">Nimic de verificat la ultima scanare.</div>')+'</div></details></div>';
   h+=tiles+'<div class="grid2 section">'+termene+urg+'</div><div class="grid2 section">'+opp+top+'</div>'+charts+ref;
   return h; }
-let tileActions=[];
-function tile(v,l,d,cls,view,pre){ const i=tileActions.length; tileActions.push({view,pre});
-  return '<div class="tile go '+(cls||"")+(String(v).length>7?" long":"")+'" tabindex="0" onkeydown="if(event.key===\'Enter\')tileGo('+i+')" onclick="tileGo('+i+')"><div class="v">'+v+'</div><div class="l">'+l+'</div><div class="d">'+d+'</div></div>'; }
-function tileGo(i){ const t=tileActions[i]; if(!t) return; if(t.pre)t.pre(); S.view=t.view; render(); }
+/* tile()/tileGo() sunt în core.js */
 /* ---------- Grafice SVG native (fără librării; culorile doar pe marcaje, textul pe tokenuri) ---------- */
 function niceTicks(mx,n){ const raw=mx/(n||3), p=Math.pow(10,Math.floor(Math.log10(raw||1))); const m=raw/p; const st=(m<=1?1:m<=2?2:m<=5?5:10)*p; const out=[]; for(let t=0;t<=mx+1e-9;t+=st) out.push(Math.round(t*1e6)/1e6); return out; }
 function chartDonut(items,opts){ opts=opts||{}; const tot=items.reduce((s,x)=>s+x.v,0)||1; const R=46,r=31,cx=52,cy=52; let a=-Math.PI/2; const C=["var(--s1)","var(--s2)","var(--s3)","var(--axis)"];

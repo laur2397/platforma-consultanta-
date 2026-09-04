@@ -174,8 +174,8 @@ function zoneTabsHtml(v){ const z=zoneOf(v); if(z[3].length<2) return ""; return
 function sheetOpen(){ $("#sheetGrid").innerHTML=NAV.map(([id,ic,l])=>'<button class="'+(S.view===id?"on":"")+'" onclick="S.view=\''+id+'\';sheetClose();render()">'+ico(id)+l+'</button>').join(""); $("#moreSheet").classList.add("open"); }
 function sheetClose(){ const s=$("#moreSheet"); if(s) s.classList.remove("open"); }
 function wrapTables(root){ (root||document).querySelectorAll("table.tbl").forEach(t=>{ if(!t.parentElement.classList.contains("tw")){ const w=document.createElement("div"); w.className="tw"; t.parentNode.insertBefore(w,t); w.appendChild(t); } }); }
-function sessSave(){ try{ sessionStorage.setItem("eufcc_sess",JSON.stringify({view:S.view,intelJud:S.intelJud||"",intelSort:S.intelSort||"",intelDir:S.intelDir||0,fin:S.fin?{sub:S.fin.sub}:null,baze:S.baze||null,calMode:S.calMode,matchClient:S.matchClient,repClient:S.repClient})); }catch(e){} }
-function sessLoad(){ try{ const o=JSON.parse(sessionStorage.getItem("eufcc_sess")||"null"); if(!o) return; window.__sess=o; if(o.view&&NAV.some(n=>n[0]===o.view)) S.view=o.view; if(o.intelJud) S.intelJud=o.intelJud; if(o.intelSort) S.intelSort=o.intelSort; if(o.intelDir) S.intelDir=o.intelDir; if(o.calMode) S.calMode=o.calMode; if(o.matchClient) S.matchClient=o.matchClient; if(o.repClient) S.repClient=o.repClient; }catch(e){} }
+function sessSave(){ try{ sessionStorage.setItem("eufcc_sess",JSON.stringify({view:S.view,intelJud:S.intelJud||"",intelSort:S.intelSort||"",intelDir:S.intelDir||0,fin:S.fin?{sub:S.fin.sub}:null,baze:S.baze||null,calMode:S.calMode,matchClient:S.matchClient,repClient:S.repClient,adminFilter:S.adminFilter||"",adminQ:S.adminQ||""})); }catch(e){} }
+function sessLoad(){ try{ const o=JSON.parse(sessionStorage.getItem("eufcc_sess")||"null"); if(!o) return; window.__sess=o; if(o.view&&NAV.some(n=>n[0]===o.view)) S.view=o.view; if(o.intelJud) S.intelJud=o.intelJud; if(o.intelSort) S.intelSort=o.intelSort; if(o.intelDir) S.intelDir=o.intelDir; if(o.calMode) S.calMode=o.calMode; if(o.matchClient) S.matchClient=o.matchClient; if(o.repClient) S.repClient=o.repClient; if(o.adminFilter) S.adminFilter=o.adminFilter; if(o.adminQ) S.adminQ=o.adminQ; }catch(e){} }
 function render(keep){ renderNav(); const v=S.view; const M=$("#main"); const _st=M.scrollTop; tileActions.length=0; if(v==="radar") radarSave();
   // pe ecrane înguste radarul se deschide în modul „carduri” până când utilizatorul alege altfel
   if(v==="radar"&&!S.radar._touched) S.radar.mode = window.innerWidth<720 ? "carduri" : "tabel";
@@ -349,7 +349,11 @@ function helpOpen(first){ const z=[["azi","Azi","Ce am de făcut azi: termene, u
   h+='<div class="callout">Regula platformei: <b>AI pregătește; omul decide.</b> Nimic nu pleacă spre AM sau client fără validarea consultantului. Fiecare regulă și fiecare apel are sursă.</div>';
   h+='<div style="margin-top:12px"><button class="btn primary" onclick="closeDrawer()">'+(first?"Începe":"Am înțeles")+'</button></div></div>';
   openDrawer(h); try{ localStorage.setItem("eufcc_seen","1"); }catch(e){} }
-/* KPI static (fără click) — aceeași formă ca tile() din zona Azi */
+let tileActions=[];
+function tile(v,l,d,cls,view,pre){ const i=tileActions.length; tileActions.push({view,pre});
+  return '<div class="tile go '+(cls||"")+(String(v).length>7?" long":"")+'" tabindex="0" onkeydown="if(event.key===\'Enter\')tileGo('+i+')" onclick="tileGo('+i+')"><div class="v">'+v+'</div><div class="l">'+l+'</div><div class="d">'+d+'</div></div>'; }
+function tileGo(i){ const t=tileActions[i]; if(!t) return; if(t.pre)t.pre(); S.view=t.view; render(); }
+/* KPI static (fără click) */
 function tileS(v,l,d,cls){ return '<div class="tile '+(cls||"")+(String(v).length>7?" long":"")+'" style="cursor:default"><div class="v">'+v+'</div><div class="l">'+l+'</div>'+(d?'<div class="d">'+d+'</div>':'')+'</div>'; }
 function emptyState(icon,title,text,actionHtml){ return '<div class="emptybig">'+(icon?'<div class="ei">'+icon+'</div>':"")+'<div class="et">'+title+'</div>'+(text?'<div class="ex">'+text+'</div>':"")+(actionHtml?'<div class="ea">'+actionHtml+'</div>':"")+'</div>'; }
 

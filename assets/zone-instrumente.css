@@ -1,1 +1,103 @@
-/* Stiluri specifice zonei instrumente — folosește tokenurile din styles.css */
+/* Stiluri specifice zonei instrumente — folosește tokenurile din styles.css. Prefix: .in- */
+
+/* sub-nav compact: etichetă scurtă + număr în .ct (o singură linie la 1440px) */
+.subnav.in-sub{gap:0;margin:0 0 14px}
+.subnav.in-sub button{padding:8px 12px;font-size:13px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.subnav.in-sub button .ct{font-size:11px;background:var(--surface2);color:var(--ink2);border-radius:99px;padding:0 7px;font-variant-numeric:tabular-nums;font-weight:600;line-height:1.5}
+.subnav.in-sub button.on .ct{background:var(--accent-soft);color:var(--accent-ink)}
+.subnav.in-sub.in-sub2{margin:0 0 12px}
+
+/* rând-sursă: o singură linie, text mic — datele își păstrează originea și data */
+.in-src{font-size:12px;color:var(--muted);margin:-4px 0 10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.in-src b{color:var(--ink2);font-weight:600}
+
+/* filtre: număr rezultate la dreapta; „mai multe filtre” compact */
+.in-count{margin-left:auto;color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.filters .in-count{margin-left:auto}
+.filters>input[type=text]{flex:1;min-width:200px;max-width:none}
+details.in-mf{margin:-4px 0 12px;background:transparent;border-style:dashed}
+details.in-mf summary{font-size:12.5px;padding:8px 14px;color:var(--ink2);display:flex;align-items:center;gap:8px}
+details.in-mf summary .ct{font-size:11px;background:var(--accent-soft);color:var(--accent-ink);border-radius:99px;padding:0 7px;font-weight:600}
+details.in-mf .inner{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:0 14px 12px}
+details.in-mf .inner select{max-width:220px}
+
+/* referință (texte explicative) — închise implicit */
+details.in-ref{margin-top:12px}
+details.in-ref summary{font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+details.in-ref summary .flag{margin-left:2px}
+details.in-ref .inner{font-size:12.5px;color:var(--ink2);line-height:1.55}
+details.in-ref .inner p{margin:0 0 8px}
+details.in-ref .inner p:last-child{margin-bottom:0}
+details.in-ref .inner b{color:var(--ink)}
+details.in-ref+details.in-ref{margin-top:0}
+
+/* card cu tabel (padding redus), buton „mai multe” */
+.card.in-tc{padding:4px 10px}
+.btn.in-more{margin:14px auto 4px;display:block}
+.in-cell-muted{color:var(--muted)}
+.in-note{font-size:12.5px;color:var(--ink2);line-height:1.5}
+.in-act{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.in-act input[type=text]{width:140px}
+
+/* Baze de date — grila celor 7 registre */
+.in-dbgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(262px,1fr));gap:12px;margin-top:12px}
+.card.in-db{display:flex;flex-direction:column;gap:6px;padding:14px 16px;min-width:0;overflow:hidden}
+.in-db .in-db-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.in-db .in-db-h b{font-size:14px;letter-spacing:-.01em}
+.in-db .in-db-ic{width:34px;height:34px;border-radius:9px;background:var(--surface2);display:grid;place-items:center;font-size:18px;line-height:1;flex-shrink:0}
+.in-db .in-db-top{display:flex;align-items:center;gap:10px}
+.in-db .in-db-n{font-size:24px;font-weight:700;letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.1;margin-top:2px}
+.in-db .in-db-n small{font-size:12px;font-weight:500;color:var(--muted);letter-spacing:0;margin-left:4px}
+.in-db .in-db-n.dim{color:var(--muted);font-size:18px}
+.in-db .in-db-t{font-size:12.5px;color:var(--ink2);line-height:1.45}
+.in-db .evsrc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:help}
+.in-db .in-db-a{margin-top:auto;padding-top:6px}
+.in-kpi-row{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+
+/* Financiar */
+.in-fintools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:-4px 0 12px;font-size:12.5px;color:var(--ink2)}
+.in-fintools label{display:inline-flex;align-items:center;gap:6px}
+.in-fintools input[type=number]{width:84px;padding:5px 8px}
+.in-fintools .evsrc{margin-left:auto}
+.in-fin tr.in-grp td{background:var(--surface2);color:var(--ink2);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;padding:7px 9px}
+.in-fin td.in-row{color:var(--muted);font-size:11px;white-space:nowrap}
+.in-fin td.in-lbl{font-size:12.5px}
+.in-fin td.in-in{width:120px}
+.in-fin input.finin,.in-fin input.in-txt,.in-fin select.in-sel{padding:5px 7px;border:1px solid var(--grid);border-radius:6px;background:var(--surface2);color:var(--ink);font-size:12.5px}
+.in-fin input.in-txt{width:100%}
+.in-fin input.in-num{width:100%;text-align:right;font-variant-numeric:tabular-nums}
+.filters.in-cfg label{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2)}
+.filters.in-cfg .finin{width:110px}
+.in-res{font-size:22px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+.in-res.acc{color:var(--accent)}
+.in-res-l{font-size:12.5px;color:var(--ink2);margin-top:4px}
+.in-hl td{background:rgba(208,59,59,.06)}
+.in-mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+
+/* Administrare */
+.in-adm-src small{display:block;color:var(--muted);font-size:11px}
+.in-adm-ok{color:var(--good-text)}
+.in-legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:5px 16px;font-size:12px;color:var(--ink2)}
+.in-legend b{color:var(--accent-deep)}
+
+@media(max-width:900px){
+  .in-fin td.in-lbl{min-width:150px}
+  .in-fin td.in-in{width:96px;min-width:96px}
+  .in-fintools .evsrc{margin-left:0;flex:1 1 100%}
+  .in-src{margin-top:0}
+  .in-dbgrid{grid-template-columns:1fr}
+  .in-count{flex:1 1 100%;text-align:right;margin-left:0}
+  .filters>input[type=text]{flex:1 1 100%}
+  details.in-mf .inner select{max-width:100%;flex:1 1 100%}
+  .in-zone .hbar .vv{white-space:normal;font-size:11.5px;line-height:1.25}
+}
+
+/* antet de card (cardHead) în afara unui .section: aceeași etichetă mică, uppercase, ca .card>h2 */
+.in-zone .chd h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;margin-bottom:0}
+.in-zone .chd h2 .ct{text-transform:none;letter-spacing:0}
+/* tile-urile informative (fără acțiune) nu sunt clicabile */
+.in-zone .tiles .tile:not(.go){cursor:default}
+.in-zone .tiles .tile:not(.go):hover{transform:none;box-shadow:var(--shadow)}
+/* text în .list li (flex): un singur bloc, nu fragmente */
+.in-lt{flex:1;min-width:0}
+.in-deviz-side .tiles{grid-template-columns:1fr 1fr}
