@@ -42,6 +42,8 @@ Snapshot-ul apelurilor e din 1 august 2026 — ~2 săptămâni vechime, fără r
 | 🗄️ Baze de date | funcțional | 7 registre publice + export CSV |
 | ⚙️ Administrare | funcțional | surse, export/import JSON, jurnal |
 
+**IA v3 + redesign pe zone (sept. 2026):** 5 zone (Azi · Apeluri · Clienți · Proiecte · Instrumente) cu tab-uri în pagină; fiecare pagină pe același șablon (o acțiune primară + meniu ⋯, un callout, eroul vizibil, referința pliată) — vezi `docs/DESIGN_BRIEF.md`; ghid „?” + bun venit la prima vizită; cod împărțit în module pe zone; datele grele se încarcă la cerere (7 MB → ~130 KB la pornire).
+
 **Design v2 (sept. 2026):** sistem vizual nou — Inter, sidebar navy cu iconițe SVG, KPI cu accent de stare, grafice SVG native (donut / coloane / bare) cu paletă validată CVD, dark mode selectat, tab-bar mobil + foaie „Mai mult”, tabele derulabile pe telefon (bug: meniul nu apărea deloc sub 900px — reparat).
 
 Extra (nu în meniu): asistent AI Gemini (cheia ta), scanare web live, PWA offline, service worker. În auditul de azi: **8 bug-uri reparate** (inclusiv o eroare care marca greșit o microîntreprindere eligibilă drept „neconform").
