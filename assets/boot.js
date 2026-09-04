@@ -19,6 +19,8 @@ window.__reboot=function(){ MATCH=null; IX=null; render(); };
   $("#firmName").textContent=(META.firma||{}).nume||"";
   $("#stampBox").innerHTML="radar: "+esc(fmtD(String((DB.apeluri||{}).extras_la||"").slice(0,10)))+(function(){const a=radarAge();return a?' · <b style="color:'+radarAgeColor(a.cls)+'">acum '+a.zile+'z</b>':'';})()+"<br>v"+esc(META.versiune||"1");
   const hb=$("#btnHelp"); if(hb) hb.onclick=()=>helpOpen(false);
+  /* pe telefon căsuța e îngustă: placeholder scurt (textul lung se tăia la „Caută apel”) */
+  (function(){ const gs=$("#globalSearch"); if(!gs) return; const full=gs.placeholder; const fit=()=>{ gs.placeholder = window.innerWidth<900 ? "Caută…" : full; }; fit(); window.addEventListener("resize",fit); })();
   hookSearch(); render();
   try{ if(!localStorage.getItem("eufcc_seen")) setTimeout(()=>helpOpen(true),600); }catch(e){}
 })();
