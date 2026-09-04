@@ -162,7 +162,7 @@ const ZONES=[["azi","Azi","buletin",["buletin"],"buletin"],["apeluri","Apeluri",
 const VIEW_SHORT={buletin:"Azi",radar:"Radar",calendar:"Calendar",matching:"Matching",biblioteca:"Bibliotecă",clienti:"CRM clienți",prospect:"Prospect ONRC",intel:"Market Intel",pipeline:"Pipeline",verif:"Verificare proiect",rapoarte:"Rapoarte",conformitate:"Conformitate",financiar:"Financiar",baze:"Baze de date",admin:"Administrare"};
 function zoneOf(view){ return ZONES.find(z=>z[3].includes(view))||ZONES[0]; }
 function zoneGo(zid){ const z=ZONES.find(x=>x[0]===zid); if(!z) return; S.lastIn=S.lastIn||{}; S.view=(S.lastIn[zid]&&z[3].includes(S.lastIn[zid]))?S.lastIn[zid]:z[2]; render(); }
-function zoneCount(z){ return z[3].reduce((s,v)=>{ const c=navCounts(v); return s+(typeof c==="number"?c:0); },0)||null; }
+function zoneCount(z){ const m={apeluri:"radar",clienti:"clienti",proiecte:"pipeline"}; return m[z[0]]?navCounts(m[z[0]]):null; }
 function renderNav(){ const cur=zoneOf(S.view);
   $("#nav").innerHTML=ZONES.map(z=>{ const on=z[0]===cur[0]; const cnt=on?null:zoneCount(z);
     return '<li><button class="zone'+(on?" on":"")+'" data-z="'+z[0]+'">'+ico(z[4])+z[1]+(cnt!=null&&z[3].length>1?'<span class="ct">'+cnt+'</span>':"")+'</button>'+(on&&z[3].length>1?'<ul class="subnavi">'+z[3].map(v=>{ const c=navCounts(v); return '<li><button class="sub'+(S.view===v?" on":"")+'" data-v="'+v+'">'+VIEW_SHORT[v]+(c!=null?'<span class="ct">'+c+'</span>':"")+'</button></li>'; }).join("")+'</ul>':"")+'</li>'; }).join("");
