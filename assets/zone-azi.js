@@ -14,7 +14,7 @@ function vBuletin(){ const b=(META.buletin)||{}; const K=buletinKPI(); const _ra
   // titlul din META („Buletinul zilei — 2 septembrie 2026 (scanare web live 02.09)”) → h1 scurt + restul în .sub (textul complet rămâne în copyBuletin)
   const titlu=(b.titlu||"Buletinul zilei"); const t1=titlu.split(" (")[0], t2=titlu.includes(" (")?titlu.slice(titlu.indexOf(" (")+2).replace(/\)$/,""):"";
   const parts=t1.split(/\s+[—–]\s+/); const h1t=parts[0]||"Buletinul zilei"; const dt=parts.slice(1).join(" — ");
-  const sub=[dt,t2,A.length+' apeluri din '+SURSE.length+' surse'].filter(Boolean).map(esc).join(' · ')+(_ra?' · <b class="az-age '+_ra.cls+'">scanat acum '+_ra.zile+' '+(_ra.zile===1?"zi":"zile")+'</b>':"");
+  const sub=[dt,t2,A.length+' apeluri din '+SURSE.length+' surse'].filter(Boolean).map(esc).join(' · ')+(_ra?' · <b class="az-age '+_ra.cls+'">'+(_ra.zile===0?'scanat azi':'scanat acum '+_ra.zile+' '+(_ra.zile===1?"zi":"zile"))+'</b>':"");
   let h='<div class="viewtitle"><h1>'+esc(h1t)+'</h1><span class="sub">'+sub+'</span><div class="viewactions az-va"><button class="btn small primary" onclick="copyBuletin()">📋 Copiază buletinul</button>'+moreMenu([["⬇ Export .ics (termene, alertă T-7)","exportICS()"],["📡 Deschide Radarul","S.view='radar';render()"]])+'</div></div>';
   // un singur callout de stare: prospețimea datelor
   if(_ra && _ra.zile>7) h+='<div class="callout warn">⏳ <b>Date vechi de '+_ra.zile+' zile</b> (scanate '+esc(exDate)+'). Termenele apelurilor se pot schimba — cere «scanează acum» în conversație.</div>';

@@ -1,7 +1,7 @@
 # EU Funds Command Center — Stadiu & Foaie de parcurs
 
 *Radiografie generată din audit automat (3 agenți), 15 august 2026.*
-Live: https://laur2397.github.io/platforma-consultanta-/ · Versiune date 1.5 · Radar extras 01.08.2026
+Live: https://laur2397.github.io/platforma-consultanta-/ · Versiune date 1.7 · Radar verificat 05.10.2026 (scanare la cerere)
 
 ---
 
@@ -11,7 +11,7 @@ Stratul public/de referință e real și substanțial; clienții tăi sunt înc�
 
 | Dataset | Nr. | Stare |
 |---|---|---|
-| Apeluri de finanțare | 93 | real · verificat cu surse |
+| Apeluri de finanțare | 120 | real · verificat cu surse (34 nereconfirmate la 05.10, marcate [DE VERIFICAT]) |
 | Primării (toate județele) | 3.181 | real · liveness, telefoane, email |
 | Proiecte contractate MIPE | 16.937 | real |
 | Achiziții SICAP | 2.000 | real · eșantion |
@@ -20,7 +20,7 @@ Stratul public/de referință e real și substanțial; clienții tăi sunt înc�
 | Proiecte în pipeline | 8 | **demo** |
 | ONRC (registrul firmelor) | — | **local · îl încarci tu** |
 
-Snapshot-ul apelurilor e din 1 august 2026 — ~2 săptămâni vechime, fără refresh automat.
+Snapshot-ul apelurilor e din 5 octombrie 2026; fără refresh automat (actualizare doar la cerere).
 
 ## 2. Cele 15 secțiuni — stare reală (12/15 funcționale)
 
